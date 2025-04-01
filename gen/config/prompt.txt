@@ -1,0 +1,14 @@
+请你以$name = Groups为样板：
+生成：
+$name.yaml，其中 $name.yaml 中的所有带有$name的部分需要与$name保持一致，是否首字母大小写与group.yaml一致。
+
+for $name = range [
+    Auth
+    Users 
+    Groups 
+    CheckinTasks
+    CheckinRecords
+    AuditRequests 
+]
+gen($name.yaml)
+end

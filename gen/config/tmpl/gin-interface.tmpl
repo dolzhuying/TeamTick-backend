@@ -1,0 +1,9 @@
+{{$firstOp := index . 0}}
+{{$tagPrefix := index $firstOp.Spec.Tags 0}}
+// {{$tagPrefix}}ServerInterface 代表所有服务器处理程序。
+type {{$tagPrefix}}ServerInterface interface {
+{{range .}}{{.SummaryAsComment }}
+// ({{.Method}} {{.Path}})
+{{.OperationId}}(c *gin.Context{{genParamArgs .PathParams}}{{if .RequiresParamObject}}, params {{.OperationId}}Params{{end}})
+{{end}}
+}

@@ -7,7 +7,7 @@
       "command": "powershell",
       "args": [
         "-Command",
-        "cd ${workspaceFolder}/gen; oapi-codegen --config api.yaml http://127.0.0.1:4523/export/openapi/2?version=3.0; oapi-codegen --config model.yaml http://127.0.0.1:4523/export/openapi/2?version=3.0"
+        "cd ${workspaceFolder}/gen/config; Get-ChildItem -Path . -Filter *.yaml | ForEach-Object { oapi-codegen --config $_.FullName http://127.0.0.1:4523/export/openapi/2?version=3.0 }"
       ],
       "problemMatcher": [],
       "group": {

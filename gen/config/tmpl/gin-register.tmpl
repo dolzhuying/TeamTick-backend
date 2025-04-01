@@ -1,0 +1,35 @@
+{{$firstOp := index . 0}}
+{{$tagPrefix := index $firstOp.Spec.Tags 0}}
+// {{$tagPrefix}}GinServerOptions 提供 Gin 服务器的选项。
+type {{$tagPrefix}}GinServerOptions struct {
+    BaseURL string
+    Middlewares []{{$tagPrefix}}MiddlewareFunc
+    ErrorHandler func(*gin.Context, error, int)
+}
+
+// Register{{$tagPrefix}}Handlers 创建与 OpenAPI 规范匹配的 http.Handler 路由。
+func Register{{$tagPrefix}}Handlers(router gin.IRouter, si {{$tagPrefix}}ServerInterface) {
+  Register{{$tagPrefix}}HandlersWithOptions(router, si, {{$tagPrefix}}GinServerOptions{})
+}
+
+// Register{{$tagPrefix}}HandlersWithOptions 创建带有附加选项的 http.Handler
+func Register{{$tagPrefix}}HandlersWithOptions(router gin.IRouter, si {{$tagPrefix}}ServerInterface, options {{$tagPrefix}}GinServerOptions) {
+    {{- if . -}}
+    errorHandler := options.ErrorHandler
+    if errorHandler == nil {
+        errorHandler = func(c *gin.Context, err error, statusCode int) {
+            c.JSON(statusCode, gin.H{"msg": err.Error()})
+        }
+    }
+
+    wrapper := {{$tagPrefix}}ServerInterfaceWrapper{
+        Handler: si,
+        HandlerMiddlewares: options.Middlewares,
+        ErrorHandler: errorHandler,
+    }
+    {{end}}
+
+    {{range . -}}
+    router.{{.Method }}(options.BaseURL+"{{.Path | swaggerUriToGinUri }}", wrapper.{{.OperationId}})
+    {{end -}}
+}

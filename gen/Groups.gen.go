@@ -14,14 +14,8 @@ import (
 	strictgin "github.com/oapi-codegen/runtime/strictmiddleware/gin"
 )
 
-// ServerInterface represents all server handlers.
-type ServerInterface interface {
-	// 用户登录
-	// (POST /auth/login)
-	PostAuthLogin(c *gin.Context)
-	// 用户注册
-	// (POST /auth/register)
-	PostAuthRegister(c *gin.Context)
+// GroupsServerInterface 代表所有服务器处理程序。
+type GroupsServerInterface interface {
 	// 获取用户相关的用户组列表
 	// (GET /groups)
 	GetGroups(c *gin.Context, params GetGroupsParams)
@@ -52,59 +46,30 @@ type ServerInterface interface {
 	// 移除用户组成员
 	// (DELETE /groups/{groupId}/members/{userId})
 	DeleteGroupsGroupIdMembersUserId(c *gin.Context, groupId int64, userId int64)
-	// 获取当前用户信息
-	// (GET /users/me)
-	GetUsersMe(c *gin.Context)
 }
 
-// ServerInterfaceWrapper converts contexts to parameters.
-type ServerInterfaceWrapper struct {
-	Handler            ServerInterface
-	HandlerMiddlewares []MiddlewareFunc
+// GroupsServerInterfaceWrapper 将上下文转换为参数。
+type GroupsServerInterfaceWrapper struct {
+	Handler            GroupsServerInterface
+	HandlerMiddlewares []GroupsMiddlewareFunc
 	ErrorHandler       func(*gin.Context, error, int)
 }
 
-type MiddlewareFunc func(c *gin.Context)
+type GroupsMiddlewareFunc func(c *gin.Context)
 
-// PostAuthLogin operation middleware
-func (siw *ServerInterfaceWrapper) PostAuthLogin(c *gin.Context) {
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		middleware(c)
-		if c.IsAborted() {
-			return
-		}
-	}
-
-	siw.Handler.PostAuthLogin(c)
-}
-
-// PostAuthRegister operation middleware
-func (siw *ServerInterfaceWrapper) PostAuthRegister(c *gin.Context) {
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		middleware(c)
-		if c.IsAborted() {
-			return
-		}
-	}
-
-	siw.Handler.PostAuthRegister(c)
-}
-
-// GetGroups operation middleware
-func (siw *ServerInterfaceWrapper) GetGroups(c *gin.Context) {
+// GetGroups 操作中间件
+func (siw *GroupsServerInterfaceWrapper) GetGroups(c *gin.Context) {
 
 	var err error
 
-	// Parameter object where we will unmarshal all parameters from the context
+	// 参数对象，我们将从上下文中解析所有参数到此对象
 	var params GetGroupsParams
 
-	// ------------- Optional query parameter "filter" -------------
+	// ------------- 可选查询参数 "filter" -------------
 
 	err = runtime.BindQueryParameter("form", true, false, "filter", c.Request.URL.Query(), &params.Filter)
 	if err != nil {
-		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter filter: %w", err), http.StatusBadRequest)
+		siw.ErrorHandler(c, fmt.Errorf("参数 filter 格式无效: %w", err), http.StatusBadRequest)
 		return
 	}
 
@@ -118,8 +83,8 @@ func (siw *ServerInterfaceWrapper) GetGroups(c *gin.Context) {
 	siw.Handler.GetGroups(c, params)
 }
 
-// PostGroups operation middleware
-func (siw *ServerInterfaceWrapper) PostGroups(c *gin.Context) {
+// PostGroups 操作中间件
+func (siw *GroupsServerInterfaceWrapper) PostGroups(c *gin.Context) {
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		middleware(c)
@@ -131,26 +96,26 @@ func (siw *ServerInterfaceWrapper) PostGroups(c *gin.Context) {
 	siw.Handler.PostGroups(c)
 }
 
-// GetGroupsSearch operation middleware
-func (siw *ServerInterfaceWrapper) GetGroupsSearch(c *gin.Context) {
+// GetGroupsSearch 操作中间件
+func (siw *GroupsServerInterfaceWrapper) GetGroupsSearch(c *gin.Context) {
 
 	var err error
 
-	// Parameter object where we will unmarshal all parameters from the context
+	// 参数对象，我们将从上下文中解析所有参数到此对象
 	var params GetGroupsSearchParams
 
-	// ------------- Required query parameter "exactId" -------------
+	// ------------- 必需查询参数 "exactId" -------------
 
 	if paramValue := c.Query("exactId"); paramValue != "" {
 
 	} else {
-		siw.ErrorHandler(c, fmt.Errorf("Query argument exactId is required, but not found"), http.StatusBadRequest)
+		siw.ErrorHandler(c, fmt.Errorf("必需的查询参数 exactId 未找到"), http.StatusBadRequest)
 		return
 	}
 
 	err = runtime.BindQueryParameter("form", true, true, "exactId", c.Request.URL.Query(), &params.ExactId)
 	if err != nil {
-		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter exactId: %w", err), http.StatusBadRequest)
+		siw.ErrorHandler(c, fmt.Errorf("参数 exactId 格式无效: %w", err), http.StatusBadRequest)
 		return
 	}
 
@@ -164,17 +129,17 @@ func (siw *ServerInterfaceWrapper) GetGroupsSearch(c *gin.Context) {
 	siw.Handler.GetGroupsSearch(c, params)
 }
 
-// GetGroupsGroupId operation middleware
-func (siw *ServerInterfaceWrapper) GetGroupsGroupId(c *gin.Context) {
+// GetGroupsGroupId 操作中间件
+func (siw *GroupsServerInterfaceWrapper) GetGroupsGroupId(c *gin.Context) {
 
 	var err error
 
-	// ------------- Path parameter "groupId" -------------
+	// ------------- 路径参数 "groupId" -------------
 	var groupId int64
 
 	err = runtime.BindStyledParameterWithOptions("simple", "groupId", c.Param("groupId"), &groupId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
 	if err != nil {
-		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter groupId: %w", err), http.StatusBadRequest)
+		siw.ErrorHandler(c, fmt.Errorf("参数 groupId 格式无效: %w", err), http.StatusBadRequest)
 		return
 	}
 
@@ -188,17 +153,17 @@ func (siw *ServerInterfaceWrapper) GetGroupsGroupId(c *gin.Context) {
 	siw.Handler.GetGroupsGroupId(c, groupId)
 }
 
-// PutGroupsGroupId operation middleware
-func (siw *ServerInterfaceWrapper) PutGroupsGroupId(c *gin.Context) {
+// PutGroupsGroupId 操作中间件
+func (siw *GroupsServerInterfaceWrapper) PutGroupsGroupId(c *gin.Context) {
 
 	var err error
 
-	// ------------- Path parameter "groupId" -------------
+	// ------------- 路径参数 "groupId" -------------
 	var groupId int64
 
 	err = runtime.BindStyledParameterWithOptions("simple", "groupId", c.Param("groupId"), &groupId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
 	if err != nil {
-		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter groupId: %w", err), http.StatusBadRequest)
+		siw.ErrorHandler(c, fmt.Errorf("参数 groupId 格式无效: %w", err), http.StatusBadRequest)
 		return
 	}
 
@@ -212,28 +177,28 @@ func (siw *ServerInterfaceWrapper) PutGroupsGroupId(c *gin.Context) {
 	siw.Handler.PutGroupsGroupId(c, groupId)
 }
 
-// GetGroupsGroupIdJoinRequests operation middleware
-func (siw *ServerInterfaceWrapper) GetGroupsGroupIdJoinRequests(c *gin.Context) {
+// GetGroupsGroupIdJoinRequests 操作中间件
+func (siw *GroupsServerInterfaceWrapper) GetGroupsGroupIdJoinRequests(c *gin.Context) {
 
 	var err error
 
-	// ------------- Path parameter "groupId" -------------
+	// ------------- 路径参数 "groupId" -------------
 	var groupId int64
 
 	err = runtime.BindStyledParameterWithOptions("simple", "groupId", c.Param("groupId"), &groupId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
 	if err != nil {
-		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter groupId: %w", err), http.StatusBadRequest)
+		siw.ErrorHandler(c, fmt.Errorf("参数 groupId 格式无效: %w", err), http.StatusBadRequest)
 		return
 	}
 
-	// Parameter object where we will unmarshal all parameters from the context
+	// 参数对象，我们将从上下文中解析所有参数到此对象
 	var params GetGroupsGroupIdJoinRequestsParams
 
-	// ------------- Optional query parameter "status" -------------
+	// ------------- 可选查询参数 "status" -------------
 
 	err = runtime.BindQueryParameter("form", true, false, "status", c.Request.URL.Query(), &params.Status)
 	if err != nil {
-		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter status: %w", err), http.StatusBadRequest)
+		siw.ErrorHandler(c, fmt.Errorf("参数 status 格式无效: %w", err), http.StatusBadRequest)
 		return
 	}
 
@@ -247,17 +212,17 @@ func (siw *ServerInterfaceWrapper) GetGroupsGroupIdJoinRequests(c *gin.Context) 
 	siw.Handler.GetGroupsGroupIdJoinRequests(c, groupId, params)
 }
 
-// PostGroupsGroupIdJoinRequests operation middleware
-func (siw *ServerInterfaceWrapper) PostGroupsGroupIdJoinRequests(c *gin.Context) {
+// PostGroupsGroupIdJoinRequests 操作中间件
+func (siw *GroupsServerInterfaceWrapper) PostGroupsGroupIdJoinRequests(c *gin.Context) {
 
 	var err error
 
-	// ------------- Path parameter "groupId" -------------
+	// ------------- 路径参数 "groupId" -------------
 	var groupId int64
 
 	err = runtime.BindStyledParameterWithOptions("simple", "groupId", c.Param("groupId"), &groupId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
 	if err != nil {
-		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter groupId: %w", err), http.StatusBadRequest)
+		siw.ErrorHandler(c, fmt.Errorf("参数 groupId 格式无效: %w", err), http.StatusBadRequest)
 		return
 	}
 
@@ -271,26 +236,26 @@ func (siw *ServerInterfaceWrapper) PostGroupsGroupIdJoinRequests(c *gin.Context)
 	siw.Handler.PostGroupsGroupIdJoinRequests(c, groupId)
 }
 
-// PutGroupsGroupIdJoinRequestsRequestId operation middleware
-func (siw *ServerInterfaceWrapper) PutGroupsGroupIdJoinRequestsRequestId(c *gin.Context) {
+// PutGroupsGroupIdJoinRequestsRequestId 操作中间件
+func (siw *GroupsServerInterfaceWrapper) PutGroupsGroupIdJoinRequestsRequestId(c *gin.Context) {
 
 	var err error
 
-	// ------------- Path parameter "groupId" -------------
+	// ------------- 路径参数 "groupId" -------------
 	var groupId int64
 
 	err = runtime.BindStyledParameterWithOptions("simple", "groupId", c.Param("groupId"), &groupId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
 	if err != nil {
-		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter groupId: %w", err), http.StatusBadRequest)
+		siw.ErrorHandler(c, fmt.Errorf("参数 groupId 格式无效: %w", err), http.StatusBadRequest)
 		return
 	}
 
-	// ------------- Path parameter "requestId" -------------
+	// ------------- 路径参数 "requestId" -------------
 	var requestId int64
 
 	err = runtime.BindStyledParameterWithOptions("simple", "requestId", c.Param("requestId"), &requestId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
 	if err != nil {
-		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter requestId: %w", err), http.StatusBadRequest)
+		siw.ErrorHandler(c, fmt.Errorf("参数 requestId 格式无效: %w", err), http.StatusBadRequest)
 		return
 	}
 
@@ -304,17 +269,17 @@ func (siw *ServerInterfaceWrapper) PutGroupsGroupIdJoinRequestsRequestId(c *gin.
 	siw.Handler.PutGroupsGroupIdJoinRequestsRequestId(c, groupId, requestId)
 }
 
-// GetGroupsGroupIdMembers operation middleware
-func (siw *ServerInterfaceWrapper) GetGroupsGroupIdMembers(c *gin.Context) {
+// GetGroupsGroupIdMembers 操作中间件
+func (siw *GroupsServerInterfaceWrapper) GetGroupsGroupIdMembers(c *gin.Context) {
 
 	var err error
 
-	// ------------- Path parameter "groupId" -------------
+	// ------------- 路径参数 "groupId" -------------
 	var groupId int64
 
 	err = runtime.BindStyledParameterWithOptions("simple", "groupId", c.Param("groupId"), &groupId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
 	if err != nil {
-		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter groupId: %w", err), http.StatusBadRequest)
+		siw.ErrorHandler(c, fmt.Errorf("参数 groupId 格式无效: %w", err), http.StatusBadRequest)
 		return
 	}
 
@@ -328,26 +293,26 @@ func (siw *ServerInterfaceWrapper) GetGroupsGroupIdMembers(c *gin.Context) {
 	siw.Handler.GetGroupsGroupIdMembers(c, groupId)
 }
 
-// DeleteGroupsGroupIdMembersUserId operation middleware
-func (siw *ServerInterfaceWrapper) DeleteGroupsGroupIdMembersUserId(c *gin.Context) {
+// DeleteGroupsGroupIdMembersUserId 操作中间件
+func (siw *GroupsServerInterfaceWrapper) DeleteGroupsGroupIdMembersUserId(c *gin.Context) {
 
 	var err error
 
-	// ------------- Path parameter "groupId" -------------
+	// ------------- 路径参数 "groupId" -------------
 	var groupId int64
 
 	err = runtime.BindStyledParameterWithOptions("simple", "groupId", c.Param("groupId"), &groupId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
 	if err != nil {
-		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter groupId: %w", err), http.StatusBadRequest)
+		siw.ErrorHandler(c, fmt.Errorf("参数 groupId 格式无效: %w", err), http.StatusBadRequest)
 		return
 	}
 
-	// ------------- Path parameter "userId" -------------
+	// ------------- 路径参数 "userId" -------------
 	var userId int64
 
 	err = runtime.BindStyledParameterWithOptions("simple", "userId", c.Param("userId"), &userId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
 	if err != nil {
-		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter userId: %w", err), http.StatusBadRequest)
+		siw.ErrorHandler(c, fmt.Errorf("参数 userId 格式无效: %w", err), http.StatusBadRequest)
 		return
 	}
 
@@ -361,33 +326,20 @@ func (siw *ServerInterfaceWrapper) DeleteGroupsGroupIdMembersUserId(c *gin.Conte
 	siw.Handler.DeleteGroupsGroupIdMembersUserId(c, groupId, userId)
 }
 
-// GetUsersMe operation middleware
-func (siw *ServerInterfaceWrapper) GetUsersMe(c *gin.Context) {
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		middleware(c)
-		if c.IsAborted() {
-			return
-		}
-	}
-
-	siw.Handler.GetUsersMe(c)
-}
-
-// GinServerOptions provides options for the Gin server.
-type GinServerOptions struct {
+// GroupsGinServerOptions 提供 Gin 服务器的选项。
+type GroupsGinServerOptions struct {
 	BaseURL      string
-	Middlewares  []MiddlewareFunc
+	Middlewares  []GroupsMiddlewareFunc
 	ErrorHandler func(*gin.Context, error, int)
 }
 
-// RegisterHandlers creates http.Handler with routing matching OpenAPI spec.
-func RegisterHandlers(router gin.IRouter, si ServerInterface) {
-	RegisterHandlersWithOptions(router, si, GinServerOptions{})
+// RegisterGroupsHandlers 创建与 OpenAPI 规范匹配的 http.Handler 路由。
+func RegisterGroupsHandlers(router gin.IRouter, si GroupsServerInterface) {
+	RegisterGroupsHandlersWithOptions(router, si, GroupsGinServerOptions{})
 }
 
-// RegisterHandlersWithOptions creates http.Handler with additional options
-func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options GinServerOptions) {
+// RegisterGroupsHandlersWithOptions 创建带有附加选项的 http.Handler
+func RegisterGroupsHandlersWithOptions(router gin.IRouter, si GroupsServerInterface, options GroupsGinServerOptions) {
 	errorHandler := options.ErrorHandler
 	if errorHandler == nil {
 		errorHandler = func(c *gin.Context, err error, statusCode int) {
@@ -395,14 +347,12 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 		}
 	}
 
-	wrapper := ServerInterfaceWrapper{
+	wrapper := GroupsServerInterfaceWrapper{
 		Handler:            si,
 		HandlerMiddlewares: options.Middlewares,
 		ErrorHandler:       errorHandler,
 	}
 
-	router.POST(options.BaseURL+"/auth/login", wrapper.PostAuthLogin)
-	router.POST(options.BaseURL+"/auth/register", wrapper.PostAuthRegister)
 	router.GET(options.BaseURL+"/groups", wrapper.GetGroups)
 	router.POST(options.BaseURL+"/groups", wrapper.PostGroups)
 	router.GET(options.BaseURL+"/groups/search", wrapper.GetGroupsSearch)
@@ -413,104 +363,6 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.PUT(options.BaseURL+"/groups/:groupId/join-requests/:requestId", wrapper.PutGroupsGroupIdJoinRequestsRequestId)
 	router.GET(options.BaseURL+"/groups/:groupId/members", wrapper.GetGroupsGroupIdMembers)
 	router.DELETE(options.BaseURL+"/groups/:groupId/members/:userId", wrapper.DeleteGroupsGroupIdMembersUserId)
-	router.GET(options.BaseURL+"/users/me", wrapper.GetUsersMe)
-}
-
-type PostAuthLoginRequestObject struct {
-	Body *PostAuthLoginJSONRequestBody
-}
-
-type PostAuthLoginResponseObject interface {
-	VisitPostAuthLoginResponse(w http.ResponseWriter) error
-}
-
-type PostAuthLogin200JSONResponse struct {
-	Code string `json:"code"`
-	Data struct {
-		// Token JWT 令牌
-		Token *string `json:"token,omitempty"`
-
-		// UserId 用户ID
-		UserId *int64 `json:"userId,omitempty"`
-
-		// Username 用户名
-		Username *string `json:"username,omitempty"`
-	} `json:"data"`
-}
-
-func (response PostAuthLogin200JSONResponse) VisitPostAuthLoginResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type PostAuthLogin400JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
-
-func (response PostAuthLogin400JSONResponse) VisitPostAuthLoginResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(400)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type PostAuthLogin401JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
-
-func (response PostAuthLogin401JSONResponse) VisitPostAuthLoginResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(401)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type PostAuthRegisterRequestObject struct {
-	Body *PostAuthRegisterJSONRequestBody
-}
-
-type PostAuthRegisterResponseObject interface {
-	VisitPostAuthRegisterResponse(w http.ResponseWriter) error
-}
-
-type PostAuthRegister201JSONResponse struct {
-	Code string `json:"code"`
-	Data User   `json:"data"`
-}
-
-func (response PostAuthRegister201JSONResponse) VisitPostAuthRegisterResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(201)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type PostAuthRegister400JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
-
-func (response PostAuthRegister400JSONResponse) VisitPostAuthRegisterResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(400)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type PostAuthRegister409JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
-
-func (response PostAuthRegister409JSONResponse) VisitPostAuthRegisterResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(409)
-
-	return json.NewEncoder(w).Encode(response)
 }
 
 type GetGroupsRequestObject struct {
@@ -1113,45 +965,8 @@ func (response DeleteGroupsGroupIdMembersUserId404JSONResponse) VisitDeleteGroup
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetUsersMeRequestObject struct {
-}
-
-type GetUsersMeResponseObject interface {
-	VisitGetUsersMeResponse(w http.ResponseWriter) error
-}
-
-type GetUsersMe200JSONResponse struct {
-	Code string `json:"code"`
-	Data User   `json:"data"`
-}
-
-func (response GetUsersMe200JSONResponse) VisitGetUsersMeResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type GetUsersMe401JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
-
-func (response GetUsersMe401JSONResponse) VisitGetUsersMeResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(401)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-// StrictServerInterface represents all server handlers.
-type StrictServerInterface interface {
-	// 用户登录
-	// (POST /auth/login)
-	PostAuthLogin(ctx context.Context, request PostAuthLoginRequestObject) (PostAuthLoginResponseObject, error)
-	// 用户注册
-	// (POST /auth/register)
-	PostAuthRegister(ctx context.Context, request PostAuthRegisterRequestObject) (PostAuthRegisterResponseObject, error)
+// GroupsStrictServerInterface represents all server handlers.
+type GroupsStrictServerInterface interface {
 	// 获取用户相关的用户组列表
 	// (GET /groups)
 	GetGroups(ctx context.Context, request GetGroupsRequestObject) (GetGroupsResponseObject, error)
@@ -1182,91 +997,22 @@ type StrictServerInterface interface {
 	// 移除用户组成员
 	// (DELETE /groups/{groupId}/members/{userId})
 	DeleteGroupsGroupIdMembersUserId(ctx context.Context, request DeleteGroupsGroupIdMembersUserIdRequestObject) (DeleteGroupsGroupIdMembersUserIdResponseObject, error)
-	// 获取当前用户信息
-	// (GET /users/me)
-	GetUsersMe(ctx context.Context, request GetUsersMeRequestObject) (GetUsersMeResponseObject, error)
 }
 
-type StrictHandlerFunc = strictgin.StrictGinHandlerFunc
-type StrictMiddlewareFunc = strictgin.StrictGinMiddlewareFunc
+type GroupsStrictHandlerFunc = strictgin.StrictGinHandlerFunc
+type GroupsStrictMiddlewareFunc = strictgin.StrictGinMiddlewareFunc
 
-func NewStrictHandler(ssi StrictServerInterface, middlewares []StrictMiddlewareFunc) ServerInterface {
-	return &strictHandler{ssi: ssi, middlewares: middlewares}
+func NewGroupsStrictHandler(ssi GroupsStrictServerInterface, middlewares []GroupsStrictMiddlewareFunc) GroupsServerInterface {
+	return &GroupsstrictHandler{ssi: ssi, middlewares: middlewares}
 }
 
-type strictHandler struct {
-	ssi         StrictServerInterface
-	middlewares []StrictMiddlewareFunc
+type GroupsstrictHandler struct {
+	ssi         GroupsStrictServerInterface
+	middlewares []GroupsStrictMiddlewareFunc
 }
 
-// PostAuthLogin operation middleware
-func (sh *strictHandler) PostAuthLogin(ctx *gin.Context) {
-	var request PostAuthLoginRequestObject
-
-	var body PostAuthLoginJSONRequestBody
-	if err := ctx.ShouldBindJSON(&body); err != nil {
-		ctx.Status(http.StatusBadRequest)
-		ctx.Error(err)
-		return
-	}
-	request.Body = &body
-
-	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.PostAuthLogin(ctx, request.(PostAuthLoginRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "PostAuthLogin")
-	}
-
-	response, err := handler(ctx, request)
-
-	if err != nil {
-		ctx.Error(err)
-		ctx.Status(http.StatusInternalServerError)
-	} else if validResponse, ok := response.(PostAuthLoginResponseObject); ok {
-		if err := validResponse.VisitPostAuthLoginResponse(ctx.Writer); err != nil {
-			ctx.Error(err)
-		}
-	} else if response != nil {
-		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
-	}
-}
-
-// PostAuthRegister operation middleware
-func (sh *strictHandler) PostAuthRegister(ctx *gin.Context) {
-	var request PostAuthRegisterRequestObject
-
-	var body PostAuthRegisterJSONRequestBody
-	if err := ctx.ShouldBindJSON(&body); err != nil {
-		ctx.Status(http.StatusBadRequest)
-		ctx.Error(err)
-		return
-	}
-	request.Body = &body
-
-	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.PostAuthRegister(ctx, request.(PostAuthRegisterRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "PostAuthRegister")
-	}
-
-	response, err := handler(ctx, request)
-
-	if err != nil {
-		ctx.Error(err)
-		ctx.Status(http.StatusInternalServerError)
-	} else if validResponse, ok := response.(PostAuthRegisterResponseObject); ok {
-		if err := validResponse.VisitPostAuthRegisterResponse(ctx.Writer); err != nil {
-			ctx.Error(err)
-		}
-	} else if response != nil {
-		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
-	}
-}
-
-// GetGroups operation middleware
-func (sh *strictHandler) GetGroups(ctx *gin.Context, params GetGroupsParams) {
+// GetGroups 操作中间件
+func (sh *GroupsstrictHandler) GetGroups(ctx *gin.Context, params GetGroupsParams) {
 	var request GetGroupsRequestObject
 
 	request.Params = params
@@ -1292,8 +1038,8 @@ func (sh *strictHandler) GetGroups(ctx *gin.Context, params GetGroupsParams) {
 	}
 }
 
-// PostGroups operation middleware
-func (sh *strictHandler) PostGroups(ctx *gin.Context) {
+// PostGroups 操作中间件
+func (sh *GroupsstrictHandler) PostGroups(ctx *gin.Context) {
 	var request PostGroupsRequestObject
 
 	var body PostGroupsJSONRequestBody
@@ -1325,8 +1071,8 @@ func (sh *strictHandler) PostGroups(ctx *gin.Context) {
 	}
 }
 
-// GetGroupsSearch operation middleware
-func (sh *strictHandler) GetGroupsSearch(ctx *gin.Context, params GetGroupsSearchParams) {
+// GetGroupsSearch 操作中间件
+func (sh *GroupsstrictHandler) GetGroupsSearch(ctx *gin.Context, params GetGroupsSearchParams) {
 	var request GetGroupsSearchRequestObject
 
 	request.Params = params
@@ -1352,8 +1098,8 @@ func (sh *strictHandler) GetGroupsSearch(ctx *gin.Context, params GetGroupsSearc
 	}
 }
 
-// GetGroupsGroupId operation middleware
-func (sh *strictHandler) GetGroupsGroupId(ctx *gin.Context, groupId int64) {
+// GetGroupsGroupId 操作中间件
+func (sh *GroupsstrictHandler) GetGroupsGroupId(ctx *gin.Context, groupId int64) {
 	var request GetGroupsGroupIdRequestObject
 
 	request.GroupId = groupId
@@ -1379,8 +1125,8 @@ func (sh *strictHandler) GetGroupsGroupId(ctx *gin.Context, groupId int64) {
 	}
 }
 
-// PutGroupsGroupId operation middleware
-func (sh *strictHandler) PutGroupsGroupId(ctx *gin.Context, groupId int64) {
+// PutGroupsGroupId 操作中间件
+func (sh *GroupsstrictHandler) PutGroupsGroupId(ctx *gin.Context, groupId int64) {
 	var request PutGroupsGroupIdRequestObject
 
 	request.GroupId = groupId
@@ -1414,8 +1160,8 @@ func (sh *strictHandler) PutGroupsGroupId(ctx *gin.Context, groupId int64) {
 	}
 }
 
-// GetGroupsGroupIdJoinRequests operation middleware
-func (sh *strictHandler) GetGroupsGroupIdJoinRequests(ctx *gin.Context, groupId int64, params GetGroupsGroupIdJoinRequestsParams) {
+// GetGroupsGroupIdJoinRequests 操作中间件
+func (sh *GroupsstrictHandler) GetGroupsGroupIdJoinRequests(ctx *gin.Context, groupId int64, params GetGroupsGroupIdJoinRequestsParams) {
 	var request GetGroupsGroupIdJoinRequestsRequestObject
 
 	request.GroupId = groupId
@@ -1442,8 +1188,8 @@ func (sh *strictHandler) GetGroupsGroupIdJoinRequests(ctx *gin.Context, groupId 
 	}
 }
 
-// PostGroupsGroupIdJoinRequests operation middleware
-func (sh *strictHandler) PostGroupsGroupIdJoinRequests(ctx *gin.Context, groupId int64) {
+// PostGroupsGroupIdJoinRequests 操作中间件
+func (sh *GroupsstrictHandler) PostGroupsGroupIdJoinRequests(ctx *gin.Context, groupId int64) {
 	var request PostGroupsGroupIdJoinRequestsRequestObject
 
 	request.GroupId = groupId
@@ -1477,8 +1223,8 @@ func (sh *strictHandler) PostGroupsGroupIdJoinRequests(ctx *gin.Context, groupId
 	}
 }
 
-// PutGroupsGroupIdJoinRequestsRequestId operation middleware
-func (sh *strictHandler) PutGroupsGroupIdJoinRequestsRequestId(ctx *gin.Context, groupId int64, requestId int64) {
+// PutGroupsGroupIdJoinRequestsRequestId 操作中间件
+func (sh *GroupsstrictHandler) PutGroupsGroupIdJoinRequestsRequestId(ctx *gin.Context, groupId int64, requestId int64) {
 	var request PutGroupsGroupIdJoinRequestsRequestIdRequestObject
 
 	request.GroupId = groupId
@@ -1513,8 +1259,8 @@ func (sh *strictHandler) PutGroupsGroupIdJoinRequestsRequestId(ctx *gin.Context,
 	}
 }
 
-// GetGroupsGroupIdMembers operation middleware
-func (sh *strictHandler) GetGroupsGroupIdMembers(ctx *gin.Context, groupId int64) {
+// GetGroupsGroupIdMembers 操作中间件
+func (sh *GroupsstrictHandler) GetGroupsGroupIdMembers(ctx *gin.Context, groupId int64) {
 	var request GetGroupsGroupIdMembersRequestObject
 
 	request.GroupId = groupId
@@ -1540,8 +1286,8 @@ func (sh *strictHandler) GetGroupsGroupIdMembers(ctx *gin.Context, groupId int64
 	}
 }
 
-// DeleteGroupsGroupIdMembersUserId operation middleware
-func (sh *strictHandler) DeleteGroupsGroupIdMembersUserId(ctx *gin.Context, groupId int64, userId int64) {
+// DeleteGroupsGroupIdMembersUserId 操作中间件
+func (sh *GroupsstrictHandler) DeleteGroupsGroupIdMembersUserId(ctx *gin.Context, groupId int64, userId int64) {
 	var request DeleteGroupsGroupIdMembersUserIdRequestObject
 
 	request.GroupId = groupId
@@ -1561,31 +1307,6 @@ func (sh *strictHandler) DeleteGroupsGroupIdMembersUserId(ctx *gin.Context, grou
 		ctx.Status(http.StatusInternalServerError)
 	} else if validResponse, ok := response.(DeleteGroupsGroupIdMembersUserIdResponseObject); ok {
 		if err := validResponse.VisitDeleteGroupsGroupIdMembersUserIdResponse(ctx.Writer); err != nil {
-			ctx.Error(err)
-		}
-	} else if response != nil {
-		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
-	}
-}
-
-// GetUsersMe operation middleware
-func (sh *strictHandler) GetUsersMe(ctx *gin.Context) {
-	var request GetUsersMeRequestObject
-
-	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.GetUsersMe(ctx, request.(GetUsersMeRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetUsersMe")
-	}
-
-	response, err := handler(ctx, request)
-
-	if err != nil {
-		ctx.Error(err)
-		ctx.Status(http.StatusInternalServerError)
-	} else if validResponse, ok := response.(GetUsersMeResponseObject); ok {
-		if err := validResponse.VisitGetUsersMeResponse(ctx.Writer); err != nil {
 			ctx.Error(err)
 		}
 	} else if response != nil {

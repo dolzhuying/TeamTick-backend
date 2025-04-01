@@ -1,0 +1,14 @@
+package: gen
+generate:
+  gin-server: true
+  # models: true
+  strict-server: true
+output: ../AuditRequests.gen.go
+output-options:
+  include-tags: ["AuditRequests"]
+  user-templates:
+    gin/gin-interface.tmpl: tmpl/gin-interface.tmpl
+    gin/gin-wrappers.tmpl: tmpl/gin-wrappers.tmpl
+    gin/gin-register.tmpl: tmpl/gin-register.tmpl
+    strict/strict-gin.tmpl: tmpl/strict-gin.tmpl
+    strict/strict-interface.tmpl: tmpl/strict-interface.tmpl
