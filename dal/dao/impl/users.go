@@ -1,37 +1,32 @@
-package dao
+package impl
 
 import (
 	"TeamTickBackend/dal/models"
 	"TeamTickBackend/global"
+	"context"
 
 	"gorm.io/gorm"
 )
 
-// UserDAOImpl 实现UserDAO接口
-type UserDAOImpl struct{}
-
-// NewUserDAO 创建UserDAO实例
-func NewUserDAO() UserDAO {
-	return &UserDAOImpl{}
-}
+type MySQLUserDAOImpl struct{}
 
 // Create 创建用户
-func (dao *UserDAOImpl) Create(user *models.User, tx ...*gorm.DB) error {
+func (dao *MySQLUserDAOImpl) Create(ctx context.Context, user *models.User, tx ...*gorm.DB) error {
 	db := global.DB
 	if len(tx) > 0 && tx[0] != nil {
 		db = tx[0]
 	}
-	return db.Create(user).Error
+	return db.WithContext(ctx).Create(user).Error
 }
 
 // GetByUsername 通过username查询用户信息
-func (dao *UserDAOImpl) GetByUsername(username string, tx ...*gorm.DB) (*models.User, error) {
+func (dao *MySQLUserDAOImpl) GetByUsername(ctx context.Context, username string, tx ...*gorm.DB) (*models.User, error) {
 	var user models.User
 	db := global.DB
 	if len(tx) > 0 && tx[0] != nil {
 		db = tx[0]
 	}
-	err := db.Where("username = ?", username).First(&user).Error
+	err := db.WithContext(ctx).Where("username = ?", username).First(&user).Error
 	if err != nil {
 		return nil, err
 	}
@@ -39,13 +34,13 @@ func (dao *UserDAOImpl) GetByUsername(username string, tx ...*gorm.DB) (*models.
 }
 
 // GetByID 通过id查询用户信息
-func (dao *UserDAOImpl) GetByID(id int, tx ...*gorm.DB) (*models.User, error) {
+func (dao *MySQLUserDAOImpl) GetByID(ctx context.Context, id int, tx ...*gorm.DB) (*models.User, error) {
 	var user models.User
 	db := global.DB
 	if len(tx) > 0 && tx[0] != nil {
 		db = tx[0]
 	}
-	err := db.First(&user, id).Error
+	err := db.WithContext(ctx).First(&user, id).Error
 	if err != nil {
 		return nil, err
 	}
