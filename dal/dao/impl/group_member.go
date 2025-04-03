@@ -8,10 +8,10 @@ import (
 	"gorm.io/gorm"
 )
 
-type MySQLGroupMemberDAOImpl struct{}
+type GroupMemberDAOMySQLImpl struct{}
 
 // Create 创建组员
-func (dao *MySQLGroupMemberDAOImpl) Create(ctx context.Context, member *models.GroupMember, tx ...*gorm.DB) error {
+func (dao *GroupMemberDAOMySQLImpl) Create(ctx context.Context, member *models.GroupMember, tx ...*gorm.DB) error {
 	db := global.DB
 	if len(tx) > 0 && tx[0] != nil {
 		db = tx[0]
@@ -20,7 +20,7 @@ func (dao *MySQLGroupMemberDAOImpl) Create(ctx context.Context, member *models.G
 }
 
 // GetMembersByGroupID 通过group_id查询组中的所有成员信息
-func (dao *MySQLGroupMemberDAOImpl) GetMembersByGroupID(ctx context.Context, groupID int, tx ...*gorm.DB) ([]*models.GroupMember, error) {
+func (dao *GroupMemberDAOMySQLImpl) GetMembersByGroupID(ctx context.Context, groupID int, tx ...*gorm.DB) ([]*models.GroupMember, error) {
 	var members []*models.GroupMember
 	db := global.DB
 	if len(tx) > 0 && tx[0] != nil {
@@ -34,7 +34,7 @@ func (dao *MySQLGroupMemberDAOImpl) GetMembersByGroupID(ctx context.Context, gro
 }
 
 // GetMemberByGroupIDAndUserID 通过group_id和user_id查询特定组员信息
-func (dao *MySQLGroupMemberDAOImpl) GetMemberByGroupIDAndUserID(ctx context.Context, groupID int, userID int, tx ...*gorm.DB) (*models.GroupMember, error) {
+func (dao *GroupMemberDAOMySQLImpl) GetMemberByGroupIDAndUserID(ctx context.Context, groupID int, userID int, tx ...*gorm.DB) (*models.GroupMember, error) {
 	var member models.GroupMember
 	db := global.DB
 	if len(tx) > 0 && tx[0] != nil {
@@ -48,7 +48,7 @@ func (dao *MySQLGroupMemberDAOImpl) GetMemberByGroupIDAndUserID(ctx context.Cont
 }
 
 // Delete 删除组员
-func (dao *MySQLGroupMemberDAOImpl) Delete(ctx context.Context, groupID int, userID int, tx ...*gorm.DB) error {
+func (dao *GroupMemberDAOMySQLImpl) Delete(ctx context.Context, groupID int, userID int, tx ...*gorm.DB) error {
 	db := global.DB
 	if len(tx) > 0 && tx[0] != nil {
 		db = tx[0]

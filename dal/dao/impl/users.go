@@ -8,10 +8,10 @@ import (
 	"gorm.io/gorm"
 )
 
-type MySQLUserDAOImpl struct{}
+type UserDAOMySQLImpl struct{}
 
 // Create 创建用户
-func (dao *MySQLUserDAOImpl) Create(ctx context.Context, user *models.User, tx ...*gorm.DB) error {
+func (dao *UserDAOMySQLImpl) Create(ctx context.Context, user *models.User, tx ...*gorm.DB) error {
 	db := global.DB
 	if len(tx) > 0 && tx[0] != nil {
 		db = tx[0]
@@ -20,7 +20,7 @@ func (dao *MySQLUserDAOImpl) Create(ctx context.Context, user *models.User, tx .
 }
 
 // GetByUsername 通过username查询用户信息
-func (dao *MySQLUserDAOImpl) GetByUsername(ctx context.Context, username string, tx ...*gorm.DB) (*models.User, error) {
+func (dao *UserDAOMySQLImpl) GetByUsername(ctx context.Context, username string, tx ...*gorm.DB) (*models.User, error) {
 	var user models.User
 	db := global.DB
 	if len(tx) > 0 && tx[0] != nil {
@@ -34,7 +34,7 @@ func (dao *MySQLUserDAOImpl) GetByUsername(ctx context.Context, username string,
 }
 
 // GetByID 通过id查询用户信息
-func (dao *MySQLUserDAOImpl) GetByID(ctx context.Context, id int, tx ...*gorm.DB) (*models.User, error) {
+func (dao *UserDAOMySQLImpl) GetByID(ctx context.Context, id int, tx ...*gorm.DB) (*models.User, error) {
 	var user models.User
 	db := global.DB
 	if len(tx) > 0 && tx[0] != nil {

@@ -8,10 +8,10 @@ import (
 	"gorm.io/gorm"
 )
 
-type MySQLTaskRecordDAOImpl struct{}
+type TaskRecordDAOMySQLImpl struct{}
 
 // Create 创建签到记录
-func (dao *MySQLTaskRecordDAOImpl) Create(ctx context.Context, record *models.TaskRecord, tx ...*gorm.DB) error {
+func (dao *TaskRecordDAOMySQLImpl) Create(ctx context.Context, record *models.TaskRecord, tx ...*gorm.DB) error {
 	db := global.DB
 	if len(tx) > 0 && tx[0] != nil {
 		db = tx[0]
@@ -20,7 +20,7 @@ func (dao *MySQLTaskRecordDAOImpl) Create(ctx context.Context, record *models.Ta
 }
 
 // GetByTaskID 通过task_id查询组内成员签到记录
-func (dao *MySQLTaskRecordDAOImpl) GetByTaskID(ctx context.Context, taskID int, tx ...*gorm.DB) ([]*models.TaskRecord, error) {
+func (dao *TaskRecordDAOMySQLImpl) GetByTaskID(ctx context.Context, taskID int, tx ...*gorm.DB) ([]*models.TaskRecord, error) {
 	var records []*models.TaskRecord
 	db := global.DB
 	if len(tx) > 0 && tx[0] != nil {
@@ -34,7 +34,7 @@ func (dao *MySQLTaskRecordDAOImpl) GetByTaskID(ctx context.Context, taskID int, 
 }
 
 // GetByUserID 通过user_id查询个人所有签到记录
-func (dao *MySQLTaskRecordDAOImpl) GetByUserID(ctx context.Context, userID int, tx ...*gorm.DB) ([]*models.TaskRecord, error) {
+func (dao *TaskRecordDAOMySQLImpl) GetByUserID(ctx context.Context, userID int, tx ...*gorm.DB) ([]*models.TaskRecord, error) {
 	var records []*models.TaskRecord
 	db := global.DB
 	if len(tx) > 0 && tx[0] != nil {

@@ -8,10 +8,10 @@ import (
 	"gorm.io/gorm"
 )
 
-type MySQLGroupDAOImpl struct{}
+type GroupDAOMySQLImpl struct{}
 
 // Create 创建组
-func (dao *MySQLGroupDAOImpl) Create(ctx context.Context, group *models.Group, tx ...*gorm.DB) error {
+func (dao *GroupDAOMySQLImpl) Create(ctx context.Context, group *models.Group, tx ...*gorm.DB) error {
 	db := global.DB
 	if len(tx) > 0 && tx[0] != nil {
 		db = tx[0]
@@ -20,7 +20,7 @@ func (dao *MySQLGroupDAOImpl) Create(ctx context.Context, group *models.Group, t
 }
 
 // GetByGroupID 通过group_id查询组信息
-func (dao *MySQLGroupDAOImpl) GetByGroupID(ctx context.Context, groupID int, tx ...*gorm.DB) (*models.Group, error) {
+func (dao *GroupDAOMySQLImpl) GetByGroupID(ctx context.Context, groupID int, tx ...*gorm.DB) (*models.Group, error) {
 	var group models.Group
 	db := global.DB
 	if len(tx) > 0 && tx[0] != nil {
@@ -34,7 +34,7 @@ func (dao *MySQLGroupDAOImpl) GetByGroupID(ctx context.Context, groupID int, tx 
 }
 
 // GetGroupsByUserID 通过user_id获取用户所在的所有用户组
-func (dao *MySQLGroupDAOImpl) GetGroupsByUserID(ctx context.Context, userID int, tx ...*gorm.DB) ([]*models.Group, error) {
+func (dao *GroupDAOMySQLImpl) GetGroupsByUserID(ctx context.Context, userID int, tx ...*gorm.DB) ([]*models.Group, error) {
 	var groups []*models.Group
 	db := global.DB
 	if len(tx) > 0 && tx[0] != nil {
@@ -52,7 +52,7 @@ func (dao *MySQLGroupDAOImpl) GetGroupsByUserID(ctx context.Context, userID int,
 }
 
 // UpdateMessage 更新组信息
-func (dao *MySQLGroupDAOImpl) UpdateMessage(ctx context.Context, groupID int, groupName, description string, tx ...*gorm.DB) error {
+func (dao *GroupDAOMySQLImpl) UpdateMessage(ctx context.Context, groupID int, groupName, description string, tx ...*gorm.DB) error {
 	db := global.DB
 	if len(tx) > 0 && tx[0] != nil {
 		db = tx[0]
@@ -65,7 +65,7 @@ func (dao *MySQLGroupDAOImpl) UpdateMessage(ctx context.Context, groupID int, gr
 }
 
 // UpdateMemberNum 更新组成员数量
-func (dao *MySQLGroupDAOImpl) UpdateMemberNum(ctx context.Context, groupID int, increment bool, tx ...*gorm.DB) error {
+func (dao *GroupDAOMySQLImpl) UpdateMemberNum(ctx context.Context, groupID int, increment bool, tx ...*gorm.DB) error {
 	db := global.DB
 	if len(tx) > 0 && tx[0] != nil {
 		db = tx[0]

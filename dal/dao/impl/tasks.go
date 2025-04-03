@@ -8,10 +8,10 @@ import (
 	"gorm.io/gorm"
 )
 
-type MySQLTaskDAOImpl struct{}
+type TaskDAOMySQLImpl struct{}
 
 // Create 创建签到任务
-func (dao *MySQLTaskDAOImpl) Create(ctx context.Context, task *models.Task, tx ...*gorm.DB) error {
+func (dao *TaskDAOMySQLImpl) Create(ctx context.Context, task *models.Task, tx ...*gorm.DB) error {
 	db := global.DB
 	if len(tx) > 0 && tx[0] != nil {
 		db = tx[0]
@@ -20,7 +20,7 @@ func (dao *MySQLTaskDAOImpl) Create(ctx context.Context, task *models.Task, tx .
 }
 
 // GetByGroupID 按group_id查询签到任务
-func (dao *MySQLTaskDAOImpl) GetByGroupID(ctx context.Context, groupID int, tx ...*gorm.DB) ([]*models.Task, error) {
+func (dao *TaskDAOMySQLImpl) GetByGroupID(ctx context.Context, groupID int, tx ...*gorm.DB) ([]*models.Task, error) {
 	var tasks []*models.Task
 	db := global.DB
 	if len(tx) > 0 && tx[0] != nil {
@@ -34,7 +34,7 @@ func (dao *MySQLTaskDAOImpl) GetByGroupID(ctx context.Context, groupID int, tx .
 }
 
 // GetActiveTasksByUserID 获取用户当前所属的所有用户组的待签到任务
-func (dao *MySQLTaskDAOImpl) GetActiveTasksByUserID(ctx context.Context, userID int, tx ...*gorm.DB) ([]*models.Task, error) {
+func (dao *TaskDAOMySQLImpl) GetActiveTasksByUserID(ctx context.Context, userID int, tx ...*gorm.DB) ([]*models.Task, error) {
 	var tasks []*models.Task
 	db := global.DB
 	if len(tx) > 0 && tx[0] != nil {
@@ -54,7 +54,7 @@ func (dao *MySQLTaskDAOImpl) GetActiveTasksByUserID(ctx context.Context, userID 
 }
 
 // GetByTaskID 按task_id查询签到任务
-func (dao *MySQLTaskDAOImpl) GetByTaskID(ctx context.Context, taskID int, tx ...*gorm.DB) (*models.Task, error) {
+func (dao *TaskDAOMySQLImpl) GetByTaskID(ctx context.Context, taskID int, tx ...*gorm.DB) (*models.Task, error) {
 	var task models.Task
 	db := global.DB
 	if len(tx) > 0 && tx[0] != nil {
