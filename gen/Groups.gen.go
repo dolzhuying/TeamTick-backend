@@ -22,9 +22,6 @@ type GroupsServerInterface interface {
 	// 创建用户组
 	// (POST /groups)
 	PostGroups(c *gin.Context)
-	// 搜索用户组 (精确 ID)
-	// (GET /groups/search)
-	GetGroupsSearch(c *gin.Context, params GetGroupsSearchParams)
 	// 获取用户组详细信息
 	// (GET /groups/{groupId})
 	GetGroupsGroupId(c *gin.Context, groupId int64)
@@ -94,39 +91,6 @@ func (siw *GroupsServerInterfaceWrapper) PostGroups(c *gin.Context) {
 	}
 
 	siw.Handler.PostGroups(c)
-}
-
-// GetGroupsSearch 操作中间件
-func (siw *GroupsServerInterfaceWrapper) GetGroupsSearch(c *gin.Context) {
-
-	var err error
-
-	// 参数对象，我们将从上下文中解析所有参数到此对象
-	var params GetGroupsSearchParams
-
-	// ------------- 必需查询参数 "exactId" -------------
-
-	if paramValue := c.Query("exactId"); paramValue != "" {
-
-	} else {
-		siw.ErrorHandler(c, fmt.Errorf("必需的查询参数 exactId 未找到"), http.StatusBadRequest)
-		return
-	}
-
-	err = runtime.BindQueryParameter("form", true, true, "exactId", c.Request.URL.Query(), &params.ExactId)
-	if err != nil {
-		siw.ErrorHandler(c, fmt.Errorf("参数 exactId 格式无效: %w", err), http.StatusBadRequest)
-		return
-	}
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		middleware(c)
-		if c.IsAborted() {
-			return
-		}
-	}
-
-	siw.Handler.GetGroupsSearch(c, params)
 }
 
 // GetGroupsGroupId 操作中间件
@@ -355,7 +319,6 @@ func RegisterGroupsHandlersWithOptions(router gin.IRouter, si GroupsServerInterf
 
 	router.GET(options.BaseURL+"/groups", wrapper.GetGroups)
 	router.POST(options.BaseURL+"/groups", wrapper.PostGroups)
-	router.GET(options.BaseURL+"/groups/search", wrapper.GetGroupsSearch)
 	router.GET(options.BaseURL+"/groups/:groupId", wrapper.GetGroupsGroupId)
 	router.PUT(options.BaseURL+"/groups/:groupId", wrapper.PutGroupsGroupId)
 	router.GET(options.BaseURL+"/groups/:groupId/join-requests", wrapper.GetGroupsGroupIdJoinRequests)
@@ -463,62 +426,6 @@ func (response PostGroups401JSONResponse) VisitPostGroupsResponse(w http.Respons
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetGroupsSearchRequestObject struct {
-	Params GetGroupsSearchParams
-}
-
-type GetGroupsSearchResponseObject interface {
-	VisitGetGroupsSearchResponse(w http.ResponseWriter) error
-}
-
-type GetGroupsSearch200JSONResponse struct {
-	Code string `json:"code"`
-	Data Group  `json:"data"`
-}
-
-func (response GetGroupsSearch200JSONResponse) VisitGetGroupsSearchResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type GetGroupsSearch400JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
-
-func (response GetGroupsSearch400JSONResponse) VisitGetGroupsSearchResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(400)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type GetGroupsSearch401JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
-
-func (response GetGroupsSearch401JSONResponse) VisitGetGroupsSearchResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(401)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type GetGroupsSearch404JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
-
-func (response GetGroupsSearch404JSONResponse) VisitGetGroupsSearchResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(404)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
 type GetGroupsGroupIdRequestObject struct {
 	GroupId int64 `json:"groupId"`
 }
@@ -547,18 +454,6 @@ type GetGroupsGroupId401JSONResponse struct {
 func (response GetGroupsGroupId401JSONResponse) VisitGetGroupsGroupIdResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(401)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type GetGroupsGroupId403JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
-
-func (response GetGroupsGroupId403JSONResponse) VisitGetGroupsGroupIdResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(403)
 
 	return json.NewEncoder(w).Encode(response)
 }
@@ -973,9 +868,6 @@ type GroupsStrictServerInterface interface {
 	// 创建用户组
 	// (POST /groups)
 	PostGroups(ctx context.Context, request PostGroupsRequestObject) (PostGroupsResponseObject, error)
-	// 搜索用户组 (精确 ID)
-	// (GET /groups/search)
-	GetGroupsSearch(ctx context.Context, request GetGroupsSearchRequestObject) (GetGroupsSearchResponseObject, error)
 	// 获取用户组详细信息
 	// (GET /groups/{groupId})
 	GetGroupsGroupId(ctx context.Context, request GetGroupsGroupIdRequestObject) (GetGroupsGroupIdResponseObject, error)
@@ -1064,33 +956,6 @@ func (sh *GroupsstrictHandler) PostGroups(ctx *gin.Context) {
 		ctx.Status(http.StatusInternalServerError)
 	} else if validResponse, ok := response.(PostGroupsResponseObject); ok {
 		if err := validResponse.VisitPostGroupsResponse(ctx.Writer); err != nil {
-			ctx.Error(err)
-		}
-	} else if response != nil {
-		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
-	}
-}
-
-// GetGroupsSearch 操作中间件
-func (sh *GroupsstrictHandler) GetGroupsSearch(ctx *gin.Context, params GetGroupsSearchParams) {
-	var request GetGroupsSearchRequestObject
-
-	request.Params = params
-
-	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.GetGroupsSearch(ctx, request.(GetGroupsSearchRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetGroupsSearch")
-	}
-
-	response, err := handler(ctx, request)
-
-	if err != nil {
-		ctx.Error(err)
-		ctx.Status(http.StatusInternalServerError)
-	} else if validResponse, ok := response.(GetGroupsSearchResponseObject); ok {
-		if err := validResponse.VisitGetGroupsSearchResponse(ctx.Writer); err != nil {
 			ctx.Error(err)
 		}
 	} else if response != nil {
