@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"os"
 	"time"
 )
@@ -9,11 +10,10 @@ type JWTConfig struct {
 	SecretKey    []byte
 	Issuer       string
 	TokenExpiry  time.Duration
-	RefreshToken bool
 }
 
 // GetJWTConfig 获取JWT配置
-func GetJWTConfig() *JWTConfig {
+func GetJWTConfig() (*JWTConfig, error) {
 	// 从环境变量中读取密钥，优先级高
 	secretKey := os.Getenv("JWT_SECRET_KEY")
 
@@ -22,7 +22,7 @@ func GetJWTConfig() *JWTConfig {
 		if env != "production" && env != "staging" {
 			secretKey = "dev_secure_key_change_in_production_32chars"
 		} else {
-			panic("JWT_SECRET_KEY environment variable is not set")
+			return nil, errors.New("JWT_SECRET_KEY environment variable is not set")
 		}
 	}
 
@@ -42,7 +42,6 @@ func GetJWTConfig() *JWTConfig {
 		SecretKey:    []byte(secretKey),
 		Issuer:       issuer,
 		TokenExpiry:  tokenExpiry,
-		RefreshToken: os.Getenv("JWT_ENABLE_REFRESH") == "true",
-	}
+	},nil
 }
 

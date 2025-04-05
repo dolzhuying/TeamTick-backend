@@ -1,4 +1,3 @@
-
 package pkg
 
 import (
@@ -15,6 +14,16 @@ import (
 // 实例化考虑依赖注入？
 type JwtToken struct {
 	jwtConfig *config.JWTConfig
+}
+
+func NewJwtToken() (*JwtToken, error) {
+	jwtConfig, err := config.GetJWTConfig()
+	if err != nil {
+		return nil, errors.New(err.Error())
+	}
+	return &JwtToken{
+		jwtConfig,
+	}, nil
 }
 
 type TokenClaims struct {
@@ -66,23 +75,30 @@ func (s *JwtToken) ParseJWTToken(tokenString string) (jwtPayload, error) {
 	})
 
 	//错误解析
+	jwtErrPayload := jwtPayload{}
 	if err != nil {
-		jwtErrPayload := jwtPayload{}
 		if errors.Is(err, jwt.ErrTokenMalformed) {
-			return jwtErrPayload, errors.New("invalid token format")
-		} else if errors.Is(err, jwt.ErrTokenExpired) {
-			return jwtErrPayload, errors.New("token expired")
-		} else if errors.Is(err, jwt.ErrTokenNotValidYet) {
-			return jwtErrPayload, errors.New("token not valid yet")
+			return jwtErrPayload, jwt.ErrTokenMalformed
+		} else if errors.Is(err, jwt.ErrTokenUnverifiable) {
+			return jwtErrPayload, jwt.ErrTokenUnverifiable
+		} else if errors.Is(err, jwt.ErrTokenInvalidClaims) {
+			return jwtErrPayload, jwt.ErrTokenInvalidClaims
 		} else if errors.Is(err, jwt.ErrTokenSignatureInvalid) {
-			return jwtErrPayload, errors.New("invalid token signature")
+			return jwtErrPayload, jwt.ErrTokenSignatureInvalid
 		}
 		return jwtErrPayload, fmt.Errorf("invalid token: %w", err)
 	}
 
 	claims, ok := token.Claims.(*TokenClaims)
-	if !ok || !token.Valid {
-		return jwtPayload{}, errors.New("invalid token")
+	if !ok {
+		return jwtErrPayload, errors.New("invalid token claims")
+	}
+	now := time.Now()
+	if claims.ExpiresAt != nil && now.After(claims.ExpiresAt.Time) {
+		return jwtErrPayload, jwt.ErrTokenExpired
+	}
+	if claims.NotBefore != nil && now.Before(claims.NotBefore.Time) {
+		return jwtErrPayload, jwt.ErrTokenNotValidYet
 	}
 	return jwtPayload{
 		Username: claims.Username,
