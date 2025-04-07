@@ -17,12 +17,12 @@ func SetupRouter() *gin.Engine {
 
 	userHandler := handlers.NewUserHandler()
 	userRouter := router.Group("")
-	userRouter.Use(middlewares.AuthMiddleware(&pkg.JwtToken{}))//实例化待考虑
+	userRouter.Use(middlewares.AuthMiddleware(pkg.JwtTokenInstance))//实例化具体位置待考虑
 	gen.RegisterUsersHandlers(userRouter, userHandler)
 
 	groupsHandler := handlers.NewGroupsHandler()
 	groupsRouter := router.Group("")
-	groupsRouter.Use(middlewares.AuthMiddleware(&pkg.JwtToken{}))//实例化待考虑
+	groupsRouter.Use(middlewares.AuthMiddleware(pkg.JwtTokenInstance))//实例化具体位置待考虑
 	gen.RegisterGroupsHandlers(groupsRouter, groupsHandler)
 	
 	return router

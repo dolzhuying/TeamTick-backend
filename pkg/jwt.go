@@ -11,19 +11,23 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// 实例化考虑依赖注入？
+// 实例化考虑依赖注入或者全局实例化？
 type JwtToken struct {
 	jwtConfig *config.JWTConfig
 }
 
-func NewJwtToken() (*JwtToken, error) {
+//暂时使用全局实例化，
+var JwtTokenInstance *JwtToken
+
+func NewJwtToken() error {
 	jwtConfig, err := config.GetJWTConfig()
 	if err != nil {
-		return nil, errors.New(err.Error())
+		return errors.New(err.Error())
 	}
-	return &JwtToken{
+	JwtTokenInstance=&JwtToken{
 		jwtConfig,
-	}, nil
+	}
+	return nil
 }
 
 type TokenClaims struct {
