@@ -2,17 +2,18 @@ package impl
 
 import (
 	"TeamTickBackend/dal/models"
-	"TeamTickBackend/global"
 	"context"
 
 	"gorm.io/gorm"
 )
 
-type TaskDAOMySQLImpl struct{}
+type TaskDAOMySQLImpl struct {
+	DB *gorm.DB
+}
 
 // Create 创建签到任务
 func (dao *TaskDAOMySQLImpl) Create(ctx context.Context, task *models.Task, tx ...*gorm.DB) error {
-	db := global.DB
+	db := dao.DB
 	if len(tx) > 0 && tx[0] != nil {
 		db = tx[0]
 	}
@@ -22,7 +23,7 @@ func (dao *TaskDAOMySQLImpl) Create(ctx context.Context, task *models.Task, tx .
 // GetByGroupID 按group_id查询签到任务
 func (dao *TaskDAOMySQLImpl) GetByGroupID(ctx context.Context, groupID int, tx ...*gorm.DB) ([]*models.Task, error) {
 	var tasks []*models.Task
-	db := global.DB
+	db := dao.DB
 	if len(tx) > 0 && tx[0] != nil {
 		db = tx[0]
 	}
@@ -36,7 +37,7 @@ func (dao *TaskDAOMySQLImpl) GetByGroupID(ctx context.Context, groupID int, tx .
 // GetActiveTasksByUserID 获取用户当前所属的所有用户组的待签到任务
 func (dao *TaskDAOMySQLImpl) GetActiveTasksByUserID(ctx context.Context, userID int, tx ...*gorm.DB) ([]*models.Task, error) {
 	var tasks []*models.Task
-	db := global.DB
+	db := dao.DB
 	if len(tx) > 0 && tx[0] != nil {
 		db = tx[0]
 	}
@@ -56,7 +57,7 @@ func (dao *TaskDAOMySQLImpl) GetActiveTasksByUserID(ctx context.Context, userID 
 // GetByTaskID 按task_id查询签到任务
 func (dao *TaskDAOMySQLImpl) GetByTaskID(ctx context.Context, taskID int, tx ...*gorm.DB) (*models.Task, error) {
 	var task models.Task
-	db := global.DB
+	db := dao.DB
 	if len(tx) > 0 && tx[0] != nil {
 		db = tx[0]
 	}

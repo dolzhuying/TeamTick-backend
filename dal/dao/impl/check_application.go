@@ -2,17 +2,18 @@ package impl
 
 import (
 	"TeamTickBackend/dal/models"
-	"TeamTickBackend/global"
 	"context"
 
 	"gorm.io/gorm"
 )
 
-type CheckApplicationDAOMySQLImpl struct{}
+type CheckApplicationDAOMySQLImpl struct{
+	DB *gorm.DB
+}
 
 // Create 创建签到申请
 func (dao *CheckApplicationDAOMySQLImpl) Create(ctx context.Context, application *models.CheckApplication, tx ...*gorm.DB) error {
-	db := global.DB
+	db := dao.DB
 	if len(tx) > 0 && tx[0] != nil {
 		db = tx[0]
 	}
@@ -22,7 +23,7 @@ func (dao *CheckApplicationDAOMySQLImpl) Create(ctx context.Context, application
 // 通过group_id查询当前组的所有任务签到申请
 func (dao *CheckApplicationDAOMySQLImpl) GetByGroupID(ctx context.Context, groupID int, tx ...*gorm.DB) ([]*models.CheckApplication, error) {
 	var checkApplications []*models.CheckApplication
-	db := global.DB
+	db := dao.DB
 	if len(tx) > 0 && tx[0] != nil {
 		db = tx[0]
 	}
@@ -36,7 +37,7 @@ func (dao *CheckApplicationDAOMySQLImpl) GetByGroupID(ctx context.Context, group
 // GetByUserID 通过user_id查询签到申请
 func (dao *CheckApplicationDAOMySQLImpl) GetByUserID(ctx context.Context, userID int, tx ...*gorm.DB) ([]*models.CheckApplication, error) {
 	var applications []*models.CheckApplication
-	db := global.DB
+	db := dao.DB
 	if len(tx) > 0 && tx[0] != nil {
 		db = tx[0]
 	}
@@ -49,7 +50,7 @@ func (dao *CheckApplicationDAOMySQLImpl) GetByUserID(ctx context.Context, userID
 
 // Update 更新签到申请（管理员审批）
 func (dao *CheckApplicationDAOMySQLImpl) Update(ctx context.Context, status string, requestID int, tx ...*gorm.DB) error {
-	db := global.DB
+	db := dao.DB
 	if len(tx) > 0 && tx[0] != nil {
 		db = tx[0]
 	}

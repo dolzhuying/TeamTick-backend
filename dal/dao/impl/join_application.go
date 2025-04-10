@@ -2,17 +2,18 @@ package impl
 
 import (
 	"TeamTickBackend/dal/models"
-	"TeamTickBackend/global"
 	"context"
 
 	"gorm.io/gorm"
 )
 
-type JoinApplicationDAOMySQLImpl struct{}
+type JoinApplicationDAOMySQLImpl struct{
+	DB *gorm.DB
+}
 
 // Create 创建加入申请
 func (dao *JoinApplicationDAOMySQLImpl) Create(ctx context.Context, application *models.JoinApplication, tx ...*gorm.DB) error {
-	db := global.DB
+	db := dao.DB
 	if len(tx) > 0 && tx[0] != nil {
 		db = tx[0]
 	}
@@ -22,7 +23,7 @@ func (dao *JoinApplicationDAOMySQLImpl) Create(ctx context.Context, application 
 // GetByGroupIDAndStatus 通过group_id和status查询加入申请
 func (dao *JoinApplicationDAOMySQLImpl) GetByGroupIDAndStatus(ctx context.Context, groupID int, status string, tx ...*gorm.DB) ([]*models.JoinApplication, error) {
 	var applications []*models.JoinApplication
-	db := global.DB
+	db := dao.DB
 	if len(tx) > 0 && tx[0] != nil {
 		db = tx[0]
 	}
@@ -36,7 +37,7 @@ func (dao *JoinApplicationDAOMySQLImpl) GetByGroupIDAndStatus(ctx context.Contex
 // GetByUserID 通过user_id查询加入申请
 func (dao *JoinApplicationDAOMySQLImpl) GetByUserID(ctx context.Context, userID int, tx ...*gorm.DB) ([]*models.JoinApplication, error) {
 	var applications []*models.JoinApplication
-	db := global.DB
+	db := dao.DB
 	if len(tx) > 0 && tx[0] != nil {
 		db = tx[0]
 	}
@@ -49,7 +50,7 @@ func (dao *JoinApplicationDAOMySQLImpl) GetByUserID(ctx context.Context, userID 
 
 // UpdateStatus 更新加入申请状态(管理员审批)
 func (dao *JoinApplicationDAOMySQLImpl) UpdateStatus(ctx context.Context, requestID int, status string, tx ...*gorm.DB) error {
-	db := global.DB
+	db := dao.DB
 	if len(tx) > 0 && tx[0] != nil {
 		db = tx[0]
 	}

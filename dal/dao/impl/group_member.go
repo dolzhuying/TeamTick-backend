@@ -2,17 +2,18 @@ package impl
 
 import (
 	"TeamTickBackend/dal/models"
-	"TeamTickBackend/global"
 	"context"
 
 	"gorm.io/gorm"
 )
 
-type GroupMemberDAOMySQLImpl struct{}
+type GroupMemberDAOMySQLImpl struct {
+	DB *gorm.DB
+}
 
 // Create 创建组员
 func (dao *GroupMemberDAOMySQLImpl) Create(ctx context.Context, member *models.GroupMember, tx ...*gorm.DB) error {
-	db := global.DB
+	db := dao.DB
 	if len(tx) > 0 && tx[0] != nil {
 		db = tx[0]
 	}
@@ -22,7 +23,7 @@ func (dao *GroupMemberDAOMySQLImpl) Create(ctx context.Context, member *models.G
 // GetMembersByGroupID 通过group_id查询组中的所有成员信息
 func (dao *GroupMemberDAOMySQLImpl) GetMembersByGroupID(ctx context.Context, groupID int, tx ...*gorm.DB) ([]*models.GroupMember, error) {
 	var members []*models.GroupMember
-	db := global.DB
+	db := dao.DB
 	if len(tx) > 0 && tx[0] != nil {
 		db = tx[0]
 	}
@@ -36,7 +37,7 @@ func (dao *GroupMemberDAOMySQLImpl) GetMembersByGroupID(ctx context.Context, gro
 // GetMemberByGroupIDAndUserID 通过group_id和user_id查询特定组员信息
 func (dao *GroupMemberDAOMySQLImpl) GetMemberByGroupIDAndUserID(ctx context.Context, groupID int, userID int, tx ...*gorm.DB) (*models.GroupMember, error) {
 	var member models.GroupMember
-	db := global.DB
+	db := dao.DB
 	if len(tx) > 0 && tx[0] != nil {
 		db = tx[0]
 	}
@@ -49,7 +50,7 @@ func (dao *GroupMemberDAOMySQLImpl) GetMemberByGroupIDAndUserID(ctx context.Cont
 
 // Delete 删除组员
 func (dao *GroupMemberDAOMySQLImpl) Delete(ctx context.Context, groupID int, userID int, tx ...*gorm.DB) error {
-	db := global.DB
+	db := dao.DB
 	if len(tx) > 0 && tx[0] != nil {
 		db = tx[0]
 	}

@@ -4,7 +4,7 @@
 |--dal  对底层数据库封装，包括ORM操作实现、数据模型、数据库连接
   |--dao  ORM操作封装
     |--impl  不同模块的ORM操作具体实现，实现 interface.go 中的接口
-    |--main.go  入口文件，为service层提供实例化的 DAOInstance 对象接口，管理不同模块的DAO对象
+    |--main.go 封装DAO对象的工厂函数
     |--interface.go  提供不同模块 ORM 操作的接口
     |--transaction.go  提供事务支持
   |--models 数据模型，对数据库模型结构化
@@ -23,7 +23,7 @@ func (s*UserService) CreateUser(ctx context.Context,username,passowrd string){
             username:username,
             password:password,
         }
-        if err:=dao.DAOInstance.UserDAO.Create(ctx,&user,tx);err!=nil{
+        if err:=s.userDao.Create(ctx,&user,tx);err!=nil{
             return err
         }
         return nil

@@ -2,29 +2,33 @@ package dao
 
 import (
 	"TeamTickBackend/dal/dao/impl"
+
+	"gorm.io/gorm"
 )
 
-type DAO struct {
+type DAOFactory struct {
+	Db                 *gorm.DB
+	TransactionManager TransactionManager
+
 	UserDAO             UserDAO
-	TaskDAO             TaskDAO
 	GroupDAO            GroupDAO
+	TaskDAO             TaskDAO
 	GroupMemberDAO      GroupMemberDAO
+	TaskRecordDAO       TaskRecordDAO
 	JoinApplicationDAO  JoinApplicationDAO
 	CheckApplicationDAO CheckApplicationDAO
-	TaskRecordDAO       TaskRecordDAO
 }
 
-// 为service层提供dao全局访问接口
-var DAOInstance = newDAO()
-
-func newDAO() *DAO {
-	return &DAO{
-		UserDAO:             &impl.UserDAOMySQLImpl{},
-		TaskDAO:             &impl.TaskDAOMySQLImpl{},
-		GroupDAO:            &impl.GroupDAOMySQLImpl{},
-		GroupMemberDAO:      &impl.GroupMemberDAOMySQLImpl{},
-		JoinApplicationDAO:  &impl.JoinApplicationDAOMySQLImpl{},
-		CheckApplicationDAO: &impl.CheckApplicationDAOMySQLImpl{},
-		TaskRecordDAO:       &impl.TaskRecordDAOMySQLImpl{},
+func NewDAOFactory(db *gorm.DB) *DAOFactory {
+	return &DAOFactory{
+		Db:                  db,
+		TransactionManager:  NewTransactionManager(db),
+		UserDAO:             &impl.UserDAOMySQLImpl{DB: db},
+		GroupDAO:            &impl.GroupDAOMySQLImpl{DB: db},
+		TaskDAO:             &impl.TaskDAOMySQLImpl{DB: db},
+		GroupMemberDAO:      &impl.GroupMemberDAOMySQLImpl{DB: db},
+		TaskRecordDAO:       &impl.TaskRecordDAOMySQLImpl{DB: db},
+		JoinApplicationDAO:  &impl.JoinApplicationDAOMySQLImpl{DB: db},
+		CheckApplicationDAO: &impl.CheckApplicationDAOMySQLImpl{DB: db},
 	}
 }

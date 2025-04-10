@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"TeamTickBackend/config"
+	apperrors "TeamTickBackend/pkg/errors"
 	"errors"
 	"fmt"
 	"log"
@@ -11,23 +12,23 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// 实例化考虑依赖注入或者全局实例化？
-type JwtToken struct {
+type JwtHandler interface {
+	GenerateJWTToken(username string, userID int) (string, error)
+	ParseJWTToken(tokenString string) (JwtPayload, error)
+}
+
+type JwtTokenImpl struct {
 	jwtConfig *config.JWTConfig
 }
 
-//暂时使用全局实例化，
-var JwtTokenInstance *JwtToken
-
-func NewJwtToken() error {
+func NewJwtHandler() (JwtHandler, error) {
 	jwtConfig, err := config.GetJWTConfig()
 	if err != nil {
-		return errors.New(err.Error())
+		return nil, apperrors.ErrTokenConfigMissing.WithError(err)
 	}
-	JwtTokenInstance=&JwtToken{
-		jwtConfig,
-	}
-	return nil
+	return &JwtTokenImpl{
+		jwtConfig: jwtConfig,
+	}, nil
 }
 
 type TokenClaims struct {
@@ -36,13 +37,13 @@ type TokenClaims struct {
 	jwt.RegisteredClaims
 }
 
-type jwtPayload struct {
+type JwtPayload struct {
 	Username string
 	UserID   int
 }
 
 // 根据hs256算法以及用户id、用户名生成jwt
-func (s *JwtToken) GenerateJWTToken(username string, userID int) (string, error) {
+func (s *JwtTokenImpl) GenerateJWTToken(username string, userID int) (string, error) {
 	now := time.Now()
 	claims := TokenClaims{
 		Username: username,
@@ -65,7 +66,7 @@ func (s *JwtToken) GenerateJWTToken(username string, userID int) (string, error)
 }
 
 // 解析JWT，错误日志处理待完善
-func (s *JwtToken) ParseJWTToken(tokenString string) (jwtPayload, error) {
+func (s *JwtTokenImpl) ParseJWTToken(tokenString string) (JwtPayload, error) {
 	tokenString = strings.TrimSpace(tokenString)
 	if len(tokenString) > 7 && strings.ToUpper(tokenString[:7]) == "BEARER " {
 		tokenString = tokenString[7:]
@@ -79,7 +80,7 @@ func (s *JwtToken) ParseJWTToken(tokenString string) (jwtPayload, error) {
 	})
 
 	//错误解析
-	jwtErrPayload := jwtPayload{}
+	jwtErrPayload := JwtPayload{}
 	if err != nil {
 		if errors.Is(err, jwt.ErrTokenMalformed) {
 			return jwtErrPayload, jwt.ErrTokenMalformed
@@ -104,7 +105,7 @@ func (s *JwtToken) ParseJWTToken(tokenString string) (jwtPayload, error) {
 	if claims.NotBefore != nil && now.Before(claims.NotBefore.Time) {
 		return jwtErrPayload, jwt.ErrTokenNotValidYet
 	}
-	return jwtPayload{
+	return JwtPayload{
 		Username: claims.Username,
 		UserID:   claims.UserID,
 	}, nil

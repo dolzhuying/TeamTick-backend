@@ -4,68 +4,95 @@ import (
 	"TeamTickBackend/dal/dao"
 	"TeamTickBackend/dal/models"
 	"TeamTickBackend/pkg"
+	apperrors "TeamTickBackend/pkg/errors"
 	"context"
 	"errors"
 
 	"gorm.io/gorm"
 )
 
-type AuthService struct{}
+type AuthService struct {
+	userDao dao.UserDAO
+	transactionManager dao.TransactionManager
+	jwtHandler pkg.JwtHandler
+}
 
-//不同错误处理待考究,应该根据不同情况返回不同错误，这里暂时先简单返回err
+func NewAuthService(
+	userDao dao.UserDAO,
+	transactionManager dao.TransactionManager,
+	jwtHandler pkg.JwtHandler,
+) *AuthService {
+	return &AuthService{
+		userDao: userDao,
+		transactionManager: transactionManager,
+		jwtHandler: jwtHandler,
+	}
+}
 
-func (s*AuthService) AuthRegister(ctx context.Context,username,password string)(*models.User,error){
+func (s *AuthService) AuthRegister(ctx context.Context, username, password string) (*models.User, error) {
 	var createdUser models.User
 
-	err:=dao.WithTransaction(ctx,func(tx *gorm.DB)error{
-		_,err:=dao.DAOInstance.UserDAO.GetByUsername(ctx,username,tx)
-		if err!=nil{
-			return errors.New("用户已存在或其他错误")
+	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
+		//检查用户是否已存在
+		user, err := s.userDao.GetByUsername(ctx, username, tx)
+		if err == nil && user != nil {
+			return apperrors.ErrUserAlreadyExists
 		}
-		hashedPassword,err:=pkg.GenerateFromPassword(password)
-		if err!=nil{
-			return errors.New("密码加密错误")
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			return apperrors.ErrDatabaseOperation.WithError(err)
 		}
-		newUser:=models.User{
-			Username:username,
-			Password:hashedPassword,
+		//加密密码
+		hashedPassword, err := pkg.GenerateFromPassword(password)
+		if err != nil {
+			return apperrors.ErrPasswordEncryption.WithError(err)
 		}
-		if err:=dao.DAOInstance.UserDAO.Create(ctx,&newUser,tx);err!=nil{
-			return errors.New("用户创建失败或其他错误")
+		newUser := models.User{
+			Username: username,
+			Password: hashedPassword,
 		}
-		createdUser=newUser
+		//创建用户
+		if err := s.userDao.Create(ctx, &newUser, tx); err != nil {
+			return apperrors.ErrUserCreationFailed.WithError(err)
+		}
+		createdUser = newUser
 		return nil
 	})
-	if err!=nil{
-		return nil,err
+	if err != nil {
+		return nil, err
 	}
-	return &createdUser,nil
+	return &createdUser, nil
 
 }
 
-func (s*AuthService) AuthLogin(ctx context.Context,username,password string)(*models.User,string,error){
+func (s *AuthService) AuthLogin(ctx context.Context, username, password string) (*models.User, string, error) {
 	var existUser models.User
 	var userToken string
 
-	err:=dao.WithTransaction(ctx,func(tx *gorm.DB)error{
-		user,err:=dao.DAOInstance.UserDAO.GetByUsername(ctx,username,tx)
-		if err!=nil{
-			return errors.New("用户不存在或其他错误")
+	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
+		//检查用户是否存在
+		user, err := s.userDao.GetByUsername(ctx, username, tx)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return apperrors.ErrUserNotFound
+			}
+			return apperrors.ErrDatabaseOperation.WithError(err)
 		}
-		if !pkg.CheckPassword(user.Password,password){
-			return errors.New("密码错误")
+		//检查密码是否正确
+		if !pkg.CheckPassword(user.Password, password) {
+			return apperrors.ErrInvalidPassword
 		}
-		existUser=*user
-		token,err:=pkg.JwtTokenInstance.GenerateJWTToken(user.Username,user.UserID)
-		if err!=nil{
-			return err
+		existUser = *user
+		//生成token
+		token, err := s.jwtHandler.GenerateJWTToken(user.Username, user.UserID)
+		if err != nil {
+			return apperrors.ErrTokenGenerationFailed.WithError(err)
 		}
-		userToken=token
+		userToken = token
 
 		return nil
 	})
-	if err!=nil{
-		return nil,"",err
+	if err != nil {
+		return nil, "", err
 	}
-	return &existUser,userToken,nil
+	return &existUser, userToken, nil
 }

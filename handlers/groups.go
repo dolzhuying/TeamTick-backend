@@ -1,16 +1,31 @@
 package handlers
 
 import (
+	"TeamTickBackend/app"
 	"TeamTickBackend/gen"
+	"TeamTickBackend/services"
 	"context"
 )
 
-type GroupsHandler struct{}
+type GroupsHandler struct {
+	groupsService service.GroupsService
+}
 
-func NewGroupsHandler() gen.GroupsServerInterface {
-	handler := &GroupsHandler{}
+func NewGroupsHandler(container *app.AppContainer) gen.GroupsServerInterface {
+	GroupsService := service.NewGroupsService(
+		container.DaoFactory.GroupDAO,
+		container.DaoFactory.GroupMemberDAO,
+		container.DaoFactory.JoinApplicationDAO,
+		container.DaoFactory.TransactionManager,
+	)
+	handler := &GroupsHandler{
+		groupsService: *GroupsService,
+	}
 	return gen.NewGroupsStrictHandler(handler, nil)
 }
+
+// 会议中提及过部分接口需要修改（查询用户组信息是否需要该用户组成员）
+// 时序图部分逻辑存疑
 
 func (h *GroupsHandler) GetGroups(ctx context.Context, request gen.GetGroupsRequestObject) (gen.GetGroupsResponseObject, error) {
 

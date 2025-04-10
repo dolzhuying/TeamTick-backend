@@ -4,26 +4,25 @@ import (
 	"TeamTickBackend/gen"
 	"TeamTickBackend/handlers"
 	"TeamTickBackend/middlewares"
-	"TeamTickBackend/pkg"
-
+	"TeamTickBackend/app"
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRouter() *gin.Engine {
+func SetupRouter(container *app.AppContainer) *gin.Engine {
 	router := gin.Default()
-	
-	authHandler := handlers.NewAuthHandler()
+
+	authHandler := handlers.NewAuthHandler(container)
 	gen.RegisterAuthHandlers(router, authHandler)
 
-	userHandler := handlers.NewUserHandler()
+	userHandler := handlers.NewUserHandler(container)
 	userRouter := router.Group("")
-	userRouter.Use(middlewares.AuthMiddleware(pkg.JwtTokenInstance))//实例化具体位置待考虑
+	userRouter.Use(middlewares.AuthMiddleware(container.JwtHandler)) 
 	gen.RegisterUsersHandlers(userRouter, userHandler)
 
-	groupsHandler := handlers.NewGroupsHandler()
+	groupsHandler := handlers.NewGroupsHandler(container)
 	groupsRouter := router.Group("")
-	groupsRouter.Use(middlewares.AuthMiddleware(pkg.JwtTokenInstance))//实例化具体位置待考虑
+	groupsRouter.Use(middlewares.AuthMiddleware(container.JwtHandler)) 
 	gen.RegisterGroupsHandlers(groupsRouter, groupsHandler)
-	
+
 	return router
 }
