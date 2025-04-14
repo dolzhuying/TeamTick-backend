@@ -14,6 +14,8 @@ type CheckApplication struct {
 	Status      string    `gorm:"column:status;type:enum('pending','passed','rejected');default:pending;index:idx_taskid_status;comment:审核状态" json:"status"`
 	Description string    `gorm:"column:description;type:varchar(1024);not null;comment:申请人工审核原因" json:"description"`
 	Image       string    `gorm:"column:image;type:mediumtext;comment:辅佐照片材料" json:"image"`
+	CreatedAt   time.Time `gorm:"column:created_at;type:datetime;not null;default:CURRENT_TIMESTAMP;comment:创建时间" json:"created_at"`
+	UpdatedAt   time.Time `gorm:"column:updated_at;type:datetime;not null;default:CURRENT_TIMESTAMP;comment:更新时间" json:"updated_at"`
 }
 
 func (CheckApplication) TableName() string {
