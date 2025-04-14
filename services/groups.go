@@ -3,7 +3,7 @@ package service
 import (
 	"TeamTickBackend/dal/dao"
 	"TeamTickBackend/dal/models"
-	apperrors "TeamTickBackend/pkg/errors"
+	appErrors "TeamTickBackend/pkg/errors"
 	"context"
 	"errors"
 
@@ -45,7 +45,7 @@ func (s *GroupsService) CreateGroup(ctx context.Context, groupName, description,
 		}
 		//创建用户组
 		if err := s.groupDao.Create(ctx, &group, tx); err != nil {
-			return apperrors.ErrGroupCreationFailed.WithError(err)
+			return appErrors.ErrGroupCreationFailed.WithError(err)
 		}
 		//添加用户组管理员
 		if err := s.groupMemberDao.Create(ctx, &models.GroupMember{
@@ -54,7 +54,7 @@ func (s *GroupsService) CreateGroup(ctx context.Context, groupName, description,
 			Username: creatorName,
 			Role:     "admin",
 		}, tx); err != nil {
-			return apperrors.ErrGroupMemberCreationFailed.WithError(err)
+			return appErrors.ErrGroupMemberCreationFailed.WithError(err)
 		}
 		createdGroup = group
 		return nil
@@ -72,9 +72,9 @@ func (s *GroupsService) GetGroupByGroupID(ctx context.Context, groupID int) (*mo
 		Group, err := s.groupDao.GetByGroupID(ctx, groupID, tx)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return apperrors.ErrGroupNotFound
+				return appErrors.ErrGroupNotFound
 			}
-			return apperrors.ErrDatabaseOperation.WithError(err)
+			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
 		group = *Group
 		return nil
@@ -92,9 +92,9 @@ func (s *GroupsService) GetGroupsByUserID(ctx context.Context, userID int) ([]*m
 		Groups, err := s.groupDao.GetGroupsByUserID(ctx, userID, tx)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return apperrors.ErrGroupNotFound
+				return appErrors.ErrGroupNotFound
 			}
-			return apperrors.ErrDatabaseOperation.WithError(err)
+			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
 		groups = Groups
 		return nil
@@ -111,12 +111,12 @@ func (s *GroupsService) UpdateGroup(ctx context.Context, groupID int, groupName,
 	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
 		//更新用户组信息
 		if err := s.groupDao.UpdateMessage(ctx, groupID, groupName, description, tx); err != nil {
-			return apperrors.ErrGroupUpdateFailed.WithError(err)
+			return appErrors.ErrGroupUpdateFailed.WithError(err)
 		}
 		//查询更新后的用户组信息
 		group, err := s.groupDao.GetByGroupID(ctx, groupID, tx)
 		if err != nil {
-			return apperrors.ErrDatabaseOperation.WithError(err)
+			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
 		updatedGroup = *group
 		return nil
@@ -132,14 +132,14 @@ func (s *GroupsService) CheckMemberPermission(ctx context.Context, groupID, user
 	member, err := s.groupMemberDao.GetMemberByGroupIDAndUserID(ctx, groupID, userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return apperrors.ErrGroupMemberNotFound
+			return appErrors.ErrGroupMemberNotFound
 		}
-		return apperrors.ErrDatabaseOperation.WithError(err)
+		return appErrors.ErrDatabaseOperation.WithError(err)
 	}
 	if member.Role == "admin" {
 		return nil
 	}
-	return apperrors.ErrRolePermissionDenied
+	return appErrors.ErrRolePermissionDenied
 }
 
 // 添加用户到用户组
@@ -155,7 +155,7 @@ func (s *GroupsService) AddMemberToGroup(ctx context.Context, groupID, userID, o
 		//检查用户组是否存在
 		existMember, err := s.groupMemberDao.GetMemberByGroupIDAndUserID(ctx, groupID, userID, tx)
 		if err == nil && existMember != nil {
-			return apperrors.ErrGroupMemberAlreadyExists
+			return appErrors.ErrGroupMemberAlreadyExists
 		}
 		newMember := models.GroupMember{
 			GroupID:  groupID,
@@ -164,11 +164,11 @@ func (s *GroupsService) AddMemberToGroup(ctx context.Context, groupID, userID, o
 		}
 		//创建用户组成员
 		if err := s.groupMemberDao.Create(ctx, &newMember, tx); err != nil {
-			return apperrors.ErrGroupMemberCreationFailed.WithError(err)
+			return appErrors.ErrGroupMemberCreationFailed.WithError(err)
 		}
 		//更新用户组成员数量
 		if err := s.groupDao.UpdateMemberNum(ctx, groupID, true, tx); err != nil {
-			return apperrors.ErrGroupUpdateFailed.WithError(err)
+			return appErrors.ErrGroupUpdateFailed.WithError(err)
 		}
 		member = newMember
 		return nil
@@ -184,15 +184,15 @@ func (s *GroupsService) RemoveMemberFromGroup(ctx context.Context, groupID, user
 	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
 		//检查操作员权限
 		if err := s.CheckMemberPermission(ctx, groupID, operatorID); err != nil {
-			return apperrors.ErrRolePermissionDenied.WithError(err)
+			return appErrors.ErrRolePermissionDenied.WithError(err)
 		}
 		//删除用户组成员
 		if err := s.groupMemberDao.Delete(ctx, groupID, userID, tx); err != nil {
-			return apperrors.ErrGroupMemberDeletionFailed.WithError(err)
+			return appErrors.ErrGroupMemberDeletionFailed.WithError(err)
 		}
 		//更新用户组成员数量
 		if err := s.groupDao.UpdateMemberNum(ctx, groupID, false, tx); err != nil {
-			return apperrors.ErrGroupUpdateFailed.WithError(err)
+			return appErrors.ErrGroupUpdateFailed.WithError(err)
 		}
 		return nil
 	})
@@ -210,9 +210,9 @@ func (s *GroupsService) GetMembersByGroupID(ctx context.Context, groupID int) ([
 		groupMembers, err := s.groupMemberDao.GetMembersByGroupID(ctx, groupID, tx)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return apperrors.ErrGroupNotFound
+				return appErrors.ErrGroupNotFound
 			}
-			return apperrors.ErrDatabaseOperation.WithError(err)
+			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
 		members = groupMembers
 		return nil
@@ -231,14 +231,14 @@ func (s *GroupsService) CreateJoinApplication(ctx context.Context, groupID, user
 		_, err := s.groupDao.GetByGroupID(ctx, groupID, tx)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return apperrors.ErrGroupNotFound
+				return appErrors.ErrGroupNotFound
 			}
-			return apperrors.ErrDatabaseOperation.WithError(err)
+			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
 		//检查用户是否已加入用户组
 		member, err := s.groupMemberDao.GetMemberByGroupIDAndUserID(ctx, groupID, userID, tx)
 		if err == nil && member != nil {
-			return apperrors.ErrGroupMemberAlreadyExists
+			return appErrors.ErrGroupMemberAlreadyExists
 		}
 		//创建申请记录
 		newApplication := models.JoinApplication{
@@ -248,7 +248,7 @@ func (s *GroupsService) CreateJoinApplication(ctx context.Context, groupID, user
 			Reason:   reason,
 		}
 		if err := s.joinApplicationDao.Create(ctx, &newApplication, tx); err != nil {
-			return apperrors.ErrJoinApplicationCreationFailed.WithError(err)
+			return appErrors.ErrJoinApplicationCreationFailed.WithError(err)
 		}
 		application = newApplication
 		return nil
@@ -266,24 +266,24 @@ func (s *GroupsService) GetJoinApplicationsByGroupID(ctx context.Context, groupI
 	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
 		//检查操作员权限
 		if err := s.CheckMemberPermission(ctx, groupID, operatorID); err != nil {
-			return apperrors.ErrRolePermissionDenied.WithError(err)
+			return appErrors.ErrRolePermissionDenied.WithError(err)
 		}
 		//检查用户组是否存在
 		_, err := s.groupDao.GetByGroupID(ctx, groupID, tx)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return apperrors.ErrGroupNotFound
+				return appErrors.ErrGroupNotFound
 			}
-			return apperrors.ErrDatabaseOperation.WithError(err)
+			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
 
 		//查询待审批的申请记录
 		existApplications, err := s.joinApplicationDao.GetByGroupIDAndStatus(ctx, groupID, "pending", tx)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return apperrors.ErrJoinApplicationNotFound
+				return appErrors.ErrJoinApplicationNotFound
 			}
-			return apperrors.ErrDatabaseOperation.WithError(err)
+			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
 		applications = existApplications
 		return nil

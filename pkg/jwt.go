@@ -2,7 +2,7 @@ package pkg
 
 import (
 	"TeamTickBackend/config"
-	apperrors "TeamTickBackend/pkg/errors"
+	appErrors "TeamTickBackend/pkg/errors"
 	"errors"
 	"fmt"
 	"log"
@@ -24,7 +24,7 @@ type JwtTokenImpl struct {
 func NewJwtHandler() (JwtHandler, error) {
 	jwtConfig, err := config.GetJWTConfig()
 	if err != nil {
-		return nil, apperrors.ErrTokenConfigMissing.WithError(err)
+		return nil, appErrors.ErrTokenConfigMissing.WithError(err)
 	}
 	return &JwtTokenImpl{
 		jwtConfig: jwtConfig,

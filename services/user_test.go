@@ -2,7 +2,7 @@ package service
 
 import (
 	"TeamTickBackend/dal/models"
-	apperrors "TeamTickBackend/pkg/errors"
+	appErrors "TeamTickBackend/pkg/errors"
 	"context"
 	"errors"
 	"testing"
@@ -99,7 +99,7 @@ func TestGetUserMe_UserNotFound(t *testing.T) {
 
 	// 断言
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, apperrors.ErrUserNotFound))
+	assert.True(t, errors.Is(err, appErrors.ErrUserNotFound))
 	assert.Nil(t, user)
 
 	// 验证mock调用

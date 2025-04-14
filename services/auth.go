@@ -4,7 +4,7 @@ import (
 	"TeamTickBackend/dal/dao"
 	"TeamTickBackend/dal/models"
 	"TeamTickBackend/pkg"
-	apperrors "TeamTickBackend/pkg/errors"
+	appErrors "TeamTickBackend/pkg/errors"
 	"context"
 	"errors"
 
@@ -36,15 +36,15 @@ func (s *AuthService) AuthRegister(ctx context.Context, username, password strin
 		//检查用户是否已存在
 		user, err := s.userDao.GetByUsername(ctx, username, tx)
 		if err == nil && user != nil {
-			return apperrors.ErrUserAlreadyExists
+			return appErrors.ErrUserAlreadyExists
 		}
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-			return apperrors.ErrDatabaseOperation.WithError(err)
+			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
 		//加密密码
 		hashedPassword, err := pkg.GenerateFromPassword(password)
 		if err != nil {
-			return apperrors.ErrPasswordEncryption.WithError(err)
+			return appErrors.ErrPasswordEncryption.WithError(err)
 		}
 		newUser := models.User{
 			Username: username,
@@ -52,7 +52,7 @@ func (s *AuthService) AuthRegister(ctx context.Context, username, password strin
 		}
 		//创建用户
 		if err := s.userDao.Create(ctx, &newUser, tx); err != nil {
-			return apperrors.ErrUserCreationFailed.WithError(err)
+			return appErrors.ErrUserCreationFailed.WithError(err)
 		}
 		createdUser = newUser
 		return nil
@@ -73,19 +73,19 @@ func (s *AuthService) AuthLogin(ctx context.Context, username, password string) 
 		user, err := s.userDao.GetByUsername(ctx, username, tx)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return apperrors.ErrUserNotFound
+				return appErrors.ErrUserNotFound
 			}
-			return apperrors.ErrDatabaseOperation.WithError(err)
+			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
 		//检查密码是否正确
 		if !pkg.CheckPassword(user.Password, password) {
-			return apperrors.ErrInvalidPassword
+			return appErrors.ErrInvalidPassword
 		}
 		existUser = *user
 		//生成token
 		token, err := s.jwtHandler.GenerateJWTToken(user.Username, user.UserID)
 		if err != nil {
-			return apperrors.ErrTokenGenerationFailed.WithError(err)
+			return appErrors.ErrTokenGenerationFailed.WithError(err)
 		}
 		userToken = token
 

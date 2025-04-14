@@ -2,7 +2,7 @@ package service
 
 import (
 	"TeamTickBackend/dal/models"
-	apperrors "TeamTickBackend/pkg/errors"
+	appErrors "TeamTickBackend/pkg/errors"
 	"context"
 	"errors"
 	"testing"
@@ -246,7 +246,7 @@ func TestGetGroupByGroupID_NotFound(t *testing.T) {
 
 	// 断言
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, apperrors.ErrGroupNotFound))
+	assert.True(t, errors.Is(err, appErrors.ErrGroupNotFound))
 	assert.Nil(t, group)
 
 	// 验证mock调用
@@ -311,7 +311,7 @@ func TestGetGroupsByUserID_NotFound(t *testing.T) {
 
 	// 断言
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, apperrors.ErrGroupNotFound))
+	assert.True(t, errors.Is(err, appErrors.ErrGroupNotFound))
 	assert.Nil(t, groups)
 
 	// 验证mock调用
@@ -401,7 +401,7 @@ func TestCheckMemberPermission_NotAdmin(t *testing.T) {
 
 	// 断言
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, apperrors.ErrRolePermissionDenied))
+	assert.True(t, errors.Is(err, appErrors.ErrRolePermissionDenied))
 
 	// 验证mock调用
 	mockGroupMemberDao.AssertExpectations(t)
@@ -421,7 +421,7 @@ func TestCheckMemberPermission_MemberNotFound(t *testing.T) {
 
 	// 断言
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, apperrors.ErrGroupMemberNotFound))
+	assert.True(t, errors.Is(err, appErrors.ErrGroupMemberNotFound))
 
 	// 验证mock调用
 	mockGroupMemberDao.AssertExpectations(t)
@@ -486,7 +486,7 @@ func TestAddMemberToGroup_MemberAlreadyExists(t *testing.T) {
 
 	// 断言
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, apperrors.ErrGroupMemberAlreadyExists))
+	assert.True(t, errors.Is(err, appErrors.ErrGroupMemberAlreadyExists))
 	assert.Nil(t, member)
 
 	// 验证mock调用
@@ -550,7 +550,7 @@ func TestRemoveMemberFromGroup_NoPermission(t *testing.T) {
 
 	// 断言
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), apperrors.ErrRolePermissionDenied.Error())
+	assert.Contains(t, err.Error(), appErrors.ErrRolePermissionDenied.Error())
 
 	// 验证mock调用
 	mockTxManager.AssertExpectations(t)
@@ -611,7 +611,7 @@ func TestGetMembersByGroupID_GroupNotFound(t *testing.T) {
 
 	// 断言
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, apperrors.ErrGroupNotFound))
+	assert.True(t, errors.Is(err, appErrors.ErrGroupNotFound))
 	assert.Nil(t, members)
 
 	// 验证mock调用
@@ -682,7 +682,7 @@ func TestCreateJoinApplication_GroupNotFound(t *testing.T) {
 
 	// 断言
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, apperrors.ErrGroupNotFound))
+	assert.True(t, errors.Is(err, appErrors.ErrGroupNotFound))
 	assert.Nil(t, application)
 
 	// 验证mock调用
@@ -718,7 +718,7 @@ func TestCreateJoinApplication_AlreadyMember(t *testing.T) {
 
 	// 断言
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, apperrors.ErrGroupMemberAlreadyExists))
+	assert.True(t, errors.Is(err, appErrors.ErrGroupMemberAlreadyExists))
 	assert.Nil(t, application)
 
 	// 验证mock调用
@@ -807,7 +807,7 @@ func TestGetJoinApplicationsByGroupID_NoPermission(t *testing.T) {
 
 	// 断言
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), apperrors.ErrRolePermissionDenied.Error())
+	assert.Contains(t, err.Error(), appErrors.ErrRolePermissionDenied.Error())
 	assert.Nil(t, applications)
 
 	// 验证mock调用
@@ -838,7 +838,7 @@ func TestGetJoinApplicationsByGroupID_GroupNotFound(t *testing.T) {
 
 	// 断言
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, apperrors.ErrGroupNotFound))
+	assert.True(t, errors.Is(err, appErrors.ErrGroupNotFound))
 	assert.Nil(t, applications)
 
 	// 验证mock调用
@@ -875,7 +875,7 @@ func TestGetJoinApplicationsByGroupID_NoApplications(t *testing.T) {
 
 	// 断言
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, apperrors.ErrJoinApplicationNotFound))
+	assert.True(t, errors.Is(err, appErrors.ErrJoinApplicationNotFound))
 	assert.Nil(t, applications)
 
 	// 验证mock调用

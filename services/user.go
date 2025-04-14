@@ -3,7 +3,7 @@ package service
 import (
 	"TeamTickBackend/dal/dao"
 	"TeamTickBackend/dal/models"
-	apperrors "TeamTickBackend/pkg/errors"
+	appErrors "TeamTickBackend/pkg/errors"
 	"context"
 	"errors"
 
@@ -31,9 +31,9 @@ func (s *UserService) GetUserMe(ctx context.Context, userID int) (*models.User, 
 		user, err := s.userDao.GetByID(ctx, userID, tx)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return apperrors.ErrUserNotFound
+				return appErrors.ErrUserNotFound
 			}
-			return apperrors.ErrDatabaseOperation.WithError(err)
+			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
 		existUser = *user
 		return nil
