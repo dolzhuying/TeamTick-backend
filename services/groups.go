@@ -86,10 +86,16 @@ func (s *GroupsService) GetGroupByGroupID(ctx context.Context, groupID int) (*mo
 }
 
 // 查询特定用户所创建或加入的所有用户组
-func (s *GroupsService) GetGroupsByUserID(ctx context.Context, userID int) ([]*models.Group, error) {
+func (s *GroupsService) GetGroupsByUserID(ctx context.Context, userID int, filter ...string) ([]*models.Group, error) {
 	var groups []*models.Group
 	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
-		Groups, err := s.groupDao.GetGroupsByUserID(ctx, userID, tx)
+		var Groups []*models.Group
+		var err error
+		if len(filter) > 0 {
+			Groups, err = s.groupDao.GetGroupsByUserIDAndfilter(ctx, userID, filter[0], tx)
+		} else {
+			Groups, err = s.groupDao.GetGroupsByUserID(ctx, userID, tx)
+		}
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return appErrors.ErrGroupNotFound
@@ -106,9 +112,13 @@ func (s *GroupsService) GetGroupsByUserID(ctx context.Context, userID int) ([]*m
 }
 
 // 更新用户组信息
-func (s *GroupsService) UpdateGroup(ctx context.Context, groupID int, groupName, description string) (*models.Group, error) {
+func (s *GroupsService) UpdateGroup(ctx context.Context, groupID, operatorID int, groupName, description string) (*models.Group, error) {
 	var updatedGroup models.Group
 	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
+		//检查操作员权限
+		if err := s.CheckMemberPermission(ctx, groupID, operatorID); err != nil {
+			return appErrors.ErrRolePermissionDenied.WithError(err)
+		}
 		//更新用户组信息
 		if err := s.groupDao.UpdateMessage(ctx, groupID, groupName, description, tx); err != nil {
 			return appErrors.ErrGroupUpdateFailed.WithError(err)
@@ -203,7 +213,6 @@ func (s *GroupsService) RemoveMemberFromGroup(ctx context.Context, groupID, user
 }
 
 // 查询用户组中的所有成员
-// 关于返回值，是否需要在查询成员表来获取成员信息，然后返回成员信息列表？（涉及多次数据库操作）
 func (s *GroupsService) GetMembersByGroupID(ctx context.Context, groupID int) ([]*models.GroupMember, error) {
 	var members []*models.GroupMember
 	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
@@ -259,8 +268,7 @@ func (s *GroupsService) CreateJoinApplication(ctx context.Context, groupID, user
 	return &application, nil
 }
 
-// 查看用户组加入申请列表
-// 关于返回值，是否需要查询用户列表返回所有用户信息？（多次数据库操作）
+// 查看用户组加入申请列表（待审批）
 func (s *GroupsService) GetJoinApplicationsByGroupID(ctx context.Context, groupID, operatorID int) ([]*models.JoinApplication, error) {
 	var applications []*models.JoinApplication
 	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
@@ -294,4 +302,104 @@ func (s *GroupsService) GetJoinApplicationsByGroupID(ctx context.Context, groupI
 	return applications, nil
 }
 
-// 审批用户组加入申请（迭代，涉及多个操作，AddMemberToGroup提及）
+// 审批用户组加入申请（通过申请）（迭代，涉及多个操作，AddMemberToGroup提及）
+func (s *GroupsService) ApproveJoinApplication(ctx context.Context, groupID, userID, operatorID, requestID int, username string) error {
+	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
+		//检查操作员权限
+		if err := s.CheckMemberPermission(ctx, groupID, operatorID); err != nil {
+			return appErrors.ErrRolePermissionDenied.WithError(err)
+		}
+		//更新用户组成员数量
+		if err := s.groupDao.UpdateMemberNum(ctx, groupID, true, tx); err != nil {
+			return appErrors.ErrGroupUpdateFailed.WithError(err)
+		}
+		//添加用户组成员
+		if err := s.groupMemberDao.Create(ctx, &models.GroupMember{
+			GroupID:  groupID,
+			UserID:   userID,
+			Username: username,
+		}, tx); err != nil {
+			return appErrors.ErrGroupMemberCreationFailed.WithError(err)
+		}
+		//更新申请记录状态
+		if err := s.joinApplicationDao.UpdateStatus(ctx, requestID, "accepted", tx); err != nil {
+			return appErrors.ErrJoinApplicationUpdateFailed.WithError(err)
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// 拒绝用户组加入申请
+func (s *GroupsService) RejectJoinApplication(ctx context.Context, groupID, userID, operatorID, requestID int, username, rejectReason string) error {
+	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
+		//检查操作员权限
+		if err := s.CheckMemberPermission(ctx, groupID, operatorID); err != nil {
+			return appErrors.ErrRolePermissionDenied.WithError(err)
+		}
+		//更新申请记录状态
+		if err := s.joinApplicationDao.UpdateStatus(ctx, requestID, "rejected", tx); err != nil {
+			return appErrors.ErrJoinApplicationUpdateFailed.WithError(err)
+		}
+		//更新拒绝理由
+		if err := s.joinApplicationDao.UpdateRejectReason(ctx, requestID, rejectReason, tx); err != nil {
+			return appErrors.ErrJoinApplicationUpdateFailed.WithError(err)
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// 删除用户组
+func (s *GroupsService) DeleteGroup(ctx context.Context, groupID, operatorID int) error {
+	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
+		//检查操作员权限
+		if err := s.CheckMemberPermission(ctx, groupID, operatorID); err != nil {
+			return appErrors.ErrRolePermissionDenied.WithError(err)
+		}
+		//删除用户组
+		if err := s.groupDao.Delete(ctx, groupID, tx); err != nil {
+			return appErrors.ErrGroupDeletionFailed.WithError(err)
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// 查询当前登录用户在指定用户组中的状态，包括未关联、申请中、普通成员、管理员等(返回申请记录，可在handlers层根据记录的status构建对应的响应)
+func (s *GroupsService) GetUserGroupStatus(ctx context.Context, groupID, userID int) (*models.JoinApplication, error) {
+	var application models.JoinApplication
+	err:=s.transactionManager.WithTransaction(ctx,func(tx *gorm.DB) error {
+		//检查用户组是否存在
+		_,err:=s.groupDao.GetByGroupID(ctx,groupID,tx)
+		if err!=nil{
+			if errors.Is(err,gorm.ErrRecordNotFound){
+				return appErrors.ErrGroupNotFound
+			}
+			return appErrors.ErrDatabaseOperation.WithError(err)
+		}
+		// 查看申请记录
+		Application,err:=s.joinApplicationDao.GetByGroupIDAndUserID(ctx,groupID,userID,tx)
+		if err!=nil{
+			if errors.Is(err,gorm.ErrRecordNotFound){
+				return appErrors.ErrJoinApplicationNotFound
+			}
+			return appErrors.ErrDatabaseOperation.WithError(err)
+		}
+		application=*Application
+		return nil
+	})
+	if err!=nil{
+		return nil,err
+	}
+	return &application,nil
+}

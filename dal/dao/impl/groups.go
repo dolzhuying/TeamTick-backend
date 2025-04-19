@@ -7,7 +7,7 @@ import (
 	"gorm.io/gorm"
 )
 
-type GroupDAOMySQLImpl struct{
+type GroupDAOMySQLImpl struct {
 	DB *gorm.DB
 }
 
@@ -52,6 +52,35 @@ func (dao *GroupDAOMySQLImpl) GetGroupsByUserID(ctx context.Context, userID int,
 	return groups, nil
 }
 
+// GetGroupsByUserIDAndfilter 通过user_id和filter获取用户所在的所有用户组
+func (dao *GroupDAOMySQLImpl) GetGroupsByUserIDAndfilter(ctx context.Context, userID int, filter string, tx ...*gorm.DB) ([]*models.Group, error) {
+	var groups []*models.Group
+	db := dao.DB
+	if len(tx) > 0 && tx[0] != nil {
+		db = tx[0]
+	}
+	if filter == "created" {
+		err := db.WithContext(ctx).Table("groups g").
+			Select("g.*").
+			Joins("JOIN group_member gm ON g.group_id = gm.group_id").
+			Where("gm.user_id = ? AND gm.role = ?", userID, "admin").
+			Find(&groups).Error
+		if err != nil {
+			return nil, err
+		}
+	} else if filter == "joined" {
+		err := db.WithContext(ctx).Table("groups g").
+			Select("g.*").
+			Joins("JOIN group_member gm ON g.group_id = gm.group_id").
+			Where("gm.user_id = ? AND gm.role = ?", userID, "member").
+			Find(&groups).Error
+		if err != nil {
+			return nil, err
+		}
+	}
+	return groups, nil
+}
+
 // UpdateMessage 更新组信息
 func (dao *GroupDAOMySQLImpl) UpdateMessage(ctx context.Context, groupID int, groupName, description string, tx ...*gorm.DB) error {
 	db := dao.DB
@@ -81,4 +110,13 @@ func (dao *GroupDAOMySQLImpl) UpdateMemberNum(ctx context.Context, groupID int, 
 		Model(&models.Group{}).
 		Where("group_id = ?", groupID).
 		Update("member_num", gorm.Expr(expr)).Error
+}
+
+//删除用户组
+func (dao *GroupDAOMySQLImpl) Delete(ctx context.Context,groupID int,tx ...*gorm.DB) error {
+	db := dao.DB
+	if len(tx) > 0 && tx[0] != nil {
+		db = tx[0]
+	}
+	return db.WithContext(ctx).Where("group_id = ?", groupID).Delete(&models.Group{}).Error
 }

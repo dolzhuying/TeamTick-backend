@@ -63,5 +63,17 @@ var (
 		Status:  http.StatusNotFound,
 	}
 
+	ErrJoinApplicationUpdateFailed = &AppError{
+		Code:    "join_application_update_failed",
+		Message: "用户申请加入记录更新失败",
+		Status:  http.StatusInternalServerError,
+	}
+
+	ErrGroupDeletionFailed = &AppError{
+		Code:    "group_deletion_failed",
+		Message: "用户组删除失败",
+		Status:  http.StatusInternalServerError,
+	}
+
 	//待完善
 )
