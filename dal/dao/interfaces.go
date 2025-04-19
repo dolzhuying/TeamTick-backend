@@ -24,6 +24,9 @@ type TaskDAO interface {
 	GetActiveTasksByGroupID(ctx context.Context, groupID int, tx ...*gorm.DB) ([]*models.Task, error)
 	GetEndedTasksByGroupID(ctx context.Context, groupID int, tx ...*gorm.DB) ([]*models.Task, error)
 	GetByTaskID(ctx context.Context, taskID int, tx ...*gorm.DB) (*models.Task, error)
+	UpdateTask(ctx context.Context, taskID int, newTask *models.Task, tx ...*gorm.DB) error
+	Delete(ctx context.Context,taskID int,tx ...*gorm.DB) error
+	
 }
 
 // GroupDAO 用户组数据访问接口
@@ -50,6 +53,7 @@ type TaskRecordDAO interface {
 	Create(ctx context.Context, record *models.TaskRecord, tx ...*gorm.DB) error
 	GetByTaskID(ctx context.Context, taskID int, tx ...*gorm.DB) ([]*models.TaskRecord, error)
 	GetByUserID(ctx context.Context, userID int, tx ...*gorm.DB) ([]*models.TaskRecord, error)
+	GetByTaskIDAndUserID(ctx context.Context,taskID,userID int,tx ...*gorm.DB) (*models.TaskRecord,error)
 }
 
 // JoinApplicationDAO 加入申请数据访问接口

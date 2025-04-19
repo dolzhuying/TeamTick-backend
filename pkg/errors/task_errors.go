@@ -32,6 +32,15 @@ var (
 		Message: "Task record already exists",
 		Status:  http.StatusBadRequest,
 	}
-	
+
+	ErrTaskUpdateFailed = &AppError{
+		Message: "Failed to update task",
+		Status:  http.StatusInternalServerError,
+	}
+
+	ErrTaskDeleteFailed = &AppError{
+		Message: "Failed to delete task",
+		Status:  http.StatusInternalServerError,
+	}
 	
 )
