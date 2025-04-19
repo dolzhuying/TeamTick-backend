@@ -167,12 +167,19 @@ func (s *TaskService) CheckInTask(ctx context.Context,
 		}
 
 		//检查是否已经签到
-		if _, err := s.taskRecordDao.GetByTaskIDAndUserID(ctx, taskID, userID, tx); err != nil {
+		if record, err := s.taskRecordDao.GetByTaskIDAndUserID(ctx, taskID, userID, tx); err == nil && record != nil {
 			return appErrors.ErrTaskRecordAlreadyExists.WithError(err)
 		}
 
 		//创建签到记录，字段根据校验策略进行选择
 		var record models.TaskRecord
+		record=models.TaskRecord{
+			TaskID:taskID,
+			UserID:userID,
+			GroupID:groupID,
+			SignedTime:signedInTime,
+			Username:username,
+		}
 
 		//校验策略选择
 		if task.GPS {

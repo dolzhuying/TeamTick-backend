@@ -42,7 +42,7 @@ func (dao *TaskDAOMySQLImpl) GetActiveTasksByGroupID(ctx context.Context, groupI
 	if len(tx) > 0 && tx[0] != nil {
 		db = tx[0]
 	}
-	err := db.WithContext(ctx).Where("group_id=? AND NOW() BETWEEN start_time AND end_time", groupID).First(&tasks).Error
+	err := db.WithContext(ctx).Where("group_id=? AND NOW() BETWEEN start_time AND end_time", groupID).Find(&tasks).Error
 	if err != nil {
 		return nil, err
 	}
