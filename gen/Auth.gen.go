@@ -101,13 +101,13 @@ type PostAuthLogin200JSONResponse struct {
 	Code string `json:"code"`
 	Data struct {
 		// Token JWT 令牌
-		Token *string `json:"token,omitempty"`
+		Token string `json:"token,omitempty"`
 
 		// UserId 用户ID
-		UserId *int64 `json:"userId,omitempty"`
+		UserId int `json:"userId,omitempty"`
 
 		// Username 用户名
-		Username *string `json:"username,omitempty"`
+		Username string `json:"username,omitempty"`
 	} `json:"data"`
 }
 
