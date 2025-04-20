@@ -25,8 +25,7 @@ type TaskDAO interface {
 	GetEndedTasksByGroupID(ctx context.Context, groupID int, tx ...*gorm.DB) ([]*models.Task, error)
 	GetByTaskID(ctx context.Context, taskID int, tx ...*gorm.DB) (*models.Task, error)
 	UpdateTask(ctx context.Context, taskID int, newTask *models.Task, tx ...*gorm.DB) error
-	Delete(ctx context.Context,taskID int,tx ...*gorm.DB) error
-	
+	Delete(ctx context.Context, taskID int, tx ...*gorm.DB) error
 }
 
 // GroupDAO 用户组数据访问接口
@@ -37,7 +36,7 @@ type GroupDAO interface {
 	UpdateMessage(ctx context.Context, groupID int, groupName, description string, tx ...*gorm.DB) error
 	UpdateMemberNum(ctx context.Context, groupID int, increment bool, tx ...*gorm.DB) error
 	GetGroupsByUserIDAndfilter(ctx context.Context, userID int, filter string, tx ...*gorm.DB) ([]*models.Group, error)
-	Delete(ctx context.Context,groupID int,tx ...*gorm.DB) error
+	Delete(ctx context.Context, groupID int, tx ...*gorm.DB) error
 }
 
 // GroupMemberDAO 组成员数据访问接口
@@ -53,7 +52,7 @@ type TaskRecordDAO interface {
 	Create(ctx context.Context, record *models.TaskRecord, tx ...*gorm.DB) error
 	GetByTaskID(ctx context.Context, taskID int, tx ...*gorm.DB) ([]*models.TaskRecord, error)
 	GetByUserID(ctx context.Context, userID int, tx ...*gorm.DB) ([]*models.TaskRecord, error)
-	GetByTaskIDAndUserID(ctx context.Context,taskID,userID int,tx ...*gorm.DB) (*models.TaskRecord,error)
+	GetByTaskIDAndUserID(ctx context.Context, taskID, userID int, tx ...*gorm.DB) (*models.TaskRecord, error)
 }
 
 // JoinApplicationDAO 加入申请数据访问接口
@@ -72,4 +71,6 @@ type CheckApplicationDAO interface {
 	GetByGroupID(ctx context.Context, groupID int, tx ...*gorm.DB) ([]*models.CheckApplication, error)
 	GetByUserID(ctx context.Context, userID int, tx ...*gorm.DB) ([]*models.CheckApplication, error)
 	Update(ctx context.Context, status string, requestID int, tx ...*gorm.DB) error
+	GetByTaskIDAndUserID(ctx context.Context, taskID int, userID int, tx ...*gorm.DB) (*models.CheckApplication, error)
+	GetByID(ctx context.Context, id int, tx ...*gorm.DB) (*models.CheckApplication, error)
 }

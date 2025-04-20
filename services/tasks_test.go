@@ -625,9 +625,9 @@ func TestUpdateTask_Success(t *testing.T) {
 
 	// Mock期望
 	mockTxManager.On("WithTransaction", ctx, mock.AnythingOfType("func(*gorm.DB) error")).Return(nil)
-	mockTaskDao.On("GetByTaskID", ctx, taskID, mock.AnythingOfType("[]*gorm.DB")).Return(originalTask, nil)
+	mockTaskDao.On("GetByTaskID", ctx, taskID, mock.AnythingOfType("[]*gorm.DB")).Return(originalTask, nil).Once()
 	mockTaskDao.On("UpdateTask", ctx, taskID, mock.AnythingOfType("*models.Task"), mock.AnythingOfType("[]*gorm.DB")).Return(nil)
-	mockTaskDao.On("GetByTaskID", ctx, taskID, mock.AnythingOfType("[]*gorm.DB")).Return(updatedTask, nil)
+	mockTaskDao.On("GetByTaskID", ctx, taskID, mock.AnythingOfType("[]*gorm.DB")).Return(updatedTask, nil).Once()
 
 	// 调用函数
 	result, err := taskService.UpdateTask(ctx, taskID, taskName, description, startTime, endTime,
