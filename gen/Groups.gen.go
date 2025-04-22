@@ -22,27 +22,33 @@ type GroupsServerInterface interface {
 	// 创建用户组
 	// (POST /groups)
 	PostGroups(c *gin.Context)
+	// 删除用户组
+	// (DELETE /groups/{groupId})
+	DeleteGroupsGroupId(c *gin.Context, groupId int)
 	// 获取用户组详细信息
 	// (GET /groups/{groupId})
-	GetGroupsGroupId(c *gin.Context, groupId int64)
+	GetGroupsGroupId(c *gin.Context, groupId int)
 	// 修改用户组信息
 	// (PUT /groups/{groupId})
-	PutGroupsGroupId(c *gin.Context, groupId int64)
+	PutGroupsGroupId(c *gin.Context, groupId int)
 	// 查看用户组的加入申请列表
 	// (GET /groups/{groupId}/join-requests)
-	GetGroupsGroupIdJoinRequests(c *gin.Context, groupId int64, params GetGroupsGroupIdJoinRequestsParams)
+	GetGroupsGroupIdJoinRequests(c *gin.Context, groupId int, params GetGroupsGroupIdJoinRequestsParams)
 	// 申请加入用户组
 	// (POST /groups/{groupId}/join-requests)
-	PostGroupsGroupIdJoinRequests(c *gin.Context, groupId int64)
+	PostGroupsGroupIdJoinRequests(c *gin.Context, groupId int)
 	// 处理用户组加入申请
 	// (PUT /groups/{groupId}/join-requests/{requestId})
-	PutGroupsGroupIdJoinRequestsRequestId(c *gin.Context, groupId int64, requestId int64)
+	PutGroupsGroupIdJoinRequestsRequestId(c *gin.Context, groupId int, requestId int)
 	// 获取用户组成员列表
 	// (GET /groups/{groupId}/members)
-	GetGroupsGroupIdMembers(c *gin.Context, groupId int64)
+	GetGroupsGroupIdMembers(c *gin.Context, groupId int)
 	// 移除用户组成员
 	// (DELETE /groups/{groupId}/members/{userId})
-	DeleteGroupsGroupIdMembersUserId(c *gin.Context, groupId int64, userId int64)
+	DeleteGroupsGroupIdMembersUserId(c *gin.Context, groupId int, userId int)
+	// 查询当前用户在用户组中的状态
+	// (GET /groups/{groupId}/my-status)
+	GetGroupsGroupIdMyStatus(c *gin.Context, groupId int)
 }
 
 // GroupsServerInterfaceWrapper 将上下文转换为参数。
@@ -93,13 +99,37 @@ func (siw *GroupsServerInterfaceWrapper) PostGroups(c *gin.Context) {
 	siw.Handler.PostGroups(c)
 }
 
+// DeleteGroupsGroupId 操作中间件
+func (siw *GroupsServerInterfaceWrapper) DeleteGroupsGroupId(c *gin.Context) {
+
+	var err error
+
+	// ------------- 路径参数 "groupId" -------------
+	var groupId int
+
+	err = runtime.BindStyledParameterWithOptions("simple", "groupId", c.Param("groupId"), &groupId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("参数 groupId 格式无效: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.DeleteGroupsGroupId(c, groupId)
+}
+
 // GetGroupsGroupId 操作中间件
 func (siw *GroupsServerInterfaceWrapper) GetGroupsGroupId(c *gin.Context) {
 
 	var err error
 
 	// ------------- 路径参数 "groupId" -------------
-	var groupId int64
+	var groupId int
 
 	err = runtime.BindStyledParameterWithOptions("simple", "groupId", c.Param("groupId"), &groupId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
 	if err != nil {
@@ -123,7 +153,7 @@ func (siw *GroupsServerInterfaceWrapper) PutGroupsGroupId(c *gin.Context) {
 	var err error
 
 	// ------------- 路径参数 "groupId" -------------
-	var groupId int64
+	var groupId int
 
 	err = runtime.BindStyledParameterWithOptions("simple", "groupId", c.Param("groupId"), &groupId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
 	if err != nil {
@@ -147,7 +177,7 @@ func (siw *GroupsServerInterfaceWrapper) GetGroupsGroupIdJoinRequests(c *gin.Con
 	var err error
 
 	// ------------- 路径参数 "groupId" -------------
-	var groupId int64
+	var groupId int
 
 	err = runtime.BindStyledParameterWithOptions("simple", "groupId", c.Param("groupId"), &groupId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
 	if err != nil {
@@ -182,7 +212,7 @@ func (siw *GroupsServerInterfaceWrapper) PostGroupsGroupIdJoinRequests(c *gin.Co
 	var err error
 
 	// ------------- 路径参数 "groupId" -------------
-	var groupId int64
+	var groupId int
 
 	err = runtime.BindStyledParameterWithOptions("simple", "groupId", c.Param("groupId"), &groupId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
 	if err != nil {
@@ -206,7 +236,7 @@ func (siw *GroupsServerInterfaceWrapper) PutGroupsGroupIdJoinRequestsRequestId(c
 	var err error
 
 	// ------------- 路径参数 "groupId" -------------
-	var groupId int64
+	var groupId int
 
 	err = runtime.BindStyledParameterWithOptions("simple", "groupId", c.Param("groupId"), &groupId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
 	if err != nil {
@@ -215,7 +245,7 @@ func (siw *GroupsServerInterfaceWrapper) PutGroupsGroupIdJoinRequestsRequestId(c
 	}
 
 	// ------------- 路径参数 "requestId" -------------
-	var requestId int64
+	var requestId int
 
 	err = runtime.BindStyledParameterWithOptions("simple", "requestId", c.Param("requestId"), &requestId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
 	if err != nil {
@@ -239,7 +269,7 @@ func (siw *GroupsServerInterfaceWrapper) GetGroupsGroupIdMembers(c *gin.Context)
 	var err error
 
 	// ------------- 路径参数 "groupId" -------------
-	var groupId int64
+	var groupId int
 
 	err = runtime.BindStyledParameterWithOptions("simple", "groupId", c.Param("groupId"), &groupId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
 	if err != nil {
@@ -263,7 +293,7 @@ func (siw *GroupsServerInterfaceWrapper) DeleteGroupsGroupIdMembersUserId(c *gin
 	var err error
 
 	// ------------- 路径参数 "groupId" -------------
-	var groupId int64
+	var groupId int
 
 	err = runtime.BindStyledParameterWithOptions("simple", "groupId", c.Param("groupId"), &groupId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
 	if err != nil {
@@ -272,7 +302,7 @@ func (siw *GroupsServerInterfaceWrapper) DeleteGroupsGroupIdMembersUserId(c *gin
 	}
 
 	// ------------- 路径参数 "userId" -------------
-	var userId int64
+	var userId int
 
 	err = runtime.BindStyledParameterWithOptions("simple", "userId", c.Param("userId"), &userId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
 	if err != nil {
@@ -288,6 +318,30 @@ func (siw *GroupsServerInterfaceWrapper) DeleteGroupsGroupIdMembersUserId(c *gin
 	}
 
 	siw.Handler.DeleteGroupsGroupIdMembersUserId(c, groupId, userId)
+}
+
+// GetGroupsGroupIdMyStatus 操作中间件
+func (siw *GroupsServerInterfaceWrapper) GetGroupsGroupIdMyStatus(c *gin.Context) {
+
+	var err error
+
+	// ------------- 路径参数 "groupId" -------------
+	var groupId int
+
+	err = runtime.BindStyledParameterWithOptions("simple", "groupId", c.Param("groupId"), &groupId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("参数 groupId 格式无效: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetGroupsGroupIdMyStatus(c, groupId)
 }
 
 // GroupsGinServerOptions 提供 Gin 服务器的选项。
@@ -319,6 +373,7 @@ func RegisterGroupsHandlersWithOptions(router gin.IRouter, si GroupsServerInterf
 
 	router.GET(options.BaseURL+"/groups", wrapper.GetGroups)
 	router.POST(options.BaseURL+"/groups", wrapper.PostGroups)
+	router.DELETE(options.BaseURL+"/groups/:groupId", wrapper.DeleteGroupsGroupId)
 	router.GET(options.BaseURL+"/groups/:groupId", wrapper.GetGroupsGroupId)
 	router.PUT(options.BaseURL+"/groups/:groupId", wrapper.PutGroupsGroupId)
 	router.GET(options.BaseURL+"/groups/:groupId/join-requests", wrapper.GetGroupsGroupIdJoinRequests)
@@ -326,6 +381,7 @@ func RegisterGroupsHandlersWithOptions(router gin.IRouter, si GroupsServerInterf
 	router.PUT(options.BaseURL+"/groups/:groupId/join-requests/:requestId", wrapper.PutGroupsGroupIdJoinRequestsRequestId)
 	router.GET(options.BaseURL+"/groups/:groupId/members", wrapper.GetGroupsGroupIdMembers)
 	router.DELETE(options.BaseURL+"/groups/:groupId/members/:userId", wrapper.DeleteGroupsGroupIdMembersUserId)
+	router.GET(options.BaseURL+"/groups/:groupId/my-status", wrapper.GetGroupsGroupIdMyStatus)
 }
 
 type GetGroupsRequestObject struct {
@@ -340,26 +396,26 @@ type GetGroups200JSONResponse struct {
 	Code string `json:"code"`
 	Data []struct {
 		// CreatedAt 创建时间（Unix时间戳，单位：秒）
-		CreatedAt *int64 `json:"createdAt,omitempty"`
+		CreatedAt int `json:"createdAt,omitempty"`
 
 		// CreatorId 创建者用户ID
-		CreatorId *int64 `json:"creatorId,omitempty"`
+		CreatorId int `json:"creatorId,omitempty"`
 
 		// CreatorName 创建者用户名
-		CreatorName *string `json:"creatorName,omitempty"`
+		CreatorName string `json:"creatorName,omitempty"`
 
 		// Description 用户组描述
-		Description *string `json:"description,omitempty"`
+		Description string `json:"description,omitempty"`
 
 		// GroupId 用户组ID
-		GroupId *int64 `json:"groupId,omitempty"`
+		GroupId int `json:"groupId,omitempty"`
 
 		// GroupName 用户组名称
-		GroupName *string `json:"groupName,omitempty"`
+		GroupName string `json:"groupName,omitempty"`
 
 		// MemberCount 成员数量
-		MemberCount *int       `json:"memberCount,omitempty"`
-		RoleInGroup *GroupRole `json:"roleInGroup,omitempty"`
+		MemberCount int       `json:"memberCount,omitempty"`
+		RoleInGroup GroupRole `json:"roleInGroup,omitempty"`
 	} `json:"data"`
 }
 
@@ -426,8 +482,76 @@ func (response PostGroups401JSONResponse) VisitPostGroupsResponse(w http.Respons
 	return json.NewEncoder(w).Encode(response)
 }
 
+type DeleteGroupsGroupIdRequestObject struct {
+	GroupId int `json:"groupId"`
+}
+
+type DeleteGroupsGroupIdResponseObject interface {
+	VisitDeleteGroupsGroupIdResponse(w http.ResponseWriter) error
+}
+
+type DeleteGroupsGroupId200JSONResponse struct {
+	Code string                  `json:"code"`
+	Data *map[string]interface{} `json:"data,omitempty"`
+}
+
+func (response DeleteGroupsGroupId200JSONResponse) VisitDeleteGroupsGroupIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteGroupsGroupId401JSONResponse struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+func (response DeleteGroupsGroupId401JSONResponse) VisitDeleteGroupsGroupIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteGroupsGroupId403JSONResponse struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+func (response DeleteGroupsGroupId403JSONResponse) VisitDeleteGroupsGroupIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteGroupsGroupId404JSONResponse struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+func (response DeleteGroupsGroupId404JSONResponse) VisitDeleteGroupsGroupIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteGroupsGroupId409JSONResponse struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+func (response DeleteGroupsGroupId409JSONResponse) VisitDeleteGroupsGroupIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type GetGroupsGroupIdRequestObject struct {
-	GroupId int64 `json:"groupId"`
+	GroupId int `json:"groupId"`
 }
 
 type GetGroupsGroupIdResponseObject interface {
@@ -458,6 +582,18 @@ func (response GetGroupsGroupId401JSONResponse) VisitGetGroupsGroupIdResponse(w 
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetGroupsGroupId403JSONResponse struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+func (response GetGroupsGroupId403JSONResponse) VisitGetGroupsGroupIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type GetGroupsGroupId404JSONResponse struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`
@@ -471,7 +607,7 @@ func (response GetGroupsGroupId404JSONResponse) VisitGetGroupsGroupIdResponse(w 
 }
 
 type PutGroupsGroupIdRequestObject struct {
-	GroupId int64 `json:"groupId"`
+	GroupId int `json:"groupId"`
 	Body    *PutGroupsGroupIdJSONRequestBody
 }
 
@@ -540,7 +676,7 @@ func (response PutGroupsGroupId404JSONResponse) VisitPutGroupsGroupIdResponse(w 
 }
 
 type GetGroupsGroupIdJoinRequestsRequestObject struct {
-	GroupId int64 `json:"groupId"`
+	GroupId int `json:"groupId"`
 	Params  GetGroupsGroupIdJoinRequestsParams
 }
 
@@ -597,7 +733,7 @@ func (response GetGroupsGroupIdJoinRequests404JSONResponse) VisitGetGroupsGroupI
 }
 
 type PostGroupsGroupIdJoinRequestsRequestObject struct {
-	GroupId int64 `json:"groupId"`
+	GroupId int `json:"groupId"`
 	Body    *PostGroupsGroupIdJoinRequestsJSONRequestBody
 }
 
@@ -666,8 +802,8 @@ func (response PostGroupsGroupIdJoinRequests409JSONResponse) VisitPostGroupsGrou
 }
 
 type PutGroupsGroupIdJoinRequestsRequestIdRequestObject struct {
-	GroupId   int64 `json:"groupId"`
-	RequestId int64 `json:"requestId"`
+	GroupId   int `json:"groupId"`
+	RequestId int `json:"requestId"`
 	Body      *PutGroupsGroupIdJoinRequestsRequestIdJSONRequestBody
 }
 
@@ -748,7 +884,7 @@ func (response PutGroupsGroupIdJoinRequestsRequestId409JSONResponse) VisitPutGro
 }
 
 type GetGroupsGroupIdMembersRequestObject struct {
-	GroupId int64 `json:"groupId"`
+	GroupId int `json:"groupId"`
 }
 
 type GetGroupsGroupIdMembersResponseObject interface {
@@ -804,8 +940,8 @@ func (response GetGroupsGroupIdMembers404JSONResponse) VisitGetGroupsGroupIdMemb
 }
 
 type DeleteGroupsGroupIdMembersUserIdRequestObject struct {
-	GroupId int64 `json:"groupId"`
-	UserId  int64 `json:"userId"`
+	GroupId int `json:"groupId"`
+	UserId  int `json:"userId"`
 }
 
 type DeleteGroupsGroupIdMembersUserIdResponseObject interface {
@@ -860,6 +996,59 @@ func (response DeleteGroupsGroupIdMembersUserId404JSONResponse) VisitDeleteGroup
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetGroupsGroupIdMyStatusRequestObject struct {
+	GroupId int `json:"groupId"`
+}
+
+type GetGroupsGroupIdMyStatusResponseObject interface {
+	VisitGetGroupsGroupIdMyStatusResponse(w http.ResponseWriter) error
+}
+
+type GetGroupsGroupIdMyStatus200JSONResponse struct {
+	Code string `json:"code"`
+	Data struct {
+		// JoinRequestId 加入申请ID (仅当status为pending或rejected时有值)
+		JoinRequestId int `json:"joinRequestId,omitempty"`
+
+		// Message 附加信息说明 (可选)
+		Message string `json:"message,omitempty"`
+
+		// Status 用户在组中的状态：none(未关联)、pending(申请中)、member(普通成员)、rejected(申请被拒绝)
+		Status GroupMembershipStatus `json:"status"`
+	} `json:"data"`
+}
+
+func (response GetGroupsGroupIdMyStatus200JSONResponse) VisitGetGroupsGroupIdMyStatusResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetGroupsGroupIdMyStatus401JSONResponse struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+func (response GetGroupsGroupIdMyStatus401JSONResponse) VisitGetGroupsGroupIdMyStatusResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetGroupsGroupIdMyStatus404JSONResponse struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+func (response GetGroupsGroupIdMyStatus404JSONResponse) VisitGetGroupsGroupIdMyStatusResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 // GroupsStrictServerInterface represents all server handlers.
 type GroupsStrictServerInterface interface {
 	// 获取用户相关的用户组列表
@@ -868,6 +1057,9 @@ type GroupsStrictServerInterface interface {
 	// 创建用户组
 	// (POST /groups)
 	PostGroups(ctx context.Context, request PostGroupsRequestObject) (PostGroupsResponseObject, error)
+	// 删除用户组
+	// (DELETE /groups/{groupId})
+	DeleteGroupsGroupId(ctx context.Context, request DeleteGroupsGroupIdRequestObject) (DeleteGroupsGroupIdResponseObject, error)
 	// 获取用户组详细信息
 	// (GET /groups/{groupId})
 	GetGroupsGroupId(ctx context.Context, request GetGroupsGroupIdRequestObject) (GetGroupsGroupIdResponseObject, error)
@@ -889,6 +1081,9 @@ type GroupsStrictServerInterface interface {
 	// 移除用户组成员
 	// (DELETE /groups/{groupId}/members/{userId})
 	DeleteGroupsGroupIdMembersUserId(ctx context.Context, request DeleteGroupsGroupIdMembersUserIdRequestObject) (DeleteGroupsGroupIdMembersUserIdResponseObject, error)
+	// 查询当前用户在用户组中的状态
+	// (GET /groups/{groupId}/my-status)
+	GetGroupsGroupIdMyStatus(ctx context.Context, request GetGroupsGroupIdMyStatusRequestObject) (GetGroupsGroupIdMyStatusResponseObject, error)
 }
 
 type GroupsStrictHandlerFunc = strictgin.StrictGinHandlerFunc
@@ -963,8 +1158,35 @@ func (sh *GroupsstrictHandler) PostGroups(ctx *gin.Context) {
 	}
 }
 
+// DeleteGroupsGroupId 操作中间件
+func (sh *GroupsstrictHandler) DeleteGroupsGroupId(ctx *gin.Context, groupId int) {
+	var request DeleteGroupsGroupIdRequestObject
+
+	request.GroupId = groupId
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteGroupsGroupId(ctx, request.(DeleteGroupsGroupIdRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteGroupsGroupId")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(DeleteGroupsGroupIdResponseObject); ok {
+		if err := validResponse.VisitDeleteGroupsGroupIdResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // GetGroupsGroupId 操作中间件
-func (sh *GroupsstrictHandler) GetGroupsGroupId(ctx *gin.Context, groupId int64) {
+func (sh *GroupsstrictHandler) GetGroupsGroupId(ctx *gin.Context, groupId int) {
 	var request GetGroupsGroupIdRequestObject
 
 	request.GroupId = groupId
@@ -991,7 +1213,7 @@ func (sh *GroupsstrictHandler) GetGroupsGroupId(ctx *gin.Context, groupId int64)
 }
 
 // PutGroupsGroupId 操作中间件
-func (sh *GroupsstrictHandler) PutGroupsGroupId(ctx *gin.Context, groupId int64) {
+func (sh *GroupsstrictHandler) PutGroupsGroupId(ctx *gin.Context, groupId int) {
 	var request PutGroupsGroupIdRequestObject
 
 	request.GroupId = groupId
@@ -1026,7 +1248,7 @@ func (sh *GroupsstrictHandler) PutGroupsGroupId(ctx *gin.Context, groupId int64)
 }
 
 // GetGroupsGroupIdJoinRequests 操作中间件
-func (sh *GroupsstrictHandler) GetGroupsGroupIdJoinRequests(ctx *gin.Context, groupId int64, params GetGroupsGroupIdJoinRequestsParams) {
+func (sh *GroupsstrictHandler) GetGroupsGroupIdJoinRequests(ctx *gin.Context, groupId int, params GetGroupsGroupIdJoinRequestsParams) {
 	var request GetGroupsGroupIdJoinRequestsRequestObject
 
 	request.GroupId = groupId
@@ -1054,7 +1276,7 @@ func (sh *GroupsstrictHandler) GetGroupsGroupIdJoinRequests(ctx *gin.Context, gr
 }
 
 // PostGroupsGroupIdJoinRequests 操作中间件
-func (sh *GroupsstrictHandler) PostGroupsGroupIdJoinRequests(ctx *gin.Context, groupId int64) {
+func (sh *GroupsstrictHandler) PostGroupsGroupIdJoinRequests(ctx *gin.Context, groupId int) {
 	var request PostGroupsGroupIdJoinRequestsRequestObject
 
 	request.GroupId = groupId
@@ -1089,7 +1311,7 @@ func (sh *GroupsstrictHandler) PostGroupsGroupIdJoinRequests(ctx *gin.Context, g
 }
 
 // PutGroupsGroupIdJoinRequestsRequestId 操作中间件
-func (sh *GroupsstrictHandler) PutGroupsGroupIdJoinRequestsRequestId(ctx *gin.Context, groupId int64, requestId int64) {
+func (sh *GroupsstrictHandler) PutGroupsGroupIdJoinRequestsRequestId(ctx *gin.Context, groupId int, requestId int) {
 	var request PutGroupsGroupIdJoinRequestsRequestIdRequestObject
 
 	request.GroupId = groupId
@@ -1125,7 +1347,7 @@ func (sh *GroupsstrictHandler) PutGroupsGroupIdJoinRequestsRequestId(ctx *gin.Co
 }
 
 // GetGroupsGroupIdMembers 操作中间件
-func (sh *GroupsstrictHandler) GetGroupsGroupIdMembers(ctx *gin.Context, groupId int64) {
+func (sh *GroupsstrictHandler) GetGroupsGroupIdMembers(ctx *gin.Context, groupId int) {
 	var request GetGroupsGroupIdMembersRequestObject
 
 	request.GroupId = groupId
@@ -1152,7 +1374,7 @@ func (sh *GroupsstrictHandler) GetGroupsGroupIdMembers(ctx *gin.Context, groupId
 }
 
 // DeleteGroupsGroupIdMembersUserId 操作中间件
-func (sh *GroupsstrictHandler) DeleteGroupsGroupIdMembersUserId(ctx *gin.Context, groupId int64, userId int64) {
+func (sh *GroupsstrictHandler) DeleteGroupsGroupIdMembersUserId(ctx *gin.Context, groupId int, userId int) {
 	var request DeleteGroupsGroupIdMembersUserIdRequestObject
 
 	request.GroupId = groupId
@@ -1172,6 +1394,33 @@ func (sh *GroupsstrictHandler) DeleteGroupsGroupIdMembersUserId(ctx *gin.Context
 		ctx.Status(http.StatusInternalServerError)
 	} else if validResponse, ok := response.(DeleteGroupsGroupIdMembersUserIdResponseObject); ok {
 		if err := validResponse.VisitDeleteGroupsGroupIdMembersUserIdResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetGroupsGroupIdMyStatus 操作中间件
+func (sh *GroupsstrictHandler) GetGroupsGroupIdMyStatus(ctx *gin.Context, groupId int) {
+	var request GetGroupsGroupIdMyStatusRequestObject
+
+	request.GroupId = groupId
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetGroupsGroupIdMyStatus(ctx, request.(GetGroupsGroupIdMyStatusRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetGroupsGroupIdMyStatus")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(GetGroupsGroupIdMyStatusResponseObject); ok {
+		if err := validResponse.VisitGetGroupsGroupIdMyStatusResponse(ctx.Writer); err != nil {
 			ctx.Error(err)
 		}
 	} else if response != nil {
