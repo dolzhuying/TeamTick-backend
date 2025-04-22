@@ -5,6 +5,7 @@ import (
 	appErrors "TeamTickBackend/pkg/errors"
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -56,6 +57,21 @@ func (m *mockGroupDAO) UpdateMessage(ctx context.Context, groupID int, groupName
 
 func (m *mockGroupDAO) UpdateMemberNum(ctx context.Context, groupID int, isAdd bool, tx ...*gorm.DB) error {
 	args := m.Called(ctx, groupID, isAdd, tx)
+	return args.Error(0)
+}
+
+func (m *mockGroupDAO) GetGroupsByUserIDAndfilter(ctx context.Context, userID int, filter string, tx ...*gorm.DB) ([]*models.Group, error) {
+	args := m.Called(ctx, userID, filter, tx)
+	groupsArg := args.Get(0)
+	if groupsArg == nil {
+		return nil, args.Error(1)
+	}
+	return groupsArg.([]*models.Group), args.Error(1)
+}
+
+// 添加Delete方法
+func (m *mockGroupDAO) Delete(ctx context.Context, groupID int, tx ...*gorm.DB) error {
+	args := m.Called(ctx, groupID, tx)
 	return args.Error(0)
 }
 
@@ -133,6 +149,22 @@ func (m *mockJoinApplicationDAO) GetByUserID(ctx context.Context, userID int, tx
 func (m *mockJoinApplicationDAO) UpdateStatus(ctx context.Context, applicationID int, status string, tx ...*gorm.DB) error {
 	args := m.Called(ctx, applicationID, status, tx)
 	return args.Error(0)
+}
+
+// 添加UpdateRejectReason方法
+func (m *mockJoinApplicationDAO) UpdateRejectReason(ctx context.Context, requestID int, rejectReason string, tx ...*gorm.DB) error {
+	args := m.Called(ctx, requestID, rejectReason, tx)
+	return args.Error(0)
+}
+
+// 添加GetByGroupIDAndUserID方法
+func (m *mockJoinApplicationDAO) GetByGroupIDAndUserID(ctx context.Context, groupID int, userID int, tx ...*gorm.DB) (*models.JoinApplication, error) {
+	args := m.Called(ctx, groupID, userID, tx)
+	applicationArg := args.Get(0)
+	if applicationArg == nil {
+		return nil, args.Error(1)
+	}
+	return applicationArg.(*models.JoinApplication), args.Error(1)
 }
 
 // --- 测试准备 ---
@@ -279,11 +311,11 @@ func TestGetGroupsByUserID_Success(t *testing.T) {
 		},
 	}
 
-	// Mock期望
+	// Mock期望 - 不带filter参数的情况
 	mockTxManager.On("WithTransaction", ctx, mock.AnythingOfType("func(*gorm.DB) error")).Return(nil)
 	mockGroupDao.On("GetGroupsByUserID", ctx, userID, mock.AnythingOfType("[]*gorm.DB")).Return(expectedGroups, nil)
 
-	// 调用函数
+	// 调用函数 - 不带filter参数
 	groups, err := groupsService.GetGroupsByUserID(ctx, userID)
 
 	// 断言
@@ -291,6 +323,40 @@ func TestGetGroupsByUserID_Success(t *testing.T) {
 	assert.NotNil(t, groups)
 	assert.Equal(t, expectedGroups, groups)
 	assert.Len(t, groups, 2)
+
+	// 验证mock调用
+	mockTxManager.AssertExpectations(t)
+	mockGroupDao.AssertExpectations(t)
+}
+
+func TestGetGroupsByUserID_WithFilter_Success(t *testing.T) {
+	groupsService, mockGroupDao, _, _, mockTxManager := setupGroupServiceTest()
+	ctx := context.Background()
+	userID := 1
+	filter := "created"
+	expectedGroups := []*models.Group{
+		{
+			GroupID:     1,
+			GroupName:   "已创建群组1",
+			Description: "描述1",
+			CreatorID:   1,
+			CreatorName: "admin",
+			MemberNum:   2,
+		},
+	}
+
+	// Mock期望 - 带filter参数的情况
+	mockTxManager.On("WithTransaction", ctx, mock.AnythingOfType("func(*gorm.DB) error")).Return(nil)
+	mockGroupDao.On("GetGroupsByUserIDAndfilter", ctx, userID, filter, mock.AnythingOfType("[]*gorm.DB")).Return(expectedGroups, nil)
+
+	// 调用函数 - 带filter参数
+	groups, err := groupsService.GetGroupsByUserID(ctx, userID, filter)
+
+	// 断言
+	assert.NoError(t, err)
+	assert.NotNil(t, groups)
+	assert.Equal(t, expectedGroups, groups)
+	assert.Len(t, groups, 1)
 
 	// 验证mock调用
 	mockTxManager.AssertExpectations(t)
@@ -319,12 +385,36 @@ func TestGetGroupsByUserID_NotFound(t *testing.T) {
 	mockGroupDao.AssertExpectations(t)
 }
 
+func TestGetGroupsByUserID_WithFilter_NotFound(t *testing.T) {
+	groupsService, mockGroupDao, _, _, mockTxManager := setupGroupServiceTest()
+	ctx := context.Background()
+	userID := 999 // 不存在的用户
+	filter := "joined"
+
+	// Mock期望
+	mockTxManager.On("WithTransaction", ctx, mock.AnythingOfType("func(*gorm.DB) error")).Return(nil)
+	mockGroupDao.On("GetGroupsByUserIDAndfilter", ctx, userID, filter, mock.AnythingOfType("[]*gorm.DB")).Return(nil, gorm.ErrRecordNotFound)
+
+	// 调用函数
+	groups, err := groupsService.GetGroupsByUserID(ctx, userID, filter)
+
+	// 断言
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, appErrors.ErrGroupNotFound))
+	assert.Nil(t, groups)
+
+	// 验证mock调用
+	mockTxManager.AssertExpectations(t)
+	mockGroupDao.AssertExpectations(t)
+}
+
 // --- UpdateGroup 测试 ---
 
 func TestUpdateGroup_Success(t *testing.T) {
-	groupsService, mockGroupDao, _, _, mockTxManager := setupGroupServiceTest()
+	groupsService, mockGroupDao, mockGroupMemberDao, _, mockTxManager := setupGroupServiceTest()
 	ctx := context.Background()
 	groupID := 1
+	operatorID := 1 // 添加操作者ID（管理员）
 	groupName := "更新后的群组名"
 	description := "更新后的描述"
 	updatedGroup := &models.Group{
@@ -335,14 +425,21 @@ func TestUpdateGroup_Success(t *testing.T) {
 		CreatorName: "admin",
 		MemberNum:   1,
 	}
+	adminMember := &models.GroupMember{
+		GroupID:  groupID,
+		UserID:   operatorID,
+		Username: "admin",
+		Role:     "admin",
+	}
 
 	// Mock期望
 	mockTxManager.On("WithTransaction", ctx, mock.AnythingOfType("func(*gorm.DB) error")).Return(nil)
+	mockGroupMemberDao.On("GetMemberByGroupIDAndUserID", ctx, groupID, operatorID, mock.AnythingOfType("[]*gorm.DB")).Return(adminMember, nil)
 	mockGroupDao.On("UpdateMessage", ctx, groupID, groupName, description, mock.AnythingOfType("[]*gorm.DB")).Return(nil)
 	mockGroupDao.On("GetByGroupID", ctx, groupID, mock.AnythingOfType("[]*gorm.DB")).Return(updatedGroup, nil)
 
 	// 调用函数
-	result, err := groupsService.UpdateGroup(ctx, groupID, groupName, description)
+	result, err := groupsService.UpdateGroup(ctx, groupID, operatorID, groupName, description)
 
 	// 断言
 	assert.NoError(t, err)
@@ -352,6 +449,66 @@ func TestUpdateGroup_Success(t *testing.T) {
 	// 验证mock调用
 	mockTxManager.AssertExpectations(t)
 	mockGroupDao.AssertExpectations(t)
+	mockGroupMemberDao.AssertExpectations(t)
+}
+
+func TestUpdateGroup_PermissionDenied(t *testing.T) {
+	groupsService, _, mockGroupMemberDao, _, mockTxManager := setupGroupServiceTest()
+	ctx := context.Background()
+	groupID := 1
+	operatorID := 2 // 非管理员用户
+	groupName := "更新后的群组名"
+	description := "更新后的描述"
+	member := &models.GroupMember{
+		GroupID:  groupID,
+		UserID:   operatorID,
+		Username: "regular_member",
+		Role:     "member", // 非管理员角色
+	}
+
+	// Mock期望
+	mockTxManager.On("WithTransaction", ctx, mock.AnythingOfType("func(*gorm.DB) error")).Return(nil)
+	mockGroupMemberDao.On("GetMemberByGroupIDAndUserID", ctx, groupID, operatorID, mock.AnythingOfType("[]*gorm.DB")).Return(member, nil)
+
+	// 调用函数
+	result, err := groupsService.UpdateGroup(ctx, groupID, operatorID, groupName, description)
+
+	// 断言
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, appErrors.ErrRolePermissionDenied) ||
+		strings.Contains(err.Error(), appErrors.ErrRolePermissionDenied.Error()))
+	assert.Nil(t, result)
+
+	// 验证mock调用
+	mockTxManager.AssertExpectations(t)
+	mockGroupMemberDao.AssertExpectations(t)
+}
+
+func TestUpdateGroup_NotMember(t *testing.T) {
+	groupsService, _, mockGroupMemberDao, _, mockTxManager := setupGroupServiceTest()
+	ctx := context.Background()
+	groupID := 1
+	operatorID := 999 // 非成员用户
+	groupName := "更新后的群组名"
+	description := "更新后的描述"
+
+	// Mock期望
+	mockTxManager.On("WithTransaction", ctx, mock.AnythingOfType("func(*gorm.DB) error")).Return(nil)
+	mockGroupMemberDao.On("GetMemberByGroupIDAndUserID", ctx, groupID, operatorID, mock.AnythingOfType("[]*gorm.DB")).Return(nil, gorm.ErrRecordNotFound)
+
+	// 调用函数
+	result, err := groupsService.UpdateGroup(ctx, groupID, operatorID, groupName, description)
+
+	// 断言
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, appErrors.ErrGroupMemberNotFound) ||
+		strings.Contains(err.Error(), appErrors.ErrGroupMemberNotFound.Error()) ||
+		strings.Contains(err.Error(), appErrors.ErrRolePermissionDenied.Error()))
+	assert.Nil(t, result)
+
+	// 验证mock调用
+	mockTxManager.AssertExpectations(t)
+	mockGroupMemberDao.AssertExpectations(t)
 }
 
 // --- CheckMemberPermission 测试 ---
@@ -881,6 +1038,206 @@ func TestGetJoinApplicationsByGroupID_NoApplications(t *testing.T) {
 	// 验证mock调用
 	mockTxManager.AssertExpectations(t)
 	mockGroupMemberDao.AssertExpectations(t)
+	mockGroupDao.AssertExpectations(t)
+	mockJoinApplicationDao.AssertExpectations(t)
+}
+
+// --- RejectJoinApplication 测试 ---
+
+func TestRejectJoinApplication_Success(t *testing.T) {
+	groupsService, _, mockGroupMemberDao, mockJoinApplicationDao, mockTxManager := setupGroupServiceTest()
+	ctx := context.Background()
+	groupID := 1
+	userID := 2
+	operatorID := 1 // 管理员
+	requestID := 1
+	username := "applicant"
+	rejectReason := "不符合要求"
+	adminMember := &models.GroupMember{
+		GroupID:  groupID,
+		UserID:   operatorID,
+		Username: "admin",
+		Role:     "admin",
+	}
+
+	// Mock期望
+	mockTxManager.On("WithTransaction", ctx, mock.AnythingOfType("func(*gorm.DB) error")).Return(nil)
+	mockGroupMemberDao.On("GetMemberByGroupIDAndUserID", ctx, groupID, operatorID, mock.AnythingOfType("[]*gorm.DB")).Return(adminMember, nil)
+	mockJoinApplicationDao.On("UpdateStatus", ctx, requestID, "rejected", mock.AnythingOfType("[]*gorm.DB")).Return(nil)
+	mockJoinApplicationDao.On("UpdateRejectReason", ctx, requestID, rejectReason, mock.AnythingOfType("[]*gorm.DB")).Return(nil)
+
+	// 调用函数
+	err := groupsService.RejectJoinApplication(ctx, groupID, userID, operatorID, requestID, username, rejectReason)
+
+	// 断言
+	assert.NoError(t, err)
+
+	// 验证mock调用
+	mockTxManager.AssertExpectations(t)
+	mockGroupMemberDao.AssertExpectations(t)
+	mockJoinApplicationDao.AssertExpectations(t)
+}
+
+func TestRejectJoinApplication_PermissionDenied(t *testing.T) {
+	groupsService, _, mockGroupMemberDao, _, mockTxManager := setupGroupServiceTest()
+	ctx := context.Background()
+	groupID := 1
+	userID := 2
+	operatorID := 3 // 非管理员
+	requestID := 1
+	username := "applicant"
+	rejectReason := "不符合要求"
+	member := &models.GroupMember{
+		GroupID:  groupID,
+		UserID:   operatorID,
+		Username: "regularUser",
+		Role:     "member", // 非管理员角色
+	}
+
+	// Mock期望
+	mockTxManager.On("WithTransaction", ctx, mock.AnythingOfType("func(*gorm.DB) error")).Return(nil)
+	mockGroupMemberDao.On("GetMemberByGroupIDAndUserID", ctx, groupID, operatorID, mock.AnythingOfType("[]*gorm.DB")).Return(member, nil)
+
+	// 调用函数
+	err := groupsService.RejectJoinApplication(ctx, groupID, userID, operatorID, requestID, username, rejectReason)
+
+	// 断言
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, appErrors.ErrRolePermissionDenied) ||
+		strings.Contains(err.Error(), appErrors.ErrRolePermissionDenied.Error()))
+
+	// 验证mock调用
+	mockTxManager.AssertExpectations(t)
+	mockGroupMemberDao.AssertExpectations(t)
+}
+
+// --- DeleteGroup 测试 ---
+
+func TestDeleteGroup_Success(t *testing.T) {
+	groupsService, mockGroupDao, mockGroupMemberDao, _, mockTxManager := setupGroupServiceTest()
+	ctx := context.Background()
+	groupID := 1
+	operatorID := 1 // 管理员
+	adminMember := &models.GroupMember{
+		GroupID:  groupID,
+		UserID:   operatorID,
+		Username: "admin",
+		Role:     "admin",
+	}
+
+	// Mock期望
+	mockTxManager.On("WithTransaction", ctx, mock.AnythingOfType("func(*gorm.DB) error")).Return(nil)
+	mockGroupMemberDao.On("GetMemberByGroupIDAndUserID", ctx, groupID, operatorID, mock.AnythingOfType("[]*gorm.DB")).Return(adminMember, nil)
+	mockGroupDao.On("Delete", ctx, groupID, mock.AnythingOfType("[]*gorm.DB")).Return(nil)
+
+	// 调用函数
+	err := groupsService.DeleteGroup(ctx, groupID, operatorID)
+
+	// 断言
+	assert.NoError(t, err)
+
+	// 验证mock调用
+	mockTxManager.AssertExpectations(t)
+	mockGroupMemberDao.AssertExpectations(t)
+	mockGroupDao.AssertExpectations(t)
+}
+
+func TestDeleteGroup_PermissionDenied(t *testing.T) {
+	groupsService, _, mockGroupMemberDao, _, mockTxManager := setupGroupServiceTest()
+	ctx := context.Background()
+	groupID := 1
+	operatorID := 2 // 非管理员
+	member := &models.GroupMember{
+		GroupID:  groupID,
+		UserID:   operatorID,
+		Username: "regularUser",
+		Role:     "member", // 非管理员角色
+	}
+
+	// Mock期望
+	mockTxManager.On("WithTransaction", ctx, mock.AnythingOfType("func(*gorm.DB) error")).Return(nil)
+	mockGroupMemberDao.On("GetMemberByGroupIDAndUserID", ctx, groupID, operatorID, mock.AnythingOfType("[]*gorm.DB")).Return(member, nil)
+
+	// 调用函数
+	err := groupsService.DeleteGroup(ctx, groupID, operatorID)
+
+	// 断言
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, appErrors.ErrRolePermissionDenied) ||
+		strings.Contains(err.Error(), appErrors.ErrRolePermissionDenied.Error()))
+
+	// 验证mock调用
+	mockTxManager.AssertExpectations(t)
+	mockGroupMemberDao.AssertExpectations(t)
+}
+
+// --- GetUserGroupStatus 测试 ---
+
+func TestGetUserGroupStatus_Success(t *testing.T) {
+	groupsService, mockGroupDao, _, mockJoinApplicationDao, mockTxManager := setupGroupServiceTest()
+	ctx := context.Background()
+	groupID := 1
+	userID := 2
+	group := &models.Group{
+		GroupID:     groupID,
+		GroupName:   "测试群组",
+		Description: "这是一个测试群组",
+	}
+	application := &models.JoinApplication{
+		RequestID:    1,
+		GroupID:      groupID,
+		UserID:       userID,
+		Username:     "user",
+		Reason:       "想加入",
+		Status:       "pending",
+		RejectReason: "",
+	}
+
+	// Mock期望
+	mockTxManager.On("WithTransaction", ctx, mock.AnythingOfType("func(*gorm.DB) error")).Return(nil)
+	mockGroupDao.On("GetByGroupID", ctx, groupID, mock.AnythingOfType("[]*gorm.DB")).Return(group, nil)
+	mockJoinApplicationDao.On("GetByGroupIDAndUserID", ctx, groupID, userID, mock.AnythingOfType("[]*gorm.DB")).Return(application, nil)
+
+	// 调用函数
+	result, err := groupsService.GetUserGroupStatus(ctx, groupID, userID)
+
+	// 断言
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, application, result)
+
+	// 验证mock调用
+	mockTxManager.AssertExpectations(t)
+	mockGroupDao.AssertExpectations(t)
+	mockJoinApplicationDao.AssertExpectations(t)
+}
+
+func TestGetUserGroupStatus_NotFound(t *testing.T) {
+	groupsService, mockGroupDao, _, mockJoinApplicationDao, mockTxManager := setupGroupServiceTest()
+	ctx := context.Background()
+	groupID := 1
+	userID := 2
+	group := &models.Group{
+		GroupID:     groupID,
+		GroupName:   "测试群组",
+		Description: "这是一个测试群组",
+	}
+
+	// Mock期望
+	mockTxManager.On("WithTransaction", ctx, mock.AnythingOfType("func(*gorm.DB) error")).Return(nil)
+	mockGroupDao.On("GetByGroupID", ctx, groupID, mock.AnythingOfType("[]*gorm.DB")).Return(group, nil)
+	mockJoinApplicationDao.On("GetByGroupIDAndUserID", ctx, groupID, userID, mock.AnythingOfType("[]*gorm.DB")).Return(nil, gorm.ErrRecordNotFound)
+
+	// 调用函数
+	result, err := groupsService.GetUserGroupStatus(ctx, groupID, userID)
+
+	// 断言
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, appErrors.ErrJoinApplicationNotFound))
+	assert.Nil(t, result)
+
+	// 验证mock调用
+	mockTxManager.AssertExpectations(t)
 	mockGroupDao.AssertExpectations(t)
 	mockJoinApplicationDao.AssertExpectations(t)
 }

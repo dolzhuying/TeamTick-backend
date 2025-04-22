@@ -20,6 +20,21 @@ func (dao *CheckApplicationDAOMySQLImpl) Create(ctx context.Context, application
 	return db.WithContext(ctx).Create(application).Error
 }
 
+// GetByID 通过id查询签到申请
+func (dao *CheckApplicationDAOMySQLImpl) GetByID(ctx context.Context, id int, tx ...*gorm.DB) (*models.CheckApplication, error) {
+	var application models.CheckApplication
+	db := dao.DB
+	if len(tx) > 0 && tx[0] != nil {
+		db = tx[0]
+	}
+	err := db.WithContext(ctx).Where("id = ?", id).First(&application).Error
+	if err != nil {
+		return nil, err
+	}
+	return &application, nil
+}
+
+
 // 通过group_id查询当前组的所有任务签到申请
 func (dao *CheckApplicationDAOMySQLImpl) GetByGroupID(ctx context.Context, groupID int, tx ...*gorm.DB) ([]*models.CheckApplication, error) {
 	var checkApplications []*models.CheckApplication
@@ -58,4 +73,17 @@ func (dao *CheckApplicationDAOMySQLImpl) Update(ctx context.Context, status stri
 		Model(&models.CheckApplication{}).
 		Where("id = ?", requestID).
 		Update("status", status).Error
+}
+
+func (dao *CheckApplicationDAOMySQLImpl) GetByTaskIDAndUserID(ctx context.Context, taskID int, userID int, tx ...*gorm.DB) (*models.CheckApplication, error) {
+	var application models.CheckApplication
+	db := dao.DB
+	if len(tx) > 0 && tx[0] != nil {
+		db = tx[0]
+	}
+	err := db.WithContext(ctx).Where("task_id = ? AND user_id = ?", taskID, userID).First(&application).Error
+	if err != nil {
+		return nil, err
+	}
+	return &application, nil
 }
