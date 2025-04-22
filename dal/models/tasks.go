@@ -13,7 +13,7 @@ type Task struct {
 	EndTime     time.Time `gorm:"column:end_time;type:datetime;not null;comment:签到结束时间" json:"end_time"`
 	Latitude    float64   `gorm:"column:latitude;type:float;comment:任务地点（纬度）" json:"latitude"`
 	Longitude   float64   `gorm:"column:longitude;type:float;comment:任务地点（经度）" json:"longitude"`
-	Radius      int       `gorm:"column:radius;type:int;not null;default:50;comment:有效半径" json:"radius"`
+	Radius      int       `gorm:"column:radius;type:int;not null;default:50;comment:有效半径(米)" json:"radius"`
 	SSID        string    `gorm:"column:ssid;type:varchar(50);comment:wifi名称" json:"ssid"`
 	BSSID       string    `gorm:"column:bssid;type:varchar(50);comment:wifi mac地址" json:"bssid"`
 	TagID       string    `gorm:"column:tagid;type:varchar(50);comment:nfc标签id" json:"tagid"`

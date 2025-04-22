@@ -18,7 +18,7 @@ type CheckApplication struct {
 	AdminUsername string     `gorm:"column:admin_username;type:varchar(50);not null;comment:处理管理员用户名" json:"admin_username"`
 	ProcessedAt   *time.Time `gorm:"column:processed_at;type:datetime;comment:处理时间" json:"processed_at"`
 	CreatedAt     time.Time  `gorm:"column:created_at;type:datetime;not null;default:CURRENT_TIMESTAMP;comment:创建时间" json:"created_at"`
-	UpdatedAt     time.Time  `gorm:"column:updated_at;type:datetime;not null;default:CURRENT_TIMESTAMP;comment:更新时间" json:"updated_at"`
+	UpdatedAt     time.Time  `gorm:"column:updated_at;type:datetime;not null;default:CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;comment:更新时间" json:"updated_at"`
 }
 
 func (CheckApplication) TableName() string {
