@@ -5,7 +5,6 @@ import (
 	"TeamTickBackend/gen"
 	"TeamTickBackend/services"
 	"context"
-	"TeamTickBackend/middlewares"
 )
 
 type AuthHandler struct {
@@ -21,9 +20,7 @@ func NewAuthHandler(container *app.AppContainer) gen.AuthServerInterface {
 	handler := &AuthHandler{
 		authService: *authService,
 	}
-	return gen.NewAuthStrictHandler(handler, []gen.AuthStrictMiddlewareFunc{
-		middlewares.AuthRecoveryMiddleware(),
-	})
+	return gen.NewAuthStrictHandler(handler,nil)
 }
 
 //这里gen结构体的指针类型需要修改(md赶紧改@ych)（最好int64类型也换掉,省的多一步类型转换）

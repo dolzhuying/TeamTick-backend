@@ -3,7 +3,6 @@ package handlers
 import (
 	"TeamTickBackend/app"
 	"TeamTickBackend/gen"
-	"TeamTickBackend/middlewares"
 	"TeamTickBackend/services"
 	"context"
 )
@@ -22,9 +21,7 @@ func NewGroupsHandler(container *app.AppContainer) gen.GroupsServerInterface {
 	handler := &GroupsHandler{
 		groupsService: *GroupsService,
 	}
-	return gen.NewGroupsStrictHandler(handler, []gen.GroupsStrictMiddlewareFunc{
-		middlewares.GroupRecoveryMiddleware(),
-	})
+	return gen.NewGroupsStrictHandler(handler,nil)
 }
 
 // 会议中提及过部分接口需要修改（查询用户组信息是否需要该用户组成员）

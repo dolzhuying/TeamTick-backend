@@ -3,6 +3,7 @@ module TeamTickBackend
 go 1.23.5
 
 require (
+	github.com/bytedance/gopkg v0.1.2
 	github.com/gin-gonic/gin v1.10.0
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/oapi-codegen/runtime v1.1.1

@@ -14,13 +14,19 @@ func AuthMiddleware(jwtToken pkg.JwtHandler) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		token := c.GetHeader("Authorization")
 		if token == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"message": "missing authorization"})
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"code":    "1",
+				"message": "missing authorization",
+			})
 			return
 		}
 
 		payload, err := jwtToken.ParseJWTToken(token)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"message": "invalid token"})
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"code":    "1",
+				"message": "invalid token",
+			})
 			return
 		}
 
