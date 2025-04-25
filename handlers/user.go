@@ -4,6 +4,7 @@ import (
 	"TeamTickBackend/app"
 	"TeamTickBackend/gen"
 	"TeamTickBackend/services"
+	"TeamTickBackend/middlewares"
 	"context"
 	"errors"
 )
@@ -20,7 +21,9 @@ func NewUserHandler(container *app.AppContainer) gen.UsersServerInterface {
 	handler := &UserHandler{
 		userService: *userService,
 	}
-	return gen.NewUsersStrictHandler(handler, nil)
+	return gen.NewUsersStrictHandler(handler, []gen.UsersStrictMiddlewareFunc{
+		middlewares.UserRecoveryMiddleware(),
+	})
 }
 
 func (h *UserHandler) GetUsersMe(ctx context.Context, request gen.GetUsersMeRequestObject) (gen.GetUsersMeResponseObject, error) {
