@@ -91,14 +91,20 @@ func (response GetUsersMe200JSONResponse) VisitGetUsersMeResponse(w http.Respons
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetUsersMe401JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
+type GetUsersMe401JSONResponse Unauthorized
 
 func (response GetUsersMe401JSONResponse) VisitGetUsersMeResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetUsersMe500JSONResponse InternalServerError
+
+func (response GetUsersMe500JSONResponse) VisitGetUsersMeResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
 
 	return json.NewEncoder(w).Encode(response)
 }

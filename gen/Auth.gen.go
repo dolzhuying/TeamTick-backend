@@ -118,10 +118,7 @@ func (response PostAuthLogin200JSONResponse) VisitPostAuthLoginResponse(w http.R
 	return json.NewEncoder(w).Encode(response)
 }
 
-type PostAuthLogin400JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
+type PostAuthLogin400JSONResponse BadRequest
 
 func (response PostAuthLogin400JSONResponse) VisitPostAuthLoginResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -130,14 +127,20 @@ func (response PostAuthLogin400JSONResponse) VisitPostAuthLoginResponse(w http.R
 	return json.NewEncoder(w).Encode(response)
 }
 
-type PostAuthLogin401JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
+type PostAuthLogin401JSONResponse Unauthorized
 
 func (response PostAuthLogin401JSONResponse) VisitPostAuthLoginResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PostAuthLogin500JSONResponse InternalServerError
+
+func (response PostAuthLogin500JSONResponse) VisitPostAuthLoginResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
 
 	return json.NewEncoder(w).Encode(response)
 }
@@ -162,10 +165,7 @@ func (response PostAuthRegister201JSONResponse) VisitPostAuthRegisterResponse(w 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type PostAuthRegister400JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
+type PostAuthRegister400JSONResponse BadRequest
 
 func (response PostAuthRegister400JSONResponse) VisitPostAuthRegisterResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -174,14 +174,20 @@ func (response PostAuthRegister400JSONResponse) VisitPostAuthRegisterResponse(w 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type PostAuthRegister409JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
+type PostAuthRegister409JSONResponse Conflict
 
 func (response PostAuthRegister409JSONResponse) VisitPostAuthRegisterResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PostAuthRegister500JSONResponse InternalServerError
+
+func (response PostAuthRegister500JSONResponse) VisitPostAuthRegisterResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
 
 	return json.NewEncoder(w).Encode(response)
 }
