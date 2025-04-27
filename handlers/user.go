@@ -21,7 +21,7 @@ func NewUserHandler(container *app.AppContainer) gen.UsersServerInterface {
 	handler := &UserHandler{
 		userService: *userService,
 	}
-	return gen.NewUsersStrictHandler(handler, nil)
+	return gen.NewUsersStrictHandler(handler,nil)
 }
 
 func (h *UserHandler) GetUsersMe(ctx context.Context, request gen.GetUsersMeRequestObject) (gen.GetUsersMeResponseObject, error) {

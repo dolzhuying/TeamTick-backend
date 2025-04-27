@@ -9,10 +9,24 @@ import (
 	"github.com/oapi-codegen/runtime"
 )
 
+// Defines values for AuditRequestStatus.
+const (
+	AuditRequestStatusApproved AuditRequestStatus = "approved"
+	AuditRequestStatusPending  AuditRequestStatus = "pending"
+	AuditRequestStatusRejected AuditRequestStatus = "rejected"
+)
+
 // Defines values for BaseResponseCode.
 const (
 	N0 BaseResponseCode = 0
 	N1 BaseResponseCode = 1
+)
+
+// Defines values for CheckinTaskStatus.
+const (
+	Expired  CheckinTaskStatus = "expired"
+	Ongoing  CheckinTaskStatus = "ongoing"
+	Upcoming CheckinTaskStatus = "upcoming"
 )
 
 // Defines values for GroupMembershipStatus.
@@ -25,8 +39,8 @@ const (
 
 // Defines values for GroupRole.
 const (
-	GroupRoleAdmin  GroupRole = "admin"
-	GroupRoleMember GroupRole = "member"
+	Admin  GroupRole = "admin"
+	Member GroupRole = "member"
 )
 
 // Defines values for JoinRequestStatus.
@@ -43,6 +57,29 @@ const (
 	RequestQueryStatusProcessed RequestQueryStatus = "processed"
 )
 
+// Defines values for UserCheckinStatus.
+const (
+	UserCheckinStatusAuditApproved UserCheckinStatus = "audit_approved"
+	UserCheckinStatusAuditRejected UserCheckinStatus = "audit_rejected"
+	UserCheckinStatusPending       UserCheckinStatus = "pending"
+	UserCheckinStatusPendingAudit  UserCheckinStatus = "pending_audit"
+	UserCheckinStatusSuccess       UserCheckinStatus = "success"
+	UserCheckinStatusTimeout       UserCheckinStatus = "timeout"
+)
+
+// Defines values for PutAuditRequestsAuditRequestIdJSONBodyAction.
+const (
+	PutAuditRequestsAuditRequestIdJSONBodyActionApprove PutAuditRequestsAuditRequestIdJSONBodyAction = "approve"
+	PutAuditRequestsAuditRequestIdJSONBodyActionReject  PutAuditRequestsAuditRequestIdJSONBodyAction = "reject"
+)
+
+// Defines values for PostCheckinTasksTaskIdVerifyJSONBodyVerifyType.
+const (
+	Gps  PostCheckinTasksTaskIdVerifyJSONBodyVerifyType = "gps"
+	Nfc  PostCheckinTasksTaskIdVerifyJSONBodyVerifyType = "nfc"
+	Wifi PostCheckinTasksTaskIdVerifyJSONBodyVerifyType = "wifi"
+)
+
 // Defines values for GetGroupsParamsFilter.
 const (
 	Created GetGroupsParamsFilter = "created"
@@ -51,9 +88,57 @@ const (
 
 // Defines values for PutGroupsGroupIdJoinRequestsRequestIdJSONBodyAction.
 const (
-	Approve PutGroupsGroupIdJoinRequestsRequestIdJSONBodyAction = "approve"
-	Reject  PutGroupsGroupIdJoinRequestsRequestIdJSONBodyAction = "reject"
+	PutGroupsGroupIdJoinRequestsRequestIdJSONBodyActionApprove PutGroupsGroupIdJoinRequestsRequestIdJSONBodyAction = "approve"
+	PutGroupsGroupIdJoinRequestsRequestIdJSONBodyActionReject  PutGroupsGroupIdJoinRequestsRequestIdJSONBodyAction = "reject"
 )
+
+// AuditRequest defines model for AuditRequest.
+type AuditRequest struct {
+	// AdminId 处理管理员ID
+	AdminId int `json:"adminId,omitempty"`
+
+	// AdminUsername 处理管理员用户名
+	AdminUsername string `json:"adminUsername,omitempty"`
+
+	// AuditRequestId 审核申请ID
+	AuditRequestId int `json:"auditRequestId,omitempty"`
+
+	// ProcessedAt 处理时间（Unix时间戳，单位：秒）
+	ProcessedAt int `json:"processedAt,omitempty"`
+
+	// ProofImageUrls 证明材料图片URL
+	ProofImageUrls string `json:"proofImageUrls,omitempty"`
+
+	// Reason 申请原因
+	Reason string `json:"reason,omitempty"`
+
+	// RequestedAt 申请时间（Unix时间戳，单位：秒）
+	RequestedAt int `json:"requestedAt,omitempty"`
+
+	// Status 审核状态
+	Status AuditRequestStatus `json:"status,omitempty"`
+
+	// TaskId 签到任务ID
+	TaskId int `json:"taskId,omitempty"`
+
+	// TaskName 签到任务名称
+	TaskName string `json:"taskName,omitempty"`
+
+	// UserId 申请用户ID
+	UserId int `json:"userId,omitempty"`
+
+	// Username 申请用户名
+	Username string `json:"username,omitempty"`
+}
+
+// AuditRequestStatus 审核状态
+type AuditRequestStatus string
+
+// BadRequest defines model for BadRequest.
+type BadRequest struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
 
 // BaseResponse defines model for BaseResponse.
 type BaseResponse struct {
@@ -63,6 +148,107 @@ type BaseResponse struct {
 
 // BaseResponseCode 响应码，0表示成功，1表示失败
 type BaseResponseCode int
+
+// CheckinMethods 校验方式组合
+type CheckinMethods struct {
+	// Face 是否需要人脸识别校验
+	Face bool `json:"face,omitempty"`
+
+	// Gps 是否需要GPS位置校验
+	Gps bool `json:"gps,omitempty"`
+
+	// Nfc 是否需要NFC校验
+	Nfc bool `json:"nfc,omitempty"`
+
+	// Wifi 是否需要WiFi校验
+	Wifi bool `json:"wifi,omitempty"`
+}
+
+// CheckinRecord 签到记录，包含任务基本信息和签到信息。只包含成功签到的记录。
+type CheckinRecord struct {
+	// CheckinMethods 校验方式组合
+	CheckinMethods CheckinMethods `json:"checkinMethods"`
+
+	// CreatedAt 创建时间（Unix时间戳，单位：秒）
+	CreatedAt int `json:"createdAt,omitempty"`
+
+	// GroupId 用户组ID
+	GroupId int `json:"groupId,omitempty"`
+
+	// GroupName 用户组名称
+	GroupName string `json:"groupName,omitempty"`
+
+	// LocationInfo 位置信息
+	LocationInfo *struct {
+		Location *Location `json:"location,omitempty"`
+	} `json:"locationInfo,omitempty"`
+
+	// Message 签到信息
+	Message string `json:"message,omitempty"`
+
+	// RecordId 签到记录ID
+	RecordId int `json:"recordId,omitempty"`
+
+	// SignedTime 实际签到时间（Unix时间戳，单位：秒）
+	SignedTime int `json:"signedTime,omitempty"`
+
+	// TaskId 签到任务ID
+	TaskId int `json:"taskId,omitempty"`
+
+	// TaskName 签到任务名称
+	TaskName string `json:"taskName,omitempty"`
+
+	// UserId 签到用户ID
+	UserId int `json:"userId,omitempty"`
+
+	// Username 签到用户名
+	Username string `json:"username,omitempty"`
+}
+
+// CheckinTask defines model for CheckinTask.
+type CheckinTask struct {
+	// CreatedAt 创建时间（Unix时间戳，单位：秒）
+	CreatedAt int `json:"createdAt,omitempty"`
+
+	// Description 任务描述
+	Description string `json:"description,omitempty"`
+
+	// EndTime 签到结束时间（Unix时间戳，单位：秒）
+	EndTime int `json:"endTime"`
+
+	// GroupId 所属用户组ID
+	GroupId int `json:"groupId,omitempty"`
+
+	// StartTime 签到开始时间（Unix时间戳，单位：秒）
+	StartTime int `json:"startTime"`
+
+	// Status 任务状态
+	Status CheckinTaskStatus `json:"status"`
+
+	// TaskId 签到任务ID
+	TaskId int `json:"taskId,omitempty"`
+
+	// TaskName 任务名称
+	TaskName string `json:"taskName"`
+
+	// VerificationConfig 任务校验配置组件，包含校验方式配置和相关参数
+	VerificationConfig TaskVerificationConfig `json:"verificationConfig"`
+}
+
+// CheckinTaskStatus 任务状态
+type CheckinTaskStatus string
+
+// Conflict defines model for Conflict.
+type Conflict struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+// Forbidden defines model for Forbidden.
+type Forbidden struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
 
 // Group defines model for Group.
 type Group struct {
@@ -109,6 +295,12 @@ type GroupMembershipStatus string
 // GroupRole defines model for GroupRole.
 type GroupRole string
 
+// InternalServerError defines model for InternalServerError.
+type InternalServerError struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
 // JoinRequest defines model for JoinRequest.
 type JoinRequest struct {
 	// GroupId 用户组ID
@@ -133,8 +325,38 @@ type JoinRequest struct {
 // JoinRequestStatus 申请状态
 type JoinRequestStatus string
 
+// Location defines model for Location.
+type Location struct {
+	// Latitude 纬度
+	Latitude float64 `json:"latitude,omitempty"`
+
+	// Longitude 经度
+	Longitude float64 `json:"longitude,omitempty"`
+}
+
+// NFCInfo NFC校验信息
+type NFCInfo struct {
+	// TagId NFC标签ID
+	TagId string `json:"tagId"`
+
+	// TagName NFC标签名称（可选）
+	TagName string `json:"tagName,omitempty"`
+}
+
+// NotFound defines model for NotFound.
+type NotFound struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
 // RequestQueryStatus defines model for RequestQueryStatus.
 type RequestQueryStatus string
+
+// Success defines model for Success.
+type Success struct {
+	Code string                  `json:"code"`
+	Data *map[string]interface{} `json:"data,omitempty"`
+}
 
 // SuccessWithData defines model for SuccessWithData.
 type SuccessWithData struct {
@@ -153,6 +375,32 @@ type SuccessWithData_Data struct {
 	union json.RawMessage
 }
 
+// TaskVerificationConfig 任务校验配置组件，包含校验方式配置和相关参数
+type TaskVerificationConfig struct {
+	// CheckinMethods 校验方式组合
+	CheckinMethods CheckinMethods `json:"checkinMethods"`
+
+	// LocationInfo 位置相关校验信息
+	LocationInfo struct {
+		Location Location `json:"location"`
+
+		// Radius 有效半径 (米)
+		Radius int `json:"radius"`
+	} `json:"locationInfo"`
+
+	// NfcInfo NFC校验信息
+	NfcInfo *NFCInfo `json:"nfcInfo,omitempty"`
+
+	// WifiInfo WiFi校验信息
+	WifiInfo *WifiInfo `json:"wifiInfo,omitempty"`
+}
+
+// Unauthorized defines model for Unauthorized.
+type Unauthorized struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
 // User defines model for User.
 type User struct {
 	// UserId 用户ID
@@ -161,6 +409,44 @@ type User struct {
 	// Username 用户名
 	Username string `json:"username,omitempty"`
 }
+
+// UserCheckinStatus defines model for UserCheckinStatus.
+type UserCheckinStatus string
+
+// VerificationData 校验数据组件，根据不同的校验方式需要提供不同的字段
+type VerificationData struct {
+	// FaceData 人脸识别数据的Base64编码（仅当任务需要人脸校验时必须提供）
+	FaceData []byte `json:"faceData,omitempty"`
+
+	// LocationInfo 位置校验信息（仅当任务需要GPS校验时必须提供）
+	LocationInfo *struct {
+		Location Location `json:"location"`
+	} `json:"locationInfo,omitempty"`
+
+	// NfcInfo NFC校验信息
+	NfcInfo *NFCInfo `json:"nfcInfo,omitempty"`
+
+	// WifiInfo WiFi校验信息
+	WifiInfo *WifiInfo `json:"wifiInfo,omitempty"`
+}
+
+// WifiInfo WiFi校验信息
+type WifiInfo struct {
+	// Bssid WiFi MAC地址
+	Bssid string `json:"bssid"`
+
+	// Ssid WiFi名称
+	Ssid string `json:"ssid"`
+}
+
+// PutAuditRequestsAuditRequestIdJSONBody defines parameters for PutAuditRequestsAuditRequestId.
+type PutAuditRequestsAuditRequestIdJSONBody struct {
+	// Action 处理动作
+	Action PutAuditRequestsAuditRequestIdJSONBodyAction `binding:"required,oneof=approve reject" json:"action"`
+}
+
+// PutAuditRequestsAuditRequestIdJSONBodyAction defines parameters for PutAuditRequestsAuditRequestId.
+type PutAuditRequestsAuditRequestIdJSONBodyAction string
 
 // PostAuthLoginJSONBody defines parameters for PostAuthLogin.
 type PostAuthLoginJSONBody struct {
@@ -179,6 +465,57 @@ type PostAuthRegisterJSONBody struct {
 	// Username 用户名
 	Username string `binding:"required,min=3,max=50" json:"username"`
 }
+
+// PutCheckinTasksTaskIdJSONBody defines parameters for PutCheckinTasksTaskId.
+type PutCheckinTasksTaskIdJSONBody struct {
+	// Description 任务描述
+	Description string `binding:"required,max=500" json:"description"`
+
+	// EndTime 签到结束时间（Unix时间戳，单位：秒）
+	EndTime int `binding:"required,gt=0" json:"endTime"`
+
+	// StartTime 签到开始时间（Unix时间戳，单位：秒）
+	StartTime int `binding:"required,gt=0" json:"startTime"`
+
+	// TaskName 任务名称
+	TaskName string `binding:"required,min=1,max=100" json:"taskName"`
+
+	// VerificationConfig 任务校验配置组件，包含校验方式配置和相关参数
+	VerificationConfig TaskVerificationConfig `json:"verificationConfig"`
+}
+
+// PostCheckinTasksTaskIdAuditRequestsJSONBody defines parameters for PostCheckinTasksTaskIdAuditRequests.
+type PostCheckinTasksTaskIdAuditRequestsJSONBody struct {
+	// ProofImageUrls 证明图片 URL (可选)
+	ProofImageUrls *string `binding:"omitempty,url" json:"proofImageUrls,omitempty"`
+
+	// Reason 异常原因说明
+	Reason string `binding:"required,min=1,max=500" json:"reason"`
+}
+
+// PostCheckinTasksTaskIdCheckinJSONBody defines parameters for PostCheckinTasksTaskIdCheckin.
+type PostCheckinTasksTaskIdCheckinJSONBody struct {
+	// GroupId 用户组ID
+	GroupId int `binding:"omitempty,gt=0" json:"groupId"`
+
+	// SigninTime 用户提交的签到时间（Unix时间戳，单位：秒），默认为当前时间
+	SigninTime int `binding:"omitempty" json:"signinTime"`
+
+	// VerificationData 校验数据组件，根据不同的校验方式需要提供不同的字段
+	VerificationData VerificationData `json:"verificationData"`
+}
+
+// PostCheckinTasksTaskIdVerifyJSONBody defines parameters for PostCheckinTasksTaskIdVerify.
+type PostCheckinTasksTaskIdVerifyJSONBody struct {
+	// VerificationData 校验数据组件，根据不同的校验方式需要提供不同的字段
+	VerificationData VerificationData `json:"verificationData"`
+
+	// VerifyType 指定要验证的信息类型
+	VerifyType PostCheckinTasksTaskIdVerifyJSONBodyVerifyType `binding:"required,oneof=gps wifi nfc" json:"verifyType"`
+}
+
+// PostCheckinTasksTaskIdVerifyJSONBodyVerifyType defines parameters for PostCheckinTasksTaskIdVerify.
+type PostCheckinTasksTaskIdVerifyJSONBodyVerifyType string
 
 // GetGroupsParams defines parameters for GetGroups.
 type GetGroupsParams struct {
@@ -207,6 +544,30 @@ type PutGroupsGroupIdJSONBody struct {
 	GroupName string `binding:"required,min=1,max=50" json:"groupName"`
 }
 
+// GetGroupsGroupIdAuditRequestsParams defines parameters for GetGroupsGroupIdAuditRequests.
+type GetGroupsGroupIdAuditRequestsParams struct {
+	// Status 按状态筛选: `pending`, `processed`, `all`
+	Status *RequestQueryStatus `form:"status,omitempty" json:"status,omitempty"`
+}
+
+// PostGroupsGroupIdCheckinTasksJSONBody defines parameters for PostGroupsGroupIdCheckinTasks.
+type PostGroupsGroupIdCheckinTasksJSONBody struct {
+	// Description 任务描述
+	Description string `binding:"omitempty,max=500" json:"description,omitempty"`
+
+	// EndTime 签到结束时间（Unix时间戳，单位：秒）
+	EndTime int `binding:"required,gtfield=StartTime" json:"endTime"`
+
+	// StartTime 签到开始时间（Unix时间戳，单位：秒）
+	StartTime int `binding:"required" json:"startTime"`
+
+	// TaskName 任务名称
+	TaskName string `binding:"required,min=1,max=100" json:"taskName"`
+
+	// VerificationConfig 任务校验配置组件，包含校验方式配置和相关参数
+	VerificationConfig TaskVerificationConfig `json:"verificationConfig"`
+}
+
 // GetGroupsGroupIdJoinRequestsParams defines parameters for GetGroupsGroupIdJoinRequests.
 type GetGroupsGroupIdJoinRequestsParams struct {
 	// Status 筛选状态: `pending` (默认), `approved`, `rejected`, `all`。
@@ -231,17 +592,35 @@ type PutGroupsGroupIdJoinRequestsRequestIdJSONBody struct {
 // PutGroupsGroupIdJoinRequestsRequestIdJSONBodyAction defines parameters for PutGroupsGroupIdJoinRequestsRequestId.
 type PutGroupsGroupIdJoinRequestsRequestIdJSONBodyAction string
 
+// PutAuditRequestsAuditRequestIdJSONRequestBody defines body for PutAuditRequestsAuditRequestId for application/json ContentType.
+type PutAuditRequestsAuditRequestIdJSONRequestBody PutAuditRequestsAuditRequestIdJSONBody
+
 // PostAuthLoginJSONRequestBody defines body for PostAuthLogin for application/json ContentType.
 type PostAuthLoginJSONRequestBody PostAuthLoginJSONBody
 
 // PostAuthRegisterJSONRequestBody defines body for PostAuthRegister for application/json ContentType.
 type PostAuthRegisterJSONRequestBody PostAuthRegisterJSONBody
 
+// PutCheckinTasksTaskIdJSONRequestBody defines body for PutCheckinTasksTaskId for application/json ContentType.
+type PutCheckinTasksTaskIdJSONRequestBody PutCheckinTasksTaskIdJSONBody
+
+// PostCheckinTasksTaskIdAuditRequestsJSONRequestBody defines body for PostCheckinTasksTaskIdAuditRequests for application/json ContentType.
+type PostCheckinTasksTaskIdAuditRequestsJSONRequestBody PostCheckinTasksTaskIdAuditRequestsJSONBody
+
+// PostCheckinTasksTaskIdCheckinJSONRequestBody defines body for PostCheckinTasksTaskIdCheckin for application/json ContentType.
+type PostCheckinTasksTaskIdCheckinJSONRequestBody PostCheckinTasksTaskIdCheckinJSONBody
+
+// PostCheckinTasksTaskIdVerifyJSONRequestBody defines body for PostCheckinTasksTaskIdVerify for application/json ContentType.
+type PostCheckinTasksTaskIdVerifyJSONRequestBody PostCheckinTasksTaskIdVerifyJSONBody
+
 // PostGroupsJSONRequestBody defines body for PostGroups for application/json ContentType.
 type PostGroupsJSONRequestBody PostGroupsJSONBody
 
 // PutGroupsGroupIdJSONRequestBody defines body for PutGroupsGroupId for application/json ContentType.
 type PutGroupsGroupIdJSONRequestBody PutGroupsGroupIdJSONBody
+
+// PostGroupsGroupIdCheckinTasksJSONRequestBody defines body for PostGroupsGroupIdCheckinTasks for application/json ContentType.
+type PostGroupsGroupIdCheckinTasksJSONRequestBody PostGroupsGroupIdCheckinTasksJSONBody
 
 // PostGroupsGroupIdJoinRequestsJSONRequestBody defines body for PostGroupsGroupIdJoinRequests for application/json ContentType.
 type PostGroupsGroupIdJoinRequestsJSONRequestBody PostGroupsGroupIdJoinRequestsJSONBody

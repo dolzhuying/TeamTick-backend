@@ -3,7 +3,6 @@ package middlewares
 import (
 	"TeamTickBackend/pkg"
 	"context"
-	"errors"
 	"net/http"
 	"time"
 
@@ -15,17 +14,19 @@ func AuthMiddleware(jwtToken pkg.JwtHandler) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		token := c.GetHeader("Authorization")
 		if token == "" {
-			c.Status(http.StatusUnauthorized)
-			c.Error(errors.New("missing authorization"))
-			c.Abort()
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"code":    "1",
+				"message": "missing authorization",
+			})
 			return
 		}
 
 		payload, err := jwtToken.ParseJWTToken(token)
 		if err != nil {
-			c.Status(http.StatusUnauthorized)
-			c.Error(err)
-			c.Abort()
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"code":    "1",
+				"message": "invalid token",
+			})
 			return
 		}
 

@@ -11,6 +11,7 @@ import (
 
 func SetupRouter(container *app.AppContainer) *gin.Engine {
 	router := gin.Default()
+	router.Use(middlewares.RecoverMiddleware())
 
 	authHandler := handlers.NewAuthHandler(container)
 	gen.RegisterAuthHandlers(router, authHandler)

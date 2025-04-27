@@ -24,7 +24,7 @@ func NewGroupsHandler(container *app.AppContainer) gen.GroupsServerInterface {
 	handler := &GroupsHandler{
 		groupsService: *GroupsService,
 	}
-	return gen.NewGroupsStrictHandler(handler, nil)
+	return gen.NewGroupsStrictHandler(handler,nil)
 }
 
 // 获取当前用户创建的或加入的用户组列表
@@ -522,4 +522,12 @@ func (h *GroupsHandler) GetGroupsGroupIdMyStatus(ctx context.Context, request ge
 			Status:        status,
 		},
 	}, nil
+}
+
+func (h *GroupsHandler) DeleteGroupsGroupId(ctx context.Context, request gen.DeleteGroupsGroupIdRequestObject) (gen.DeleteGroupsGroupIdResponseObject, error) {
+	
+}
+
+func (h *GroupsHandler) GetGroupsGroupIdMyStatus(ctx context.Context, request gen.GetGroupsGroupIdMyStatusRequestObject) (gen.GetGroupsGroupIdMyStatusResponseObject, error) {
+	
 }

@@ -22,7 +22,7 @@ func NewAuthHandler(container *app.AppContainer) gen.AuthServerInterface {
 	handler := &AuthHandler{
 		authService: *authService,
 	}
-	return gen.NewAuthStrictHandler(handler, nil)
+	return gen.NewAuthStrictHandler(handler,nil)
 }
 
 // 用户登录
