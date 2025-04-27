@@ -426,10 +426,7 @@ func (response GetGroups200JSONResponse) VisitGetGroupsResponse(w http.ResponseW
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetGroups401JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
+type GetGroups401JSONResponse Unauthorized
 
 func (response GetGroups401JSONResponse) VisitGetGroupsResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -458,10 +455,7 @@ func (response PostGroups201JSONResponse) VisitPostGroupsResponse(w http.Respons
 	return json.NewEncoder(w).Encode(response)
 }
 
-type PostGroups400JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
+type PostGroups400JSONResponse BadRequest
 
 func (response PostGroups400JSONResponse) VisitPostGroupsResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -470,14 +464,20 @@ func (response PostGroups400JSONResponse) VisitPostGroupsResponse(w http.Respons
 	return json.NewEncoder(w).Encode(response)
 }
 
-type PostGroups401JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
+type PostGroups401JSONResponse Unauthorized
 
 func (response PostGroups401JSONResponse) VisitPostGroupsResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PostGroups500JSONResponse InternalServerError
+
+func (response PostGroups500JSONResponse) VisitPostGroupsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
 
 	return json.NewEncoder(w).Encode(response)
 }
@@ -490,10 +490,7 @@ type DeleteGroupsGroupIdResponseObject interface {
 	VisitDeleteGroupsGroupIdResponse(w http.ResponseWriter) error
 }
 
-type DeleteGroupsGroupId200JSONResponse struct {
-	Code string                  `json:"code"`
-	Data *map[string]interface{} `json:"data,omitempty"`
-}
+type DeleteGroupsGroupId200JSONResponse Success
 
 func (response DeleteGroupsGroupId200JSONResponse) VisitDeleteGroupsGroupIdResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -502,10 +499,7 @@ func (response DeleteGroupsGroupId200JSONResponse) VisitDeleteGroupsGroupIdRespo
 	return json.NewEncoder(w).Encode(response)
 }
 
-type DeleteGroupsGroupId401JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
+type DeleteGroupsGroupId401JSONResponse Unauthorized
 
 func (response DeleteGroupsGroupId401JSONResponse) VisitDeleteGroupsGroupIdResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -514,10 +508,7 @@ func (response DeleteGroupsGroupId401JSONResponse) VisitDeleteGroupsGroupIdRespo
 	return json.NewEncoder(w).Encode(response)
 }
 
-type DeleteGroupsGroupId403JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
+type DeleteGroupsGroupId403JSONResponse Forbidden
 
 func (response DeleteGroupsGroupId403JSONResponse) VisitDeleteGroupsGroupIdResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -526,10 +517,7 @@ func (response DeleteGroupsGroupId403JSONResponse) VisitDeleteGroupsGroupIdRespo
 	return json.NewEncoder(w).Encode(response)
 }
 
-type DeleteGroupsGroupId404JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
+type DeleteGroupsGroupId404JSONResponse NotFound
 
 func (response DeleteGroupsGroupId404JSONResponse) VisitDeleteGroupsGroupIdResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -538,10 +526,7 @@ func (response DeleteGroupsGroupId404JSONResponse) VisitDeleteGroupsGroupIdRespo
 	return json.NewEncoder(w).Encode(response)
 }
 
-type DeleteGroupsGroupId409JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
+type DeleteGroupsGroupId409JSONResponse Conflict
 
 func (response DeleteGroupsGroupId409JSONResponse) VisitDeleteGroupsGroupIdResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -570,10 +555,7 @@ func (response GetGroupsGroupId200JSONResponse) VisitGetGroupsGroupIdResponse(w 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetGroupsGroupId401JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
+type GetGroupsGroupId401JSONResponse Unauthorized
 
 func (response GetGroupsGroupId401JSONResponse) VisitGetGroupsGroupIdResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -582,10 +564,7 @@ func (response GetGroupsGroupId401JSONResponse) VisitGetGroupsGroupIdResponse(w 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetGroupsGroupId403JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
+type GetGroupsGroupId403JSONResponse Forbidden
 
 func (response GetGroupsGroupId403JSONResponse) VisitGetGroupsGroupIdResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -594,10 +573,7 @@ func (response GetGroupsGroupId403JSONResponse) VisitGetGroupsGroupIdResponse(w 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetGroupsGroupId404JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
+type GetGroupsGroupId404JSONResponse NotFound
 
 func (response GetGroupsGroupId404JSONResponse) VisitGetGroupsGroupIdResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -627,10 +603,7 @@ func (response PutGroupsGroupId200JSONResponse) VisitPutGroupsGroupIdResponse(w 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type PutGroupsGroupId400JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
+type PutGroupsGroupId400JSONResponse BadRequest
 
 func (response PutGroupsGroupId400JSONResponse) VisitPutGroupsGroupIdResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -639,10 +612,7 @@ func (response PutGroupsGroupId400JSONResponse) VisitPutGroupsGroupIdResponse(w 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type PutGroupsGroupId401JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
+type PutGroupsGroupId401JSONResponse Unauthorized
 
 func (response PutGroupsGroupId401JSONResponse) VisitPutGroupsGroupIdResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -651,10 +621,7 @@ func (response PutGroupsGroupId401JSONResponse) VisitPutGroupsGroupIdResponse(w 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type PutGroupsGroupId403JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
+type PutGroupsGroupId403JSONResponse Forbidden
 
 func (response PutGroupsGroupId403JSONResponse) VisitPutGroupsGroupIdResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -663,10 +630,7 @@ func (response PutGroupsGroupId403JSONResponse) VisitPutGroupsGroupIdResponse(w 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type PutGroupsGroupId404JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
+type PutGroupsGroupId404JSONResponse NotFound
 
 func (response PutGroupsGroupId404JSONResponse) VisitPutGroupsGroupIdResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -696,10 +660,7 @@ func (response GetGroupsGroupIdJoinRequests200JSONResponse) VisitGetGroupsGroupI
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetGroupsGroupIdJoinRequests401JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
+type GetGroupsGroupIdJoinRequests401JSONResponse Unauthorized
 
 func (response GetGroupsGroupIdJoinRequests401JSONResponse) VisitGetGroupsGroupIdJoinRequestsResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -708,10 +669,7 @@ func (response GetGroupsGroupIdJoinRequests401JSONResponse) VisitGetGroupsGroupI
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetGroupsGroupIdJoinRequests403JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
+type GetGroupsGroupIdJoinRequests403JSONResponse Forbidden
 
 func (response GetGroupsGroupIdJoinRequests403JSONResponse) VisitGetGroupsGroupIdJoinRequestsResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -720,14 +678,20 @@ func (response GetGroupsGroupIdJoinRequests403JSONResponse) VisitGetGroupsGroupI
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetGroupsGroupIdJoinRequests404JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
+type GetGroupsGroupIdJoinRequests404JSONResponse NotFound
 
 func (response GetGroupsGroupIdJoinRequests404JSONResponse) VisitGetGroupsGroupIdJoinRequestsResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetGroupsGroupIdJoinRequests500JSONResponse InternalServerError
+
+func (response GetGroupsGroupIdJoinRequests500JSONResponse) VisitGetGroupsGroupIdJoinRequestsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
 
 	return json.NewEncoder(w).Encode(response)
 }
@@ -753,10 +717,7 @@ func (response PostGroupsGroupIdJoinRequests201JSONResponse) VisitPostGroupsGrou
 	return json.NewEncoder(w).Encode(response)
 }
 
-type PostGroupsGroupIdJoinRequests401JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
+type PostGroupsGroupIdJoinRequests401JSONResponse Unauthorized
 
 func (response PostGroupsGroupIdJoinRequests401JSONResponse) VisitPostGroupsGroupIdJoinRequestsResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -765,10 +726,7 @@ func (response PostGroupsGroupIdJoinRequests401JSONResponse) VisitPostGroupsGrou
 	return json.NewEncoder(w).Encode(response)
 }
 
-type PostGroupsGroupIdJoinRequests403JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
+type PostGroupsGroupIdJoinRequests403JSONResponse Forbidden
 
 func (response PostGroupsGroupIdJoinRequests403JSONResponse) VisitPostGroupsGroupIdJoinRequestsResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -777,10 +735,7 @@ func (response PostGroupsGroupIdJoinRequests403JSONResponse) VisitPostGroupsGrou
 	return json.NewEncoder(w).Encode(response)
 }
 
-type PostGroupsGroupIdJoinRequests404JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
+type PostGroupsGroupIdJoinRequests404JSONResponse NotFound
 
 func (response PostGroupsGroupIdJoinRequests404JSONResponse) VisitPostGroupsGroupIdJoinRequestsResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -789,14 +744,20 @@ func (response PostGroupsGroupIdJoinRequests404JSONResponse) VisitPostGroupsGrou
 	return json.NewEncoder(w).Encode(response)
 }
 
-type PostGroupsGroupIdJoinRequests409JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
+type PostGroupsGroupIdJoinRequests409JSONResponse Conflict
 
 func (response PostGroupsGroupIdJoinRequests409JSONResponse) VisitPostGroupsGroupIdJoinRequestsResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PostGroupsGroupIdJoinRequests500JSONResponse InternalServerError
+
+func (response PostGroupsGroupIdJoinRequests500JSONResponse) VisitPostGroupsGroupIdJoinRequestsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
 
 	return json.NewEncoder(w).Encode(response)
 }
@@ -811,10 +772,7 @@ type PutGroupsGroupIdJoinRequestsRequestIdResponseObject interface {
 	VisitPutGroupsGroupIdJoinRequestsRequestIdResponse(w http.ResponseWriter) error
 }
 
-type PutGroupsGroupIdJoinRequestsRequestId200JSONResponse struct {
-	Code string                  `json:"code"`
-	Data *map[string]interface{} `json:"data,omitempty"`
-}
+type PutGroupsGroupIdJoinRequestsRequestId200JSONResponse Success
 
 func (response PutGroupsGroupIdJoinRequestsRequestId200JSONResponse) VisitPutGroupsGroupIdJoinRequestsRequestIdResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -823,10 +781,7 @@ func (response PutGroupsGroupIdJoinRequestsRequestId200JSONResponse) VisitPutGro
 	return json.NewEncoder(w).Encode(response)
 }
 
-type PutGroupsGroupIdJoinRequestsRequestId400JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
+type PutGroupsGroupIdJoinRequestsRequestId400JSONResponse BadRequest
 
 func (response PutGroupsGroupIdJoinRequestsRequestId400JSONResponse) VisitPutGroupsGroupIdJoinRequestsRequestIdResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -835,10 +790,7 @@ func (response PutGroupsGroupIdJoinRequestsRequestId400JSONResponse) VisitPutGro
 	return json.NewEncoder(w).Encode(response)
 }
 
-type PutGroupsGroupIdJoinRequestsRequestId401JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
+type PutGroupsGroupIdJoinRequestsRequestId401JSONResponse Unauthorized
 
 func (response PutGroupsGroupIdJoinRequestsRequestId401JSONResponse) VisitPutGroupsGroupIdJoinRequestsRequestIdResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -847,10 +799,7 @@ func (response PutGroupsGroupIdJoinRequestsRequestId401JSONResponse) VisitPutGro
 	return json.NewEncoder(w).Encode(response)
 }
 
-type PutGroupsGroupIdJoinRequestsRequestId403JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
+type PutGroupsGroupIdJoinRequestsRequestId403JSONResponse Forbidden
 
 func (response PutGroupsGroupIdJoinRequestsRequestId403JSONResponse) VisitPutGroupsGroupIdJoinRequestsRequestIdResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -859,10 +808,7 @@ func (response PutGroupsGroupIdJoinRequestsRequestId403JSONResponse) VisitPutGro
 	return json.NewEncoder(w).Encode(response)
 }
 
-type PutGroupsGroupIdJoinRequestsRequestId404JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
+type PutGroupsGroupIdJoinRequestsRequestId404JSONResponse NotFound
 
 func (response PutGroupsGroupIdJoinRequestsRequestId404JSONResponse) VisitPutGroupsGroupIdJoinRequestsRequestIdResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -871,14 +817,20 @@ func (response PutGroupsGroupIdJoinRequestsRequestId404JSONResponse) VisitPutGro
 	return json.NewEncoder(w).Encode(response)
 }
 
-type PutGroupsGroupIdJoinRequestsRequestId409JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
+type PutGroupsGroupIdJoinRequestsRequestId409JSONResponse Conflict
 
 func (response PutGroupsGroupIdJoinRequestsRequestId409JSONResponse) VisitPutGroupsGroupIdJoinRequestsRequestIdResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PutGroupsGroupIdJoinRequestsRequestId500JSONResponse InternalServerError
+
+func (response PutGroupsGroupIdJoinRequestsRequestId500JSONResponse) VisitPutGroupsGroupIdJoinRequestsRequestIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
 
 	return json.NewEncoder(w).Encode(response)
 }
@@ -903,10 +855,7 @@ func (response GetGroupsGroupIdMembers200JSONResponse) VisitGetGroupsGroupIdMemb
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetGroupsGroupIdMembers401JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
+type GetGroupsGroupIdMembers401JSONResponse Unauthorized
 
 func (response GetGroupsGroupIdMembers401JSONResponse) VisitGetGroupsGroupIdMembersResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -915,10 +864,7 @@ func (response GetGroupsGroupIdMembers401JSONResponse) VisitGetGroupsGroupIdMemb
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetGroupsGroupIdMembers403JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
+type GetGroupsGroupIdMembers403JSONResponse Forbidden
 
 func (response GetGroupsGroupIdMembers403JSONResponse) VisitGetGroupsGroupIdMembersResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -927,14 +873,20 @@ func (response GetGroupsGroupIdMembers403JSONResponse) VisitGetGroupsGroupIdMemb
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetGroupsGroupIdMembers404JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
+type GetGroupsGroupIdMembers404JSONResponse NotFound
 
 func (response GetGroupsGroupIdMembers404JSONResponse) VisitGetGroupsGroupIdMembersResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetGroupsGroupIdMembers500JSONResponse InternalServerError
+
+func (response GetGroupsGroupIdMembers500JSONResponse) VisitGetGroupsGroupIdMembersResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
 
 	return json.NewEncoder(w).Encode(response)
 }
@@ -948,10 +900,7 @@ type DeleteGroupsGroupIdMembersUserIdResponseObject interface {
 	VisitDeleteGroupsGroupIdMembersUserIdResponse(w http.ResponseWriter) error
 }
 
-type DeleteGroupsGroupIdMembersUserId200JSONResponse struct {
-	Code string                  `json:"code"`
-	Data *map[string]interface{} `json:"data,omitempty"`
-}
+type DeleteGroupsGroupIdMembersUserId200JSONResponse Success
 
 func (response DeleteGroupsGroupIdMembersUserId200JSONResponse) VisitDeleteGroupsGroupIdMembersUserIdResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -960,10 +909,7 @@ func (response DeleteGroupsGroupIdMembersUserId200JSONResponse) VisitDeleteGroup
 	return json.NewEncoder(w).Encode(response)
 }
 
-type DeleteGroupsGroupIdMembersUserId401JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
+type DeleteGroupsGroupIdMembersUserId401JSONResponse Unauthorized
 
 func (response DeleteGroupsGroupIdMembersUserId401JSONResponse) VisitDeleteGroupsGroupIdMembersUserIdResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -972,10 +918,7 @@ func (response DeleteGroupsGroupIdMembersUserId401JSONResponse) VisitDeleteGroup
 	return json.NewEncoder(w).Encode(response)
 }
 
-type DeleteGroupsGroupIdMembersUserId403JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
+type DeleteGroupsGroupIdMembersUserId403JSONResponse Forbidden
 
 func (response DeleteGroupsGroupIdMembersUserId403JSONResponse) VisitDeleteGroupsGroupIdMembersUserIdResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -984,14 +927,20 @@ func (response DeleteGroupsGroupIdMembersUserId403JSONResponse) VisitDeleteGroup
 	return json.NewEncoder(w).Encode(response)
 }
 
-type DeleteGroupsGroupIdMembersUserId404JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
+type DeleteGroupsGroupIdMembersUserId404JSONResponse NotFound
 
 func (response DeleteGroupsGroupIdMembersUserId404JSONResponse) VisitDeleteGroupsGroupIdMembersUserIdResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteGroupsGroupIdMembersUserId500JSONResponse InternalServerError
+
+func (response DeleteGroupsGroupIdMembersUserId500JSONResponse) VisitDeleteGroupsGroupIdMembersUserIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
 
 	return json.NewEncoder(w).Encode(response)
 }
@@ -1025,10 +974,7 @@ func (response GetGroupsGroupIdMyStatus200JSONResponse) VisitGetGroupsGroupIdMyS
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetGroupsGroupIdMyStatus401JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
+type GetGroupsGroupIdMyStatus401JSONResponse Unauthorized
 
 func (response GetGroupsGroupIdMyStatus401JSONResponse) VisitGetGroupsGroupIdMyStatusResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -1037,14 +983,20 @@ func (response GetGroupsGroupIdMyStatus401JSONResponse) VisitGetGroupsGroupIdMyS
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetGroupsGroupIdMyStatus404JSONResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
+type GetGroupsGroupIdMyStatus404JSONResponse NotFound
 
 func (response GetGroupsGroupIdMyStatus404JSONResponse) VisitGetGroupsGroupIdMyStatusResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetGroupsGroupIdMyStatus500JSONResponse InternalServerError
+
+func (response GetGroupsGroupIdMyStatus500JSONResponse) VisitGetGroupsGroupIdMyStatusResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
 
 	return json.NewEncoder(w).Encode(response)
 }
