@@ -58,3 +58,29 @@ func (dao *JoinApplicationDAOMySQLImpl) UpdateStatus(ctx context.Context, reques
 		Where("request_id=?", requestID).
 		Update("status", status).Error
 }
+
+// UpdateRejectReason 更新拒绝理由
+func (dao *JoinApplicationDAOMySQLImpl) UpdateRejectReason(ctx context.Context, requestID int, rejectReason string, tx ...*gorm.DB) error {
+	db := dao.DB
+	if len(tx) > 0 && tx[0] != nil {
+		db = tx[0]
+	}
+	return db.WithContext(ctx).Model(&models.JoinApplication{}).
+		Where("request_id=?", requestID).
+		Update("reject_reason", rejectReason).Error
+}
+
+// GetByGroupIDAndUserID 通过group_id和user_id查询加入申请
+func (dao *JoinApplicationDAOMySQLImpl) GetByGroupIDAndUserID(ctx context.Context, groupID int, userID int, tx ...*gorm.DB) (*models.JoinApplication, error) {
+	var application models.JoinApplication
+	db := dao.DB
+	if len(tx) > 0 && tx[0] != nil {
+		db = tx[0]
+	}
+	err := db.WithContext(ctx).Where("group_id = ? AND user_id = ?", groupID, userID).First(&application).Error
+	if err != nil {
+		return nil, err
+	}
+	return &application, nil
+}
+
