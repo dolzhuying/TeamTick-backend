@@ -4,7 +4,7 @@ import (
 	"TeamTickBackend/dal/dao"
 	"TeamTickBackend/dal/models"
 	"context"
-	"fmt"
+	"math"
 	"time"
 
 	appErrors "TeamTickBackend/pkg/errors"
@@ -15,6 +15,7 @@ import (
 type TaskService struct {
 	taskDao            dao.TaskDAO
 	taskRecordDao      dao.TaskRecordDAO
+	groupDao           dao.GroupDAO
 	transactionManager dao.TransactionManager
 }
 
@@ -147,65 +148,124 @@ func (s *TaskService) GetTaskByTaskID(ctx context.Context, taskID int) (*models.
 	return task, nil
 }
 
-// 执行签到任务，校验逻辑待完善（gps，人脸等）
-func (s *TaskService) CheckInTask(ctx context.Context,
-	taskID, userID, groupID int,
-	latitude, longitude float64,
-	signedInTime time.Time,
-	username string,
-) (*models.TaskRecord, error) {
-	var taskRecord models.TaskRecord
-	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
-		// 检查任务记录
+// 验证用户位置是否在任务范围内
+func (s*TaskService) VerifyLocation(ctx context.Context,latitude,longitude float64,taskID int) bool{
+	var isValid bool
+    
+    err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
+        task, err := s.taskDao.GetByTaskID(ctx, taskID, tx)
+        if err != nil {
+            return appErrors.ErrTaskNotFound.WithError(err)
+        }
+        
+        radius := task.Radius
+        taskLatitude, taskLongitude := task.Latitude, task.Longitude
+        
+        // 使用Haversine公式计算两点之间的距离
+        // 地球半径(米)
+        const earthRadius = 6371000.0
+        
+        lat1 := latitude * (math.Pi / 180.0)
+        lon1 := longitude * (math.Pi / 180.0)
+        lat2 := taskLatitude * (math.Pi / 180.0)
+        lon2 := taskLongitude * (math.Pi / 180.0)
+        
+        dLat := lat2 - lat1
+        dLon := lon2 - lon1
+        a := math.Pow(math.Sin(dLat/2), 2) + math.Cos(lat1)*math.Cos(lat2)*math.Pow(math.Sin(dLon/2), 2)
+        c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
+        distance := earthRadius * c
+        
+        isValid = distance <= float64(radius)
+        return nil
+    })
+	if err!=nil{
+		return false
+	}
+	return isValid
+
+}
+
+// 验证NFC
+func (s*TaskService) VerifyNFC(ctx context.Context,tagID,tagName string,taskID int) bool{
+	var isValid bool
+
+	err:=s.transactionManager.WithTransaction(ctx,func(tx *gorm.DB) error{
 		task, err := s.taskDao.GetByTaskID(ctx, taskID, tx)
-		if err != nil {
-			return appErrors.ErrTaskNotFound.WithError(err)
-		}
-		//检查签到时间是否过期
-		if signedInTime.After(task.EndTime) {
-			return appErrors.ErrTaskHasEnded.WithError(fmt.Errorf("task has ended"))
-		}
-
-		//检查是否已经签到
-		if record, err := s.taskRecordDao.GetByTaskIDAndUserID(ctx, taskID, userID, tx); err == nil && record != nil {
-			return appErrors.ErrTaskRecordAlreadyExists.WithError(err)
-		}
-
-		//创建签到记录，字段根据校验策略进行选择
-		var record models.TaskRecord
-		record=models.TaskRecord{
-			TaskID:taskID,
-			UserID:userID,
-			GroupID:groupID,
-			SignedTime:signedInTime,
-			Username:username,
-		}
-
-		//校验策略选择
-		if task.GPS {
-			// todo 检查gps定位范围
-		}
-		if task.Face {
-			//todo 人脸识别
-		}
-		if task.WiFi {
-			//todo 检查wifi
-		}
-		if task.NFC {
-			//todo 检查nfc
-		}
-
-		//创建签到记录
-		if err := s.taskRecordDao.Create(ctx, &record, tx); err != nil {
-			return appErrors.ErrTaskRecordCreationFailed.WithError(err)
-		}
-		taskRecord = record
+        if err != nil {
+            return appErrors.ErrTaskNotFound.WithError(err)
+        }
+		taskTagName,taskTagID:=task.TagName,task.TagID
+		isValid=tagID==taskTagID&&tagName==taskTagName
 		return nil
 	})
-	if err != nil {
-		return nil, err
+	if err!=nil{
+		return false
 	}
-	return &taskRecord, nil
+	return isValid
+}
+
+//验证wifi
+func (s*TaskService) VerifyWiFi(ctx context.Context,ssid,bssid string,taskID int) bool{
+	var isValid bool
+
+	err:=s.transactionManager.WithTransaction(ctx,func(tx *gorm.DB) error{
+		task, err := s.taskDao.GetByTaskID(ctx, taskID, tx)
+        if err != nil {
+            return appErrors.ErrTaskNotFound.WithError(err)
+        }
+		taskSSID,taskBSSID:=task.SSID,task.BSSID
+		isValid=ssid==taskSSID&&bssid==taskBSSID
+		return nil
+	})
+	if err!=nil{
+		return false
+	}
+	return isValid
+}
+
+// 签到记录写入,待完善
+func (s*TaskService) ChecInTask(
+	ctx context.Context,
+	taskID,userID int,
+	latitude,longitude float64,
+	//signedInTime time.Time,
+	otherInfo...string,
+) (*models.TaskRecord,error){
+	var taskRecord models.TaskRecord
+
+	err:=s.transactionManager.WithTransaction(ctx,func(tx *gorm.DB) error{
+		task, err := s.taskDao.GetByTaskID(ctx, taskID, tx)
+        if err != nil {
+            return appErrors.ErrTaskNotFound.WithError(err)
+        }
+		group,err:=s.groupDao.GetByGroupID(ctx,task.GroupID,tx)
+		if err!=nil{
+			return appErrors.ErrGroupNotFound.WithError(err)
+		}
+		createdTaskRecord:=models.TaskRecord{
+			TaskID:taskID,
+			GroupID: task.GroupID,
+			UserID:userID,
+			Latitude:latitude,
+			Longitude:longitude,
+			GroupName:group.GroupName,
+			//SignedTime: signedInTime,
+		}
+
+		//根据otherInfo选择字段
+
+		if err:=s.taskRecordDao.Create(ctx,&taskRecord,tx);err!=nil{
+			return appErrors.ErrTaskRecordCreationFailed.WithError(err)
+		}
+		taskRecord=createdTaskRecord
+		return nil
+	})
+	if err!=nil{
+		return nil,err
+	}
+	return &taskRecord,nil
+
 }
 
 // 通过TaskID查询特定任务签到记录，待完善

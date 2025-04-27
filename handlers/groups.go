@@ -21,7 +21,7 @@ func NewGroupsHandler(container *app.AppContainer) gen.GroupsServerInterface {
 	handler := &GroupsHandler{
 		groupsService: *GroupsService,
 	}
-	return gen.NewGroupsStrictHandler(handler, nil)
+	return gen.NewGroupsStrictHandler(handler,nil)
 }
 
 // 会议中提及过部分接口需要修改（查询用户组信息是否需要该用户组成员）
@@ -61,4 +61,12 @@ func (h *GroupsHandler) GetGroupsGroupIdMembers(ctx context.Context, request gen
 
 func (h *GroupsHandler) DeleteGroupsGroupIdMembersUserId(ctx context.Context, request gen.DeleteGroupsGroupIdMembersUserIdRequestObject) (gen.DeleteGroupsGroupIdMembersUserIdResponseObject, error) {
 
+}
+
+func (h *GroupsHandler) DeleteGroupsGroupId(ctx context.Context, request gen.DeleteGroupsGroupIdRequestObject) (gen.DeleteGroupsGroupIdResponseObject, error) {
+	
+}
+
+func (h *GroupsHandler) GetGroupsGroupIdMyStatus(ctx context.Context, request gen.GetGroupsGroupIdMyStatusRequestObject) (gen.GetGroupsGroupIdMyStatusResponseObject, error) {
+	
 }
