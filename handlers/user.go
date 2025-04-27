@@ -6,6 +6,7 @@ import (
 	"TeamTickBackend/services"
 	"context"
 	"errors"
+	appErrors "TeamTickBackend/pkg/errors"
 )
 
 type UserHandler struct {
@@ -26,21 +27,27 @@ func NewUserHandler(container *app.AppContainer) gen.UsersServerInterface {
 func (h *UserHandler) GetUsersMe(ctx context.Context, request gen.GetUsersMeRequestObject) (gen.GetUsersMeResponseObject, error) {
 	userID, ok := ctx.Value("userID").(int)
 	if !ok {
-		return nil, errors.New("用户未授权")
+		return nil, appErrors.ErrJwtParseFailed
 	}
 	user, err := h.userService.GetUserMe(ctx, userID)
 	if err != nil {
+		if errors.Is(err, appErrors.ErrUserNotFound) {
+			return &gen.GetUsersMe401JSONResponse{
+				Code:    "1",
+				Message: "用户未登录",
+			}, nil
+		}
 		return nil, err
 	}
 
-	userId := int64(user.UserID)
+	userId := user.UserID
 	genUser := gen.User{
-		UserId:   &userId,
-		Username: &user.Username,
+		UserId:   userId,
+		Username: user.Username,
 	}
 
 	return &gen.GetUsersMe200JSONResponse{
-		Code: "200",
+		Code: "0",
 		Data: genUser,
 	}, nil
 }
