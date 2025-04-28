@@ -468,7 +468,7 @@ func (h *GroupsHandler) GetGroupsGroupIdMyStatus(ctx context.Context, request ge
 	}
 	groupID := request.GroupId
 
-	application, err := h.groupsService.GetUserGroupStatus(ctx, groupID, userID)
+	userStatus, requestID, err := h.groupsService.GetUserGroupStatus(ctx, groupID, userID)
 	if err != nil {
 		if errors.Is(err, appErrors.ErrGroupNotFound) {
 			return &gen.GetGroupsGroupIdMyStatus404JSONResponse{
@@ -476,7 +476,7 @@ func (h *GroupsHandler) GetGroupsGroupIdMyStatus(ctx context.Context, request ge
 				Message: "用户组不存在",
 			}, nil
 		}
-		if errors.Is(err, appErrors.ErrJoinApplicationNotFound) {
+		if userStatus == "none" {
 			return &gen.GetGroupsGroupIdMyStatus200JSONResponse{
 				Code: "0",
 				Data: struct {
@@ -496,20 +496,33 @@ func (h *GroupsHandler) GetGroupsGroupIdMyStatus(ctx context.Context, request ge
 	var joinRequestId int
 	var message string
 
-	switch application.Status {
+	// switch application.Status {
+	// case "pending":
+	// 	status = gen.GroupMembershipStatusPending
+	// 	joinRequestId = application.RequestID
+	// 	message = "您的加入申请正在等待审核"
+	// case "accepted":
+	// 	status = gen.GroupMembershipStatusMember
+	// 	message = "您已是该组成员"
+	// case "rejected":
+	// 	status = gen.GroupMembershipStatusRejected
+	// 	joinRequestId = application.RequestID
+	// 	message = "您的加入申请已被拒绝"
+	// default:
+	// 	status = gen.GroupMembershipStatusNone
+	// }
+	switch userStatus {
 	case "pending":
 		status = gen.GroupMembershipStatusPending
-		joinRequestId = application.RequestID
+		joinRequestId = requestID
 		message = "您的加入申请正在等待审核"
-	case "accepted":
-		status = gen.GroupMembershipStatusMember
-		message = "您已是该组成员"
 	case "rejected":
 		status = gen.GroupMembershipStatusRejected
-		joinRequestId = application.RequestID
+		joinRequestId = requestID
 		message = "您的加入申请已被拒绝"
 	default:
-		status = gen.GroupMembershipStatusNone
+		status = gen.GroupMembershipStatusMember
+		message = "您已是该组成员"
 	}
 
 	return &gen.GetGroupsGroupIdMyStatus200JSONResponse{

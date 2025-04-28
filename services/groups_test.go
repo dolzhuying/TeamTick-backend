@@ -1174,7 +1174,7 @@ func TestDeleteGroup_PermissionDenied(t *testing.T) {
 // --- GetUserGroupStatus 测试 ---
 
 func TestGetUserGroupStatus_Success(t *testing.T) {
-	groupsService, mockGroupDao, _, mockJoinApplicationDao, mockTxManager := setupGroupServiceTest()
+	groupsService, mockGroupDao, mockGroupMemberDao, mockJoinApplicationDao, mockTxManager := setupGroupServiceTest()
 	ctx := context.Background()
 	groupID := 1
 	userID := 2
@@ -1196,24 +1196,26 @@ func TestGetUserGroupStatus_Success(t *testing.T) {
 	// Mock期望
 	mockTxManager.On("WithTransaction", ctx, mock.AnythingOfType("func(*gorm.DB) error")).Return(nil)
 	mockGroupDao.On("GetByGroupID", ctx, groupID, mock.AnythingOfType("[]*gorm.DB")).Return(group, nil)
+	mockGroupMemberDao.On("GetMemberByGroupIDAndUserID", ctx, groupID, userID, mock.AnythingOfType("[]*gorm.DB")).Return(nil, gorm.ErrRecordNotFound)
 	mockJoinApplicationDao.On("GetByGroupIDAndUserID", ctx, groupID, userID, mock.AnythingOfType("[]*gorm.DB")).Return(application, nil)
 
 	// 调用函数
-	result, err := groupsService.GetUserGroupStatus(ctx, groupID, userID)
+	status, requestID, err := groupsService.GetUserGroupStatus(ctx, groupID, userID)
 
 	// 断言
 	assert.NoError(t, err)
-	assert.NotNil(t, result)
-	assert.Equal(t, application, result)
+	assert.Equal(t, application.Status, status)
+	assert.Equal(t, application.RequestID, requestID)
 
 	// 验证mock调用
 	mockTxManager.AssertExpectations(t)
 	mockGroupDao.AssertExpectations(t)
+	mockGroupMemberDao.AssertExpectations(t)
 	mockJoinApplicationDao.AssertExpectations(t)
 }
 
 func TestGetUserGroupStatus_NotFound(t *testing.T) {
-	groupsService, mockGroupDao, _, mockJoinApplicationDao, mockTxManager := setupGroupServiceTest()
+	groupsService, mockGroupDao, mockGroupMemberDao, mockJoinApplicationDao, mockTxManager := setupGroupServiceTest()
 	ctx := context.Background()
 	groupID := 1
 	userID := 2
@@ -1226,18 +1228,56 @@ func TestGetUserGroupStatus_NotFound(t *testing.T) {
 	// Mock期望
 	mockTxManager.On("WithTransaction", ctx, mock.AnythingOfType("func(*gorm.DB) error")).Return(nil)
 	mockGroupDao.On("GetByGroupID", ctx, groupID, mock.AnythingOfType("[]*gorm.DB")).Return(group, nil)
+	mockGroupMemberDao.On("GetMemberByGroupIDAndUserID", ctx, groupID, userID, mock.AnythingOfType("[]*gorm.DB")).Return(nil, gorm.ErrRecordNotFound)
 	mockJoinApplicationDao.On("GetByGroupIDAndUserID", ctx, groupID, userID, mock.AnythingOfType("[]*gorm.DB")).Return(nil, gorm.ErrRecordNotFound)
 
 	// 调用函数
-	result, err := groupsService.GetUserGroupStatus(ctx, groupID, userID)
+	status, requestID, err := groupsService.GetUserGroupStatus(ctx, groupID, userID)
 
 	// 断言
-	assert.Error(t, err)
-	assert.True(t, errors.Is(err, appErrors.ErrJoinApplicationNotFound))
-	assert.Nil(t, result)
+	assert.NoError(t, err) // 根据实现，这种情况应该不报错而是返回"none"状态
+	assert.Equal(t, "none", status)
+	assert.Equal(t, 0, requestID)
 
 	// 验证mock调用
 	mockTxManager.AssertExpectations(t)
 	mockGroupDao.AssertExpectations(t)
+	mockGroupMemberDao.AssertExpectations(t)
 	mockJoinApplicationDao.AssertExpectations(t)
+}
+
+func TestGetUserGroupStatus_Member(t *testing.T) {
+	groupsService, mockGroupDao, mockGroupMemberDao, _, mockTxManager := setupGroupServiceTest()
+	ctx := context.Background()
+	groupID := 1
+	userID := 2
+	group := &models.Group{
+		GroupID:     groupID,
+		GroupName:   "测试群组",
+		Description: "这是一个测试群组",
+	}
+	member := &models.GroupMember{
+		GroupID:  groupID,
+		UserID:   userID,
+		Username: "user",
+		Role:     "member", // 普通成员
+	}
+
+	// Mock期望
+	mockTxManager.On("WithTransaction", ctx, mock.AnythingOfType("func(*gorm.DB) error")).Return(nil)
+	mockGroupDao.On("GetByGroupID", ctx, groupID, mock.AnythingOfType("[]*gorm.DB")).Return(group, nil)
+	mockGroupMemberDao.On("GetMemberByGroupIDAndUserID", ctx, groupID, userID, mock.AnythingOfType("[]*gorm.DB")).Return(member, nil)
+
+	// 调用函数
+	status, requestID, err := groupsService.GetUserGroupStatus(ctx, groupID, userID)
+
+	// 断言
+	assert.NoError(t, err)
+	assert.Equal(t, member.Role, status) // 返回角色为状态
+	assert.Equal(t, 0, requestID)        // 组成员的requestID应为0
+
+	// 验证mock调用
+	mockTxManager.AssertExpectations(t)
+	mockGroupDao.AssertExpectations(t)
+	mockGroupMemberDao.AssertExpectations(t)
 }

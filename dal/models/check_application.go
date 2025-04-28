@@ -6,6 +6,7 @@ import (
 
 type CheckApplication struct {
 	ID            int        `gorm:"primaryKey;column:id;type:int;not null;autoIncrement" json:"id"`
+	GroupID       int        `gorm:"column:group_id;type:int;not null;comment:用户组id" json:"group_id"`
 	TaskID        int        `gorm:"column:task_id;type:int;not null;index:idx_taskid_status;comment:签到任务id" json:"task_id"`
 	TaskName      string     `gorm:"column:task_name;type:varchar(50);not null;comment:任务名称" json:"task_name"`
 	UserID        int        `gorm:"column:user_id;type:int;not null;comment:申请用户id" json:"user_id"`

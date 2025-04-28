@@ -6,6 +6,7 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+	"TeamTickBackend/dal/models"
 )
 
 //错误处理待完善，数据库配置考虑写到配置文件，后面做修改
@@ -30,7 +31,13 @@ func InitDB() *gorm.DB {
 	sqlDB.SetMaxOpenConns(10)
 
 	//迁移表结构
-	//db.AutoMigrate(&models.User{})
+	db.AutoMigrate(&models.User{})
+	db.AutoMigrate(&models.Group{})
+	db.AutoMigrate(&models.GroupMember{})
+	db.AutoMigrate(&models.Task{})
+	db.AutoMigrate(&models.CheckApplication{})
+	db.AutoMigrate(&models.JoinApplication{})
+	db.AutoMigrate(&models.TaskRecord{})
 
 	return db
 }

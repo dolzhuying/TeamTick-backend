@@ -110,6 +110,7 @@ func (s*AuditRequestService) CreateAuditRequest(
 		}
 		newRequest := models.CheckApplication{
 			TaskID: taskID,
+			GroupID: task.GroupID,
 			TaskName: task.TaskName,
 			UserID: userID,
 			Reason: reason,
