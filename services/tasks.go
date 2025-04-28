@@ -4,6 +4,7 @@ import (
 	"TeamTickBackend/dal/dao"
 	"TeamTickBackend/dal/models"
 	"context"
+	"errors"
 	"math"
 	"time"
 
@@ -124,7 +125,10 @@ func (s *TaskService) GetTaskByTaskID(ctx context.Context, taskID int) (*models.
 		var err error
 		task, err = s.taskDao.GetByTaskID(ctx, taskID, tx)
 		if err != nil {
-			return appErrors.ErrTaskNotFound.WithError(err)
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return appErrors.ErrTaskNotFound
+			}
+			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
 		return nil
 	})
@@ -135,37 +139,37 @@ func (s *TaskService) GetTaskByTaskID(ctx context.Context, taskID int) (*models.
 }
 
 // 验证用户位置是否在任务范围内
-func (s*TaskService) VerifyLocation(ctx context.Context,latitude,longitude float64,taskID int) bool{
+func (s *TaskService) VerifyLocation(ctx context.Context, latitude, longitude float64, taskID int) bool {
 	var isValid bool
-    
-    err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
-        task, err := s.taskDao.GetByTaskID(ctx, taskID, tx)
-        if err != nil {
-            return appErrors.ErrTaskNotFound.WithError(err)
-        }
-        
-        radius := task.Radius
-        taskLatitude, taskLongitude := task.Latitude, task.Longitude
-        
-        // 使用Haversine公式计算两点之间的距离
-        // 地球半径(米)
-        const earthRadius = 6371000.0
-        
-        lat1 := latitude * (math.Pi / 180.0)
-        lon1 := longitude * (math.Pi / 180.0)
-        lat2 := taskLatitude * (math.Pi / 180.0)
-        lon2 := taskLongitude * (math.Pi / 180.0)
-        
-        dLat := lat2 - lat1
-        dLon := lon2 - lon1
-        a := math.Pow(math.Sin(dLat/2), 2) + math.Cos(lat1)*math.Cos(lat2)*math.Pow(math.Sin(dLon/2), 2)
-        c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
-        distance := earthRadius * c
-        
-        isValid = distance <= float64(radius)
-        return nil
-    })
-	if err!=nil{
+
+	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
+		task, err := s.taskDao.GetByTaskID(ctx, taskID, tx)
+		if err != nil {
+			return appErrors.ErrTaskNotFound.WithError(err)
+		}
+
+		radius := task.Radius
+		taskLatitude, taskLongitude := task.Latitude, task.Longitude
+
+		// 使用Haversine公式计算两点之间的距离
+		// 地球半径(米)
+		const earthRadius = 6371000.0
+
+		lat1 := latitude * (math.Pi / 180.0)
+		lon1 := longitude * (math.Pi / 180.0)
+		lat2 := taskLatitude * (math.Pi / 180.0)
+		lon2 := taskLongitude * (math.Pi / 180.0)
+
+		dLat := lat2 - lat1
+		dLon := lon2 - lon1
+		a := math.Pow(math.Sin(dLat/2), 2) + math.Cos(lat1)*math.Cos(lat2)*math.Pow(math.Sin(dLon/2), 2)
+		c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
+		distance := earthRadius * c
+
+		isValid = distance <= float64(radius)
+		return nil
+	})
+	if err != nil {
 		return false
 	}
 	return isValid
@@ -173,84 +177,84 @@ func (s*TaskService) VerifyLocation(ctx context.Context,latitude,longitude float
 }
 
 // 验证NFC
-func (s*TaskService) VerifyNFC(ctx context.Context,tagID,tagName string,taskID int) bool{
+func (s *TaskService) VerifyNFC(ctx context.Context, tagID, tagName string, taskID int) bool {
 	var isValid bool
 
-	err:=s.transactionManager.WithTransaction(ctx,func(tx *gorm.DB) error{
+	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
 		task, err := s.taskDao.GetByTaskID(ctx, taskID, tx)
-        if err != nil {
-            return appErrors.ErrTaskNotFound.WithError(err)
-        }
-		taskTagName,taskTagID:=task.TagName,task.TagID
-		isValid=tagID==taskTagID&&tagName==taskTagName
+		if err != nil {
+			return appErrors.ErrTaskNotFound.WithError(err)
+		}
+		taskTagName, taskTagID := task.TagName, task.TagID
+		isValid = tagID == taskTagID && tagName == taskTagName
 		return nil
 	})
-	if err!=nil{
+	if err != nil {
 		return false
 	}
 	return isValid
 }
 
-//验证wifi
-func (s*TaskService) VerifyWiFi(ctx context.Context,ssid,bssid string,taskID int) bool{
+// 验证wifi
+func (s *TaskService) VerifyWiFi(ctx context.Context, ssid, bssid string, taskID int) bool {
 	var isValid bool
 
-	err:=s.transactionManager.WithTransaction(ctx,func(tx *gorm.DB) error{
+	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
 		task, err := s.taskDao.GetByTaskID(ctx, taskID, tx)
-        if err != nil {
-            return appErrors.ErrTaskNotFound.WithError(err)
-        }
-		taskSSID,taskBSSID:=task.SSID,task.BSSID
-		isValid=ssid==taskSSID&&bssid==taskBSSID
+		if err != nil {
+			return appErrors.ErrTaskNotFound.WithError(err)
+		}
+		taskSSID, taskBSSID := task.SSID, task.BSSID
+		isValid = ssid == taskSSID && bssid == taskBSSID
 		return nil
 	})
-	if err!=nil{
+	if err != nil {
 		return false
 	}
 	return isValid
 }
 
 // 签到记录写入,待完善
-func (s*TaskService) CheckInTask(
+func (s *TaskService) CheckInTask(
 	ctx context.Context,
-	taskID,userID int,
-	latitude,longitude float64,
+	taskID, userID int,
+	latitude, longitude float64,
 	signedInTime time.Time,
-	otherInfo...string,
-) (*models.TaskRecord,error){
+	otherInfo ...string,
+) (*models.TaskRecord, error) {
 	var taskRecord models.TaskRecord
 
-	err:=s.transactionManager.WithTransaction(ctx,func(tx *gorm.DB) error{
+	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
 		task, err := s.taskDao.GetByTaskID(ctx, taskID, tx)
-        if err != nil {
-            return appErrors.ErrTaskNotFound.WithError(err)
-        }
-		group,err:=s.groupDao.GetByGroupID(ctx,task.GroupID,tx)
-		if err!=nil{
+		if err != nil {
+			return appErrors.ErrTaskNotFound.WithError(err)
+		}
+		group, err := s.groupDao.GetByGroupID(ctx, task.GroupID, tx)
+		if err != nil {
 			return appErrors.ErrGroupNotFound.WithError(err)
 		}
-		createdTaskRecord:=models.TaskRecord{
-			TaskID:taskID,
-			GroupID: task.GroupID,
-			UserID:userID,
-			Latitude:latitude,
-			Longitude:longitude,
-			GroupName:group.GroupName,
+		createdTaskRecord := models.TaskRecord{
+			TaskID:     taskID,
+			GroupID:    task.GroupID,
+			UserID:     userID,
+			Latitude:   latitude,
+			Longitude:  longitude,
+			GroupName:  group.GroupName,
 			SignedTime: signedInTime,
 		}
 
 		//根据otherInfo选择字段
 
-		if err:=s.taskRecordDao.Create(ctx,&taskRecord,tx);err!=nil{
+		if err := s.taskRecordDao.Create(ctx, &taskRecord, tx); err != nil {
 			return appErrors.ErrTaskRecordCreationFailed.WithError(err)
 		}
-		taskRecord=createdTaskRecord
+		taskRecord = createdTaskRecord
 		return nil
 	})
-	if err!=nil{
-		return nil,err
+	if err != nil {
+		return nil, err
 	}
-	return &taskRecord,nil
+	return &taskRecord, nil
 
 }
 

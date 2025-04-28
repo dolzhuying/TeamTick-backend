@@ -80,8 +80,16 @@ func (h *AuditRequestHandler) GetGroupsGroupIdAuditRequests(ctx context.Context,
 		return nil, appErrors.ErrJwtParseFailed
 	}
 
+	// 获取状态参数
+	var status string
+	if request.Params.Status != nil {
+		status = string(*request.Params.Status)
+	} else {
+		status = string(gen.RequestQueryStatusAll)
+	}
+
 	// 调用服务获取审核请求列表
-	requests, err := h.auditRequestService.GetAuditRequestByGroupID(ctx, request.GroupId)
+	requests, err := h.auditRequestService.GetAuditRequestByGroupIDWithStatus(ctx, request.GroupId, status)
 	if err != nil {
 		if errors.Is(err, appErrors.ErrAuditRequestNotFound) {
 			return &gen.GetGroupsGroupIdAuditRequests200JSONResponse{
@@ -93,7 +101,7 @@ func (h *AuditRequestHandler) GetGroupsGroupIdAuditRequests(ctx context.Context,
 	}
 
 	// 转换为API响应格式
-	var response []gen.AuditRequest
+	response := make([]gen.AuditRequest, 0, len(requests))
 	for _, req := range requests {
 		status := gen.AuditRequestStatus(req.Status)
 		response = append(response, gen.AuditRequest{

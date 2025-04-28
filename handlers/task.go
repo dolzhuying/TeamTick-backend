@@ -487,13 +487,13 @@ func (h *TaskHandler) PostGroupsGroupIdCheckinTasks(ctx context.Context, request
 	if err != nil {
 		if errors.Is(err, appErrors.ErrGroupNotFound) {
 			return &gen.PostGroupsGroupIdCheckinTasks404JSONResponse{
-				Code:    "1", 
+				Code:    "1",
 				Message: "用户组不存在",
 			}, nil
 		}
 		return nil, err
 	}
-	
+
 	// 验证用户是否是组的管理员
 	if err := h.groupsService.CheckMemberPermission(ctx, request.GroupId, userID); err != nil {
 		if errors.Is(err, appErrors.ErrRolePermissionDenied) {
@@ -620,7 +620,7 @@ func convertTaskStatus(task *models.Task) gen.CheckinTaskStatus {
 	}
 }
 
-// 获取当前用户的签到任务列表
+// 获取当前登录用户需要参与的所有签到任务列表
 func (h *TaskHandler) GetUsersMeCheckinTasks(ctx context.Context, request gen.GetUsersMeCheckinTasksRequestObject) (gen.GetUsersMeCheckinTasksResponseObject, error) {
 	// 从上下文中获取当前用户ID
 	userID, ok := ctx.Value("userID").(int)
