@@ -145,11 +145,11 @@ func (m *mockTaskRecordDAO) GetByTaskIDAndUserID(ctx context.Context, taskID, us
 }
 
 // Mock TransactionManager
-type mockTestTransactionManager struct {
+type mockTaskTransactionManager struct {
 	mock.Mock
 }
 
-func (m *mockTestTransactionManager) WithTransaction(ctx context.Context, fn func(*gorm.DB) error) error {
+func (m *mockTaskTransactionManager) WithTransaction(ctx context.Context, fn func(*gorm.DB) error) error {
 	args := m.Called(ctx, mock.AnythingOfType("func(*gorm.DB) error"))
 	// 执行传入的函数
 	if args.Error(0) == nil && fn != nil {
@@ -163,11 +163,13 @@ func setupTaskServiceTest() (*TaskService, *mockTaskDAO, *mockTaskRecordDAO, *mo
 	mockTaskDao := new(mockTaskDAO)
 	mockTaskRecordDao := new(mockTaskRecordDAO)
 	mockTxManager := new(mockTransactionManager)
+	mockGroupDao := new(mockGroupDAO)
 
 	taskService := NewTaskService(
 		mockTaskDao,
 		mockTaskRecordDao,
 		mockTxManager,
+		mockGroupDao,
 	)
 
 	return taskService, mockTaskDao, mockTaskRecordDao, mockTxManager
