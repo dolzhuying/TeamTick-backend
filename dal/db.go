@@ -8,6 +8,7 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+	"TeamTickBackend/dal/models"
 )
 
 // 错误处理待完善，数据库配置考虑写到配置文件，后面做修改

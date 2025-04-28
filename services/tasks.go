@@ -75,21 +75,14 @@ func (s *TaskService) CreateTask(ctx context.Context,
 	return &createdTask, nil
 }
 
-// 通过GroupID查询签到任务，包含状态筛选
-func (s *TaskService) GetTasksByGroupID(ctx context.Context, groupID int, status string) ([]*models.Task, error) {
+// 通过GroupID查询签到任务
+func (s *TaskService) GetTasksByGroupID(ctx context.Context, groupID int) ([]*models.Task, error) {
 	var tasks []*models.Task
 
 	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
 		var err error
 		var groupsTasks []*models.Task
-		switch status {
-		case "active":
-			groupsTasks, err = s.taskDao.GetActiveTasksByGroupID(ctx, groupID, tx)
-		case "ended":
-			groupsTasks, err = s.taskDao.GetEndedTasksByGroupID(ctx, groupID, tx)
-		default:
-			groupsTasks, err = s.taskDao.GetByGroupID(ctx, groupID, tx)
-		}
+		groupsTasks, err = s.taskDao.GetByGroupID(ctx, groupID, tx)
 		if err != nil {
 			return appErrors.ErrTaskNotFound.WithError(err)
 		}
@@ -103,21 +96,14 @@ func (s *TaskService) GetTasksByGroupID(ctx context.Context, groupID int, status
 	return tasks, nil
 }
 
-// 通过UserID查询签到任务，包含状态筛选
-func (s *TaskService) GetTasksByUserID(ctx context.Context, userID int, status string) ([]*models.Task, error) {
+// 通过UserID查询签到任务
+func (s *TaskService) GetTasksByUserID(ctx context.Context, userID int) ([]*models.Task, error) {
 	var tasks []*models.Task
 
 	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
 		var err error
 		var userTasks []*models.Task
-		switch status {
-		case "active":
-			userTasks, err = s.taskDao.GetActiveTasksByUserID(ctx, userID, tx)
-		case "ended":
-			userTasks, err = s.taskDao.GetEndedTasksByUserID(ctx, userID, tx)
-		case "all":
-			userTasks, err = s.taskDao.GetByUserID(ctx, userID, tx)
-		}
+		userTasks, err = s.taskDao.GetByUserID(ctx, userID, tx)
 		if err != nil {
 			return appErrors.ErrTaskNotFound.WithError(err)
 		}

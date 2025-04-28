@@ -452,7 +452,7 @@ func (h *TaskHandler) GetGroupsGroupIdCheckinTasks(ctx context.Context, request 
 	}
 
 	// 调用服务层获取任务列表
-	tasks, err := h.taskService.GetTasksByGroupID(ctx, request.GroupId, "all")
+	tasks, err := h.taskService.GetTasksByGroupID(ctx, request.GroupId)
 	if err != nil {
 		if errors.Is(err, appErrors.ErrTaskNotFound) {
 			return gen.GetGroupsGroupIdCheckinTasks200JSONResponse{
@@ -629,7 +629,7 @@ func (h *TaskHandler) GetUsersMeCheckinTasks(ctx context.Context, request gen.Ge
 	}
 
 	// 调用服务层获取任务列表
-	tasks, err := h.taskService.GetTasksByUserID(ctx, userID, "all")
+	tasks, err := h.taskService.GetTasksByUserID(ctx, userID)
 	if err != nil {
 		if errors.Is(err, appErrors.ErrTaskNotFound) {
 			return &gen.GetUsersMeCheckinTasks200JSONResponse{
