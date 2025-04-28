@@ -3,44 +3,48 @@ package db
 import (
 	"log"
 
+	"TeamTickBackend/dal/models"
+
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 	"TeamTickBackend/dal/models"
 )
 
-//错误处理待完善，数据库配置考虑写到配置文件，后面做修改
+// 错误处理待完善，数据库配置考虑写到配置文件，后面做修改
 func InitDB() *gorm.DB {
-	//dsn待定是否统一
-	var dsn="dol:lsj041219@tcp(localhost:3306)/test?charset=utf8&parseTime=True&loc=Local"
+	// 连接到Docker中的MySQL
+	var dsn = "root:root@tcp(localhost:3306)/teamtick?charset=utf8&parseTime=True&loc=Local"
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
 		SkipDefaultTransaction: true,
 		PrepareStmt:            true,
 		Logger:                 logger.Default.LogMode(logger.Info),
 	})
-	if err!=nil{
-		log.Fatalf("Cannot open databasae %v",err)
+	if err != nil {
+		log.Fatalf("Cannot open database: %v", err)
 		return nil
 	}
-	sqlDB,err:=db.DB()
-	if err!=nil{
-		log.Fatalf("Cannot configure database %v",err)
+	sqlDB, err := db.DB()
+	if err != nil {
+		log.Fatalf("Cannot configure database: %v", err)
 	}
 	//最大连接数等配置，仅作参考
-	sqlDB.SetConnMaxIdleTime(10)
-	sqlDB.SetMaxOpenConns(10)
+	sqlDB.SetMaxIdleConns(10)
+	sqlDB.SetMaxOpenConns(100)
 
-	//迁移表结构
-	db.AutoMigrate(&models.User{})
-	db.AutoMigrate(&models.Group{})
-	db.AutoMigrate(&models.GroupMember{})
-	db.AutoMigrate(&models.Task{})
-	db.AutoMigrate(&models.CheckApplication{})
-	db.AutoMigrate(&models.JoinApplication{})
-	db.AutoMigrate(&models.TaskRecord{})
+	// 自动迁移所有表结构
+	err = db.AutoMigrate(
+		&models.User{},
+		&models.Group{},
+		&models.GroupMember{},
+		&models.Task{},
+		&models.TaskRecord{},
+		&models.CheckApplication{},
+		&models.JoinApplication{},
+	)
+	if err != nil {
+		log.Fatalf("Failed to migrate database: %v", err)
+	}
 
 	return db
 }
-
-
-

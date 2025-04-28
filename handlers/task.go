@@ -482,7 +482,18 @@ func (h *TaskHandler) PostGroupsGroupIdCheckinTasks(ctx context.Context, request
 	if !ok {
 		return nil, appErrors.ErrJwtParseFailed
 	}
-
+	// 验证用户组是否存在
+	_, err := h.groupsService.GetGroupByGroupID(ctx, request.GroupId)
+	if err != nil {
+		if errors.Is(err, appErrors.ErrGroupNotFound) {
+			return &gen.PostGroupsGroupIdCheckinTasks404JSONResponse{
+				Code:    "1", 
+				Message: "用户组不存在",
+			}, nil
+		}
+		return nil, err
+	}
+	
 	// 验证用户是否是组的管理员
 	if err := h.groupsService.CheckMemberPermission(ctx, request.GroupId, userID); err != nil {
 		if errors.Is(err, appErrors.ErrRolePermissionDenied) {

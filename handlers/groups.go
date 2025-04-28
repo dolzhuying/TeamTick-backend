@@ -24,7 +24,7 @@ func NewGroupsHandler(container *app.AppContainer) gen.GroupsServerInterface {
 	handler := &GroupsHandler{
 		groupsService: *GroupsService,
 	}
-	return gen.NewGroupsStrictHandler(handler,nil)
+	return gen.NewGroupsStrictHandler(handler, nil)
 }
 
 // 获取当前用户创建的或加入的用户组列表
@@ -71,22 +71,46 @@ func (h *GroupsHandler) GetGroups(ctx context.Context, request gen.GetGroupsRequ
 	}, len(groups))
 
 	for i, group := range groups {
-		genGroups[i] = struct {
-			CreatedAt   int           `json:"createdAt,omitempty"`
-			CreatorId   int           `json:"creatorId,omitempty"`
-			CreatorName string        `json:"creatorName,omitempty"`
-			Description string        `json:"description,omitempty"`
-			GroupId     int           `json:"groupId,omitempty"`
-			GroupName   string        `json:"groupName,omitempty"`
-			MemberCount int           `json:"memberCount,omitempty"`
-			RoleInGroup gen.GroupRole `json:"roleInGroup,omitempty"`
-		}{
-			GroupId:     group.GroupID,
-			GroupName:   group.GroupName,
-			Description: group.Description,
-			CreatorId:   group.CreatorID,
-			CreatorName: group.CreatorName,
-			CreatedAt:   int(group.CreatedAt.Unix()),
+		if group.CreatorID == userID {
+			genGroups[i] = struct {
+				CreatedAt   int           `json:"createdAt,omitempty"`
+				CreatorId   int           `json:"creatorId,omitempty"`
+				CreatorName string        `json:"creatorName,omitempty"`
+				Description string        `json:"description,omitempty"`
+				GroupId     int           `json:"groupId,omitempty"`
+				GroupName   string        `json:"groupName,omitempty"`
+				MemberCount int           `json:"memberCount,omitempty"`
+				RoleInGroup gen.GroupRole `json:"roleInGroup,omitempty"`
+			}{
+				CreatedAt:   int(group.CreatedAt.Unix()),
+				CreatorId:   group.CreatorID,
+				CreatorName: group.CreatorName,
+				Description: group.Description,
+				GroupId:     group.GroupID,
+				GroupName:   group.GroupName,
+				MemberCount: group.MemberNum,
+				RoleInGroup: "admin",
+			}
+		} else {
+			genGroups[i] = struct {
+				CreatedAt   int           `json:"createdAt,omitempty"`
+				CreatorId   int           `json:"creatorId,omitempty"`
+				CreatorName string        `json:"creatorName,omitempty"`
+				Description string        `json:"description,omitempty"`
+				GroupId     int           `json:"groupId,omitempty"`
+				GroupName   string        `json:"groupName,omitempty"`
+				MemberCount int           `json:"memberCount,omitempty"`
+				RoleInGroup gen.GroupRole `json:"roleInGroup,omitempty"`
+			}{
+				CreatedAt:   int(group.CreatedAt.Unix()),
+				CreatorId:   group.CreatorID,
+				CreatorName: group.CreatorName,
+				Description: group.Description,
+				GroupId:     group.GroupID,
+				GroupName:   group.GroupName,
+				MemberCount: group.MemberNum,
+				RoleInGroup: "member",
+			}
 		}
 	}
 
@@ -99,6 +123,9 @@ func (h *GroupsHandler) GetGroups(ctx context.Context, request gen.GetGroupsRequ
 // 任何登录用户可以创建用户组，并自动成为该组管理员
 func (h *GroupsHandler) PostGroups(ctx context.Context, request gen.PostGroupsRequestObject) (gen.PostGroupsResponseObject, error) {
 	userID, ok := ctx.Value("userID").(int)
+	if !ok {
+		return nil, appErrors.ErrJwtParseFailed
+	}
 	username, ok := ctx.Value("username").(string)
 	if !ok {
 		return nil, appErrors.ErrJwtParseFailed
@@ -111,17 +138,24 @@ func (h *GroupsHandler) PostGroups(ctx context.Context, request gen.PostGroupsRe
 		return nil, err
 	}
 
-	
-
 	return &gen.PostGroups201JSONResponse{
 		Code: "0",
-		Data: gen.Group{
-			GroupId:     group.GroupID,
-			GroupName:   group.GroupName,
-			Description: group.Description,
+		Data: struct {
+			CreatedAt   int    `json:"createdAt,omitempty"`
+			CreatorId   int    `json:"creatorId,omitempty"`
+			CreatorName string `json:"creatorName,omitempty"`
+			Description string `json:"description,omitempty"`
+			GroupId     int    `json:"groupId,omitempty"`
+			GroupName   string `json:"groupName,omitempty"`
+			MemberCount int    `json:"memberCount,omitempty"`
+		}{
+			CreatedAt:   int(group.CreatedAt.Unix()),
 			CreatorId:   group.CreatorID,
 			CreatorName: group.CreatorName,
-			CreatedAt:   int(group.CreatedAt.Unix()),
+			Description: group.Description,
+			GroupId:     group.GroupID,
+			GroupName:   group.GroupName,
+			MemberCount: group.MemberNum,
 		},
 	}, nil
 }
@@ -150,6 +184,7 @@ func (h *GroupsHandler) GetGroupsGroupId(ctx context.Context, request gen.GetGro
 			CreatorId:   group.CreatorID,
 			CreatorName: group.CreatorName,
 			CreatedAt:   int(group.CreatedAt.Unix()),
+			MemberCount: group.MemberNum,
 		},
 	}, nil
 }
@@ -164,6 +199,29 @@ func (h *GroupsHandler) PutGroupsGroupId(ctx context.Context, request gen.PutGro
 	groupName := request.Body.GroupName
 	description := request.Body.Description
 
+	_, err := h.groupsService.GetGroupByGroupID(ctx, groupID)
+	if err != nil {
+		if errors.Is(err, appErrors.ErrGroupNotFound) {
+			return &gen.PutGroupsGroupId404JSONResponse{
+				Code:    "1",
+				Message: "用户组不存在",
+			}, nil
+		}
+		return nil, err
+	}
+
+	// 检查用户是否是群组成员
+	if err := h.groupsService.CheckMemberPermission(ctx, groupID, userID); err != nil {
+		if errors.Is(err, appErrors.ErrGroupMemberNotFound) {
+			return &gen.PutGroupsGroupId404JSONResponse{
+				Code:    "1",
+				Message: "您不是该组成员",
+			}, nil
+		}
+		if errors.Is(err, appErrors.ErrRolePermissionDenied) {
+			return nil, err
+		}
+	}
 	group, err := h.groupsService.UpdateGroup(ctx, groupID, userID, groupName, description)
 	if err != nil {
 		if errors.Is(err, appErrors.ErrRolePermissionDenied) {
@@ -185,8 +243,10 @@ func (h *GroupsHandler) PutGroupsGroupId(ctx context.Context, request gen.PutGro
 			CreatorId:   group.CreatorID,
 			CreatorName: group.CreatorName,
 			CreatedAt:   int(group.CreatedAt.Unix()),
+			MemberCount: group.MemberNum,
 		},
 	}, nil
+
 }
 
 // 删除指定的用户组及其关联数据。需要是该组的创建者
@@ -197,14 +257,39 @@ func (h *GroupsHandler) DeleteGroupsGroupId(ctx context.Context, request gen.Del
 	}
 	groupID := request.GroupId
 
-	err := h.groupsService.DeleteGroup(ctx, groupID, userID)
+	// 检查用户组是否存在
+	group, err := h.groupsService.GetGroupByGroupID(ctx, groupID)
 	if err != nil {
-		if errors.Is(err, appErrors.ErrRolePermissionDenied) {
-			return &gen.DeleteGroupsGroupId403JSONResponse{
+		if errors.Is(err, appErrors.ErrGroupNotFound) {
+			return &gen.DeleteGroupsGroupId404JSONResponse{
 				Code:    "1",
-				Message: "权限不足",
+				Message: "用户组不存在",
 			}, nil
 		}
+		return nil, err
+	}
+
+	// 检查用户是否是群组成员
+	if err := h.groupsService.CheckMemberPermission(ctx, groupID, userID); err != nil {
+		if errors.Is(err, appErrors.ErrGroupMemberNotFound) {
+			return &gen.DeleteGroupsGroupId404JSONResponse{
+				Code:    "1",
+				Message: "您不是该组成员",
+			}, nil
+		}
+		return nil, err
+	}
+
+	// 检查是否是群组创建者
+	if userID != group.CreatorID {
+		return &gen.DeleteGroupsGroupId403JSONResponse{
+			Code:    "1",
+			Message: "只有群组创建者可以删除群组",
+		}, nil
+	}
+
+	err = h.groupsService.DeleteGroup(ctx, groupID, userID)
+	if err != nil {
 		return nil, err
 	}
 
@@ -404,18 +489,17 @@ func (h *GroupsHandler) GetGroupsGroupIdMembers(ctx context.Context, request gen
 		return nil, err
 	}
 
-	isMember := false
-	for _, m := range members {
-		if m.UserID == userID {
-			isMember = true
-			break
+	// 检查当前用户是否是群组成员
+	if err := h.groupsService.CheckMemberPermission(ctx, groupID, userID); err != nil {
+		if errors.Is(err, appErrors.ErrGroupMemberNotFound) {
+			return &gen.GetGroupsGroupIdMembers403JSONResponse{
+				Code:    "1",
+				Message: "您不是该组成员",
+			}, nil
 		}
-	}
-	if !isMember {
-		return &gen.GetGroupsGroupIdMembers403JSONResponse{
-			Code:    "1",
-			Message: "您不是该组成员",
-		}, nil
+		if !errors.Is(err, appErrors.ErrRolePermissionDenied) {
+			return nil, err
+		}
 	}
 
 	genMembers := make([]gen.GroupMember, len(members))
@@ -443,7 +527,47 @@ func (h *GroupsHandler) DeleteGroupsGroupIdMembersUserId(ctx context.Context, re
 	groupID := request.GroupId
 	targetUserID := request.UserId
 
-	err := h.groupsService.RemoveMemberFromGroup(ctx, groupID, targetUserID, userID)
+	// 检查用户组是否存在
+	group, err := h.groupsService.GetGroupByGroupID(ctx, groupID)
+	if err != nil {
+		if errors.Is(err, appErrors.ErrGroupNotFound) {
+			return &gen.DeleteGroupsGroupIdMembersUserId404JSONResponse{
+				Code:    "1",
+				Message: "用户组不存在",
+			}, nil
+		}
+		return nil, err
+	}
+
+	// 检查目标用户是否是群组成员
+	if err := h.groupsService.CheckMemberPermission(ctx, groupID, targetUserID); err != nil {
+		if errors.Is(err, appErrors.ErrGroupMemberNotFound) {
+			return &gen.DeleteGroupsGroupIdMembersUserId404JSONResponse{
+				Code:    "1",
+				Message: "指定用户不是该组成员",
+			}, nil
+		}
+		return nil, err
+	}
+
+	// 检查操作者是否有权限
+	if userID != group.CreatorID {
+		return &gen.DeleteGroupsGroupIdMembersUserId403JSONResponse{
+			Code:    "1",
+			Message: "权限不足",
+		}, nil
+	}
+
+	// 不能删除自己
+	if userID == targetUserID {
+		return &gen.DeleteGroupsGroupIdMembersUserId403JSONResponse{
+			Code:    "1",
+			Message: "不能删除自己",
+		}, nil
+	}
+
+	// 执行删除操作
+	err = h.groupsService.RemoveMemberFromGroup(ctx, groupID, targetUserID, userID)
 	if err != nil {
 		if errors.Is(err, appErrors.ErrRolePermissionDenied) {
 			return &gen.DeleteGroupsGroupIdMembersUserId403JSONResponse{
@@ -485,7 +609,7 @@ func (h *GroupsHandler) GetGroupsGroupIdMyStatus(ctx context.Context, request ge
 					Status        gen.GroupMembershipStatus `json:"status"`
 				}{
 					Message: "您未申请加入该用户组",
-					Status: gen.GroupMembershipStatusNone,
+					Status:  gen.GroupMembershipStatusNone,
 				},
 			}, nil
 		}
@@ -496,21 +620,6 @@ func (h *GroupsHandler) GetGroupsGroupIdMyStatus(ctx context.Context, request ge
 	var joinRequestId int
 	var message string
 
-	// switch application.Status {
-	// case "pending":
-	// 	status = gen.GroupMembershipStatusPending
-	// 	joinRequestId = application.RequestID
-	// 	message = "您的加入申请正在等待审核"
-	// case "accepted":
-	// 	status = gen.GroupMembershipStatusMember
-	// 	message = "您已是该组成员"
-	// case "rejected":
-	// 	status = gen.GroupMembershipStatusRejected
-	// 	joinRequestId = application.RequestID
-	// 	message = "您的加入申请已被拒绝"
-	// default:
-	// 	status = gen.GroupMembershipStatusNone
-	// }
 	switch userStatus {
 	case "pending":
 		status = gen.GroupMembershipStatusPending
@@ -520,9 +629,13 @@ func (h *GroupsHandler) GetGroupsGroupIdMyStatus(ctx context.Context, request ge
 		status = gen.GroupMembershipStatusRejected
 		joinRequestId = requestID
 		message = "您的加入申请已被拒绝"
+	case "admin":
+		status = "admin"
+		message = "您是该用户组的管理员"
 	default:
-		status = gen.GroupMembershipStatusMember
-		message = "您已是该组成员"
+		status = gen.GroupMembershipStatusNone
+		message = "您未申请加入该用户组"
+
 	}
 
 	return &gen.GetGroupsGroupIdMyStatus200JSONResponse{
@@ -538,4 +651,3 @@ func (h *GroupsHandler) GetGroupsGroupIdMyStatus(ctx context.Context, request ge
 		},
 	}, nil
 }
-
