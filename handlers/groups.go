@@ -111,6 +111,8 @@ func (h *GroupsHandler) PostGroups(ctx context.Context, request gen.PostGroupsRe
 		return nil, err
 	}
 
+	
+
 	return &gen.PostGroups201JSONResponse{
 		Code: "0",
 		Data: gen.Group{
@@ -524,10 +526,3 @@ func (h *GroupsHandler) GetGroupsGroupIdMyStatus(ctx context.Context, request ge
 	}, nil
 }
 
-func (h *GroupsHandler) DeleteGroupsGroupId(ctx context.Context, request gen.DeleteGroupsGroupIdRequestObject) (gen.DeleteGroupsGroupIdResponseObject, error) {
-	
-}
-
-func (h *GroupsHandler) GetGroupsGroupIdMyStatus(ctx context.Context, request gen.GetGroupsGroupIdMyStatusRequestObject) (gen.GetGroupsGroupIdMyStatusResponseObject, error) {
-	
-}

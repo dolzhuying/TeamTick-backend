@@ -378,28 +378,28 @@ func (s *GroupsService) DeleteGroup(ctx context.Context, groupID, operatorID int
 // 查询当前登录用户在指定用户组中的状态，包括未关联、申请中、普通成员、管理员等(返回申请记录，可在handlers层根据记录的status构建对应的响应)
 func (s *GroupsService) GetUserGroupStatus(ctx context.Context, groupID, userID int) (*models.JoinApplication, error) {
 	var application models.JoinApplication
-	err:=s.transactionManager.WithTransaction(ctx,func(tx *gorm.DB) error {
+	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
 		//检查用户组是否存在
-		_,err:=s.groupDao.GetByGroupID(ctx,groupID,tx)
-		if err!=nil{
-			if errors.Is(err,gorm.ErrRecordNotFound){
+		_, err := s.groupDao.GetByGroupID(ctx, groupID, tx)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return appErrors.ErrGroupNotFound
 			}
 			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
 		// 查看申请记录
-		Application,err:=s.joinApplicationDao.GetByGroupIDAndUserID(ctx,groupID,userID,tx)
-		if err!=nil{
-			if errors.Is(err,gorm.ErrRecordNotFound){
+		Application, err := s.joinApplicationDao.GetByGroupIDAndUserID(ctx, groupID, userID, tx)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return appErrors.ErrJoinApplicationNotFound
 			}
 			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
-		application=*Application
+		application = *Application
 		return nil
 	})
-	if err!=nil{
-		return nil,err
+	if err != nil {
+		return nil, err
 	}
-	return &application,nil
+	return &application, nil
 }

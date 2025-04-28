@@ -225,11 +225,11 @@ func (s*TaskService) VerifyWiFi(ctx context.Context,ssid,bssid string,taskID int
 }
 
 // 签到记录写入,待完善
-func (s*TaskService) ChecInTask(
+func (s*TaskService) CheckInTask(
 	ctx context.Context,
 	taskID,userID int,
 	latitude,longitude float64,
-	//signedInTime time.Time,
+	signedInTime time.Time,
 	otherInfo...string,
 ) (*models.TaskRecord,error){
 	var taskRecord models.TaskRecord
@@ -250,7 +250,7 @@ func (s*TaskService) ChecInTask(
 			Latitude:latitude,
 			Longitude:longitude,
 			GroupName:group.GroupName,
-			//SignedTime: signedInTime,
+			SignedTime: signedInTime,
 		}
 
 		//根据otherInfo选择字段

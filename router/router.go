@@ -26,10 +26,17 @@ func SetupRouter(container *app.AppContainer) *gin.Engine {
 	groupsRouter.Use(middlewares.AuthMiddleware(container.JwtHandler))
 	gen.RegisterGroupsHandlers(groupsRouter, groupsHandler)
 
+	taskHandler, checkinRecordsHandler := handlers.NewTaskHandler(container)
+	taskRouter := router.Group("")
+	taskRouter.Use(middlewares.AuthMiddleware(container.JwtHandler))
+	gen.RegisterCheckinTasksHandlers(taskRouter, taskHandler)
+	gen.RegisterCheckinRecordsHandlers(taskRouter, checkinRecordsHandler)
+
+	// 注册审核请求相关路由
 	auditRequestHandler := handlers.NewAuditRequestHandler(container)
 	auditRequestRouter := router.Group("")
 	auditRequestRouter.Use(middlewares.AuthMiddleware(container.JwtHandler))
-	gen.RegisterAuditRequestHandlers(auditRequestRouter, auditRequestHandler)
+	gen.RegisterAuditRequestsHandlers(auditRequestRouter, auditRequestHandler)
 
 	return router
 }
