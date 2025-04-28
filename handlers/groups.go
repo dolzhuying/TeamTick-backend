@@ -600,22 +600,23 @@ func (h *GroupsHandler) GetGroupsGroupIdMyStatus(ctx context.Context, request ge
 				Message: "用户组不存在",
 			}, nil
 		}
-		if userStatus == "none" {
-			return &gen.GetGroupsGroupIdMyStatus200JSONResponse{
-				Code: "0",
-				Data: struct {
-					JoinRequestId int                       `json:"joinRequestId,omitempty"`
-					Message       string                    `json:"message,omitempty"`
-					Status        gen.GroupMembershipStatus `json:"status"`
-				}{
-					Message: "您未申请加入该用户组",
-					Status:  gen.GroupMembershipStatusNone,
-				},
-			}, nil
+		if errors.Is(err, appErrors.ErrGroupMemberNotFound) {
+			if userStatus == "none" {
+				return &gen.GetGroupsGroupIdMyStatus200JSONResponse{
+					Code: "0",
+					Data: struct {
+						JoinRequestId int                       `json:"joinRequestId,omitempty"`
+						Message       string                    `json:"message,omitempty"`
+						Status        gen.GroupMembershipStatus `json:"status"`
+					}{
+						Message: "您未申请加入该用户组",
+						Status:  gen.GroupMembershipStatusNone,
+					},
+				}, nil
+			}
 		}
 		return nil, err
 	}
-
 	var status gen.GroupMembershipStatus
 	var joinRequestId int
 	var message string
@@ -633,9 +634,8 @@ func (h *GroupsHandler) GetGroupsGroupIdMyStatus(ctx context.Context, request ge
 		status = "admin"
 		message = "您是该用户组的管理员"
 	default:
-		status = gen.GroupMembershipStatusNone
-		message = "您未申请加入该用户组"
-
+		status = gen.GroupMembershipStatusMember
+		message = "您是该用户组的成员"
 	}
 
 	return &gen.GetGroupsGroupIdMyStatus200JSONResponse{
@@ -650,4 +650,5 @@ func (h *GroupsHandler) GetGroupsGroupIdMyStatus(ctx context.Context, request ge
 			Status:        status,
 		},
 	}, nil
+
 }
