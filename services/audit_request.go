@@ -89,14 +89,20 @@ func (s *AuditRequestService) GetAuditRequestByGroupIDWithStatus(ctx context.Con
 		}
 
 		// 根据状态筛选
-		if status != "all" {
+		if status == "all" {
+			requests = auditRequests
+		} else if status == "pending" {
 			for _, req := range auditRequests {
-				if req.Status == status {
+				if req.Status == "pending" {
 					requests = append(requests, req)
 				}
 			}
-		} else {
-			requests = auditRequests
+		} else if status == "processed" {
+			for _, req := range auditRequests {
+				if req.Status == "approved" || req.Status == "rejected" {
+					requests = append(requests, req)
+				}
+			}
 		}
 		return nil
 	})
