@@ -12,8 +12,9 @@ import (
 )
 
 type TaskHandler struct {
-	taskService   *service.TaskService
-	groupsService *service.GroupsService
+	taskService         *service.TaskService
+	groupsService       *service.GroupsService
+	auditRequestService *service.AuditRequestService
 }
 
 func NewTaskHandler(container *app.AppContainer) (gen.CheckinTasksServerInterface, gen.CheckinRecordsServerInterface) {
@@ -28,9 +29,17 @@ func NewTaskHandler(container *app.AppContainer) (gen.CheckinTasksServerInterfac
 		container.DaoFactory.JoinApplicationDAO,
 		container.DaoFactory.TransactionManager,
 	)
+	AuditRequestService := service.NewAuditRequestService(
+		container.DaoFactory.TransactionManager,
+		container.DaoFactory.CheckApplicationDAO,
+		container.DaoFactory.TaskRecordDAO,
+		container.DaoFactory.TaskDAO,
+		container.DaoFactory.GroupDAO,
+	)
 	handler := &TaskHandler{
-		taskService:   TaskService,
-		groupsService: GroupsService,
+		taskService:         TaskService,
+		groupsService:       GroupsService,
+		auditRequestService: AuditRequestService,
 	}
 	return gen.NewCheckinTasksStrictHandler(handler, nil), gen.NewCheckinRecordsStrictHandler(handler, nil)
 }
@@ -73,6 +82,24 @@ func convertToCheckinTask(task *models.Task) gen.CheckinTask {
 				},
 				Radius: task.Radius,
 			},
+			WifiInfo: func() *gen.WifiInfo {
+				if task.WiFi {
+					return &gen.WifiInfo{
+						Ssid:  task.SSID,
+						Bssid: task.BSSID,
+					}
+				}
+				return nil
+			}(),
+			NfcInfo: func() *gen.NFCInfo {
+				if task.NFC {
+					return &gen.NFCInfo{
+						TagId:   task.TagID,
+						TagName: task.TagName,
+					}
+				}
+				return nil
+			}(),
 		},
 	}
 }
@@ -466,7 +493,63 @@ func (h *TaskHandler) GetGroupsGroupIdCheckinTasks(ctx context.Context, request 
 	// 转换任务列表为API响应格式
 	checkinTasks := make([]gen.CheckinTask, len(tasks))
 	for i, task := range tasks {
-		checkinTasks[i] = convertToCheckinTask(task)
+		// 判断任务状态
+		now := time.Now()
+		var status gen.CheckinTaskStatus
+		if now.Before(task.StartTime) {
+			status = gen.Upcoming
+		} else if now.After(task.EndTime) {
+			status = gen.Expired
+		} else {
+			status = gen.Ongoing
+		}
+
+		checkinTasks[i] = gen.CheckinTask{
+			CreatedAt:   int(task.CreatedAt.Unix()),
+			Description: task.Description,
+			EndTime:     int(task.EndTime.Unix()),
+			GroupId:     task.GroupID,
+			StartTime:   int(task.StartTime.Unix()),
+			Status:      status,
+			TaskId:      task.TaskID,
+			TaskName:    task.TaskName,
+			VerificationConfig: gen.TaskVerificationConfig{
+				CheckinMethods: gen.CheckinMethods{
+					Gps:  task.GPS,
+					Face: task.Face,
+					Wifi: task.WiFi,
+					Nfc:  task.NFC,
+				},
+				LocationInfo: struct {
+					Location gen.Location `json:"location"`
+					Radius   int          `json:"radius"`
+				}{
+					Location: gen.Location{
+						Latitude:  task.Latitude,
+						Longitude: task.Longitude,
+					},
+					Radius: task.Radius,
+				},
+				WifiInfo: func() *gen.WifiInfo {
+					if task.WiFi {
+						return &gen.WifiInfo{
+							Ssid:  task.SSID,
+							Bssid: task.BSSID,
+						}
+					}
+					return nil
+				}(),
+				NfcInfo: func() *gen.NFCInfo {
+					if task.NFC {
+						return &gen.NFCInfo{
+							TagId:   task.TagID,
+							TagName: task.TagName,
+						}
+					}
+					return nil
+				}(),
+			},
+		}
 	}
 
 	return gen.GetGroupsGroupIdCheckinTasks200JSONResponse{
@@ -608,18 +691,6 @@ func (h *TaskHandler) PostGroupsGroupIdCheckinTasks(ctx context.Context, request
 	}, nil
 }
 
-// convertTaskStatus 根据任务时间状态转换为CheckinTaskStatus
-func convertTaskStatus(task *models.Task) gen.CheckinTaskStatus {
-	now := time.Now()
-	if now.Before(task.StartTime) {
-		return gen.Upcoming
-	} else if now.After(task.EndTime) {
-		return gen.Expired
-	} else {
-		return gen.Ongoing
-	}
-}
-
 // 获取当前登录用户需要参与的所有签到任务列表
 func (h *TaskHandler) GetUsersMeCheckinTasks(ctx context.Context, request gen.GetUsersMeCheckinTasksRequestObject) (gen.GetUsersMeCheckinTasksResponseObject, error) {
 	// 从上下文中获取当前用户ID
@@ -654,6 +725,36 @@ func (h *TaskHandler) GetUsersMeCheckinTasks(ctx context.Context, request gen.Ge
 		return nil, err
 	}
 
+	// 获取用户的签到记录
+	records, err := h.taskService.GetTaskRecordsByUserID(ctx, userID)
+	if err != nil {
+		if !errors.Is(err, appErrors.ErrTaskNotFound) {
+			return nil, err
+		}
+		records = []*models.TaskRecord{}
+	}
+
+	// 获取用户的审核申请记录
+	auditRequests, err := h.auditRequestService.GetAuditRequestListByUserID(ctx, userID)
+	if err != nil {
+		if !errors.Is(err, appErrors.ErrTaskNotFound) {
+			return nil, err
+		}
+		auditRequests = []*models.CheckApplication{}
+	}
+
+	// 创建任务ID到记录的映射
+	recordMap := make(map[int]*models.TaskRecord)
+	for _, record := range records {
+		recordMap[record.TaskID] = record
+	}
+
+	// 创建任务ID到审核申请的映射
+	auditMap := make(map[int]*models.CheckApplication)
+	for _, audit := range auditRequests {
+		auditMap[audit.TaskID] = audit
+	}
+
 	// 转换任务列表为API响应格式
 	checkinTasks := make([]struct {
 		CreatedAt          int                   `json:"createdAt,omitempty"`
@@ -670,11 +771,40 @@ func (h *TaskHandler) GetUsersMeCheckinTasks(ctx context.Context, request gen.Ge
 			CheckinMethods gen.CheckinMethods `json:"checkinMethods"`
 		} `json:"verificationConfig"`
 	}, len(tasks))
+
 	for i, task := range tasks {
 		// 获取组信息
 		group, err := h.groupsService.GetGroupByGroupID(ctx, task.GroupID)
 		if err != nil {
 			return nil, err
+		}
+
+		// 判断签到状态
+		var myCheckinStatus gen.UserCheckinStatus
+		if recordMap[task.TaskID] != nil {
+			myCheckinStatus = gen.UserCheckinStatusSuccess
+		} else if auditMap[task.TaskID] != nil {
+			switch auditMap[task.TaskID].Status {
+			case "pending":
+				myCheckinStatus = gen.UserCheckinStatusPendingAudit
+			case "approved":
+				myCheckinStatus = gen.UserCheckinStatusAuditApproved
+			case "rejected":
+				myCheckinStatus = gen.UserCheckinStatusAuditRejected
+			}
+		} else {
+			myCheckinStatus = gen.UserCheckinStatusPending
+		}
+
+		// 判断任务状态
+		now := time.Now()
+		var status gen.CheckinTaskStatus
+		if now.Before(task.StartTime) {
+			status = gen.Upcoming
+		} else if now.After(task.EndTime) {
+			status = gen.Expired
+		} else {
+			status = gen.Ongoing
 		}
 
 		checkinTasks[i] = struct {
@@ -692,15 +822,16 @@ func (h *TaskHandler) GetUsersMeCheckinTasks(ctx context.Context, request gen.Ge
 				CheckinMethods gen.CheckinMethods `json:"checkinMethods"`
 			} `json:"verificationConfig"`
 		}{
-			CreatedAt:   int(task.CreatedAt.Unix()),
-			Description: task.Description,
-			EndTime:     int(task.EndTime.Unix()),
-			GroupId:     task.GroupID,
-			GroupName:   &group.GroupName,
-			StartTime:   int(task.StartTime.Unix()),
-			Status:      convertTaskStatus(task),
-			TaskId:      task.TaskID,
-			TaskName:    task.TaskName,
+			CreatedAt:       int(task.CreatedAt.Unix()),
+			Description:     task.Description,
+			EndTime:         int(task.EndTime.Unix()),
+			GroupId:         task.GroupID,
+			GroupName:       &group.GroupName,
+			MyCheckinStatus: myCheckinStatus,
+			StartTime:       int(task.StartTime.Unix()),
+			Status:          status,
+			TaskId:          task.TaskID,
+			TaskName:        task.TaskName,
 			VerificationConfig: struct {
 				CheckinMethods gen.CheckinMethods `json:"checkinMethods"`
 			}{
