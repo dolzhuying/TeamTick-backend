@@ -75,7 +75,7 @@ func RegisterAuthHandlersWithOptions(router gin.IRouter, si AuthServerInterface,
 	errorHandler := options.ErrorHandler
 	if errorHandler == nil {
 		errorHandler = func(c *gin.Context, err error, statusCode int) {
-			c.JSON(statusCode, gin.H{"msg": err.Error()})
+			c.JSON(statusCode, gin.H{"code": "1", "message": err.Error()})
 		}
 	}
 
