@@ -23,11 +23,14 @@ type TaskService struct {
 func NewTaskService(
 	taskDao dao.TaskDAO,
 	taskRecordDao dao.TaskRecordDAO,
-	transactionManager dao.TransactionManager) *TaskService {
+	transactionManager dao.TransactionManager,
+	groupDao           dao.GroupDAO,
+) *TaskService {
 	return &TaskService{
 		taskDao:            taskDao,
 		taskRecordDao:      taskRecordDao,
 		transactionManager: transactionManager,
+		groupDao:           groupDao,
 	}
 }
 
@@ -85,7 +88,10 @@ func (s *TaskService) GetTasksByGroupID(ctx context.Context, groupID int) ([]*mo
 		var groupsTasks []*models.Task
 		groupsTasks, err = s.taskDao.GetByGroupID(ctx, groupID, tx)
 		if err != nil {
-			return appErrors.ErrTaskNotFound.WithError(err)
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return appErrors.ErrTaskNotFound
+			}
+			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
 
 		tasks = groupsTasks
@@ -106,7 +112,10 @@ func (s *TaskService) GetTasksByUserID(ctx context.Context, userID int) ([]*mode
 		var userTasks []*models.Task
 		userTasks, err = s.taskDao.GetByUserID(ctx, userID, tx)
 		if err != nil {
-			return appErrors.ErrTaskNotFound.WithError(err)
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return appErrors.ErrTaskNotFound
+			}
+			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
 		tasks = userTasks
 		return nil
@@ -145,7 +154,10 @@ func (s *TaskService) VerifyLocation(ctx context.Context, latitude, longitude fl
 	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
 		task, err := s.taskDao.GetByTaskID(ctx, taskID, tx)
 		if err != nil {
-			return appErrors.ErrTaskNotFound.WithError(err)
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return appErrors.ErrTaskNotFound
+			}
+			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
 
 		radius := task.Radius
@@ -183,7 +195,10 @@ func (s *TaskService) VerifyNFC(ctx context.Context, tagID, tagName string, task
 	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
 		task, err := s.taskDao.GetByTaskID(ctx, taskID, tx)
 		if err != nil {
-			return appErrors.ErrTaskNotFound.WithError(err)
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return appErrors.ErrTaskNotFound
+			}
+			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
 		taskTagName, taskTagID := task.TagName, task.TagID
 		isValid = tagID == taskTagID && tagName == taskTagName
@@ -202,7 +217,10 @@ func (s *TaskService) VerifyWiFi(ctx context.Context, ssid, bssid string, taskID
 	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
 		task, err := s.taskDao.GetByTaskID(ctx, taskID, tx)
 		if err != nil {
-			return appErrors.ErrTaskNotFound.WithError(err)
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return appErrors.ErrTaskNotFound
+			}
+			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
 		taskSSID, taskBSSID := task.SSID, task.BSSID
 		isValid = ssid == taskSSID && bssid == taskBSSID
@@ -227,11 +245,25 @@ func (s *TaskService) CheckInTask(
 	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
 		task, err := s.taskDao.GetByTaskID(ctx, taskID, tx)
 		if err != nil {
-			return appErrors.ErrTaskNotFound.WithError(err)
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return appErrors.ErrTaskNotFound
+			}
+			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
+		//时间校验
+		// if signedInTime.Before(task.StartTime) {
+		// 	return appErrors.ErrTaskNotInRange
+		// }
+		// if signedInTime.After(task.EndTime) {
+		// 	return appErrors.ErrTaskHasEnded
+		// }
+
 		group, err := s.groupDao.GetByGroupID(ctx, task.GroupID, tx)
 		if err != nil {
-			return appErrors.ErrGroupNotFound.WithError(err)
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return appErrors.ErrGroupNotFound
+			}
+			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
 		createdTaskRecord := models.TaskRecord{
 			TaskID:     taskID,
@@ -245,7 +277,7 @@ func (s *TaskService) CheckInTask(
 
 		//根据otherInfo选择字段
 
-		if err := s.taskRecordDao.Create(ctx, &taskRecord, tx); err != nil {
+		if err := s.taskRecordDao.Create(ctx, &createdTaskRecord, tx); err != nil {
 			return appErrors.ErrTaskRecordCreationFailed.WithError(err)
 		}
 		taskRecord = createdTaskRecord
@@ -265,7 +297,10 @@ func (s *TaskService) GetTaskRecordsByTaskID(ctx context.Context, taskID int) ([
 		var err error
 		taskRecords, err = s.taskRecordDao.GetByTaskID(ctx, taskID, tx)
 		if err != nil {
-			return appErrors.ErrTaskNotFound.WithError(err)
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return appErrors.ErrTaskNotFound
+			}
+			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
 		return nil
 	})
@@ -282,7 +317,10 @@ func (s *TaskService) GetTaskRecordsByUserID(ctx context.Context, userID int) ([
 		var err error
 		taskRecords, err = s.taskRecordDao.GetByUserID(ctx, userID, tx)
 		if err != nil {
-			return appErrors.ErrTaskNotFound.WithError(err)
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return appErrors.ErrTaskNotFound
+			}
+			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
 		return nil
 	})
@@ -310,7 +348,10 @@ func (s *TaskService) UpdateTask(
 	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
 		_, err := s.taskDao.GetByTaskID(ctx, taskID, tx)
 		if err != nil {
-			return appErrors.ErrTaskNotFound.WithError(err)
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return appErrors.ErrTaskNotFound
+			}
+			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
 		newTask := &models.Task{
 			TaskName:    taskName,
@@ -335,6 +376,9 @@ func (s *TaskService) UpdateTask(
 		//获取更新后的任务
 		nowTask, err := s.taskDao.GetByTaskID(ctx, taskID, tx)
 		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return appErrors.ErrTaskNotFound
+			}
 			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
 		task = *nowTask

@@ -168,7 +168,10 @@ func (s *AuditRequestService) UpdateAuditRequest(ctx context.Context, requestID 
 		// 查询申请
 		request, err := s.checkApplicationDAO.GetByID(ctx, requestID, tx)
 		if err != nil {
-			return appErrors.ErrAuditRequestNotFound
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return appErrors.ErrAuditRequestNotFound
+			}
+			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
 		switch action {
 		case "approve":
