@@ -222,7 +222,7 @@ func RegisterCheckinTasksHandlersWithOptions(router gin.IRouter, si CheckinTasks
 	errorHandler := options.ErrorHandler
 	if errorHandler == nil {
 		errorHandler = func(c *gin.Context, err error, statusCode int) {
-			c.JSON(statusCode, gin.H{"msg": err.Error()})
+			c.JSON(statusCode, gin.H{"code": "1", "message": err.Error()})
 		}
 	}
 
@@ -444,10 +444,10 @@ type PostCheckinTasksTaskIdVerify200JSONResponse struct {
 		Valid bool `json:"valid"`
 
 		// VerifyType 验证的信息类型
-		VerifyType PostCheckinTasksTaskIdVerify200JSONResponseDataVerifyType `json:"verifyType"`
+		VerifyType PostCheckinTasksTaskIdVerifyJSONBodyVerifyType `json:"verifyType"`
 	} `json:"data"`
 }
-
+  
 func (response PostCheckinTasksTaskIdVerify200JSONResponse) VisitPostCheckinTasksTaskIdVerifyResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
@@ -652,7 +652,7 @@ type GetUsersMeCheckinTasks200JSONResponse struct {
 		StartTime int `json:"startTime"`
 
 		// Status 任务状态
-		Status GetUsersMeCheckinTasks200JSONResponseDataStatus `json:"status"`
+		Status CheckinTaskStatus `json:"status"`
 
 		// TaskId 签到任务ID
 		TaskId int `json:"taskId,omitempty"`

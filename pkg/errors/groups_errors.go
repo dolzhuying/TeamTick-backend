@@ -63,5 +63,10 @@ var (
 		Status:  http.StatusInternalServerError,
 	}
 
+	ErrJwtParseFailed = &AppError{
+		Message: "JWT解析失败",
+		Status:  http.StatusUnauthorized,
+	}
+
 	//待完善
 )

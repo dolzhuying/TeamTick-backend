@@ -63,6 +63,7 @@ type JoinApplicationDAO interface {
 	UpdateStatus(ctx context.Context, requestID int, status string, tx ...*gorm.DB) error
 	UpdateRejectReason(ctx context.Context, requestID int, rejectReason string, tx ...*gorm.DB) error
 	GetByGroupIDAndUserID(ctx context.Context, groupID int, userID int, tx ...*gorm.DB) (*models.JoinApplication, error)
+	GetByGroupID(ctx context.Context, groupID int, tx ...*gorm.DB) ([]*models.JoinApplication, error)
 }
 
 // CheckApplicationDAO 签到申请数据访问接口

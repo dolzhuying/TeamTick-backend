@@ -25,7 +25,7 @@ func AuthMiddleware(jwtToken pkg.JwtHandler) gin.HandlerFunc {
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"code":    "1",
-				"message": "invalid token",
+				"message": "invalid token:" + err.Error(),
 			})
 			return
 		}

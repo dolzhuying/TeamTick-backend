@@ -238,6 +238,283 @@ func TestGetAuditRequestByGroupID_NotFound(t *testing.T) {
 	mockCheckApplicationDao.AssertExpectations(t)
 }
 
+// --- GetAuditRequestByGroupIDWithStatus 测试 ---
+
+func TestGetAuditRequestByGroupIDWithStatus_All_Success(t *testing.T) {
+	auditRequestService, mockCheckApplicationDao, _, _, _, mockTxManager := setupAuditRequestServiceTest()
+	ctx := context.Background()
+	groupID := 1
+	status := "all"
+
+	expectedRequests := []*models.CheckApplication{
+		{
+			ID:            1,
+			TaskID:        1,
+			TaskName:      "任务1",
+			UserID:        1,
+			Username:      "user1",
+			Status:        "pending",
+			Reason:        "网络问题",
+			AdminID:       2,
+			AdminUsername: "admin1",
+			RequestAt:     time.Now(),
+		},
+		{
+			ID:            2,
+			TaskID:        1,
+			TaskName:      "任务1",
+			UserID:        3,
+			Username:      "user3",
+			Status:        "approved",
+			Reason:        "位置异常",
+			AdminID:       2,
+			AdminUsername: "admin1",
+			RequestAt:     time.Now(),
+		},
+		{
+			ID:            3,
+			TaskID:        2,
+			TaskName:      "任务2",
+			UserID:        2,
+			Username:      "user2",
+			Status:        "rejected",
+			Reason:        "请求原因不充分",
+			AdminID:       2,
+			AdminUsername: "admin1",
+			RequestAt:     time.Now(),
+		},
+	}
+
+	// Mock期望
+	mockTxManager.On("WithTransaction", ctx, mock.AnythingOfType("func(*gorm.DB) error")).Return(nil)
+	mockCheckApplicationDao.On("GetByGroupID", ctx, groupID, mock.AnythingOfType("[]*gorm.DB")).Return(expectedRequests, nil)
+
+	// 调用函数
+	requests, err := auditRequestService.GetAuditRequestByGroupIDWithStatus(ctx, groupID, status)
+
+	// 断言
+	assert.NoError(t, err)
+	assert.NotNil(t, requests)
+	assert.Equal(t, expectedRequests, requests)
+	assert.Len(t, requests, 3)
+
+	// 验证mock调用
+	mockTxManager.AssertExpectations(t)
+	mockCheckApplicationDao.AssertExpectations(t)
+}
+
+func TestGetAuditRequestByGroupIDWithStatus_Pending_Success(t *testing.T) {
+	auditRequestService, mockCheckApplicationDao, _, _, _, mockTxManager := setupAuditRequestServiceTest()
+	ctx := context.Background()
+	groupID := 1
+	status := "pending"
+
+	allRequests := []*models.CheckApplication{
+		{
+			ID:            1,
+			TaskID:        1,
+			TaskName:      "任务1",
+			UserID:        1,
+			Username:      "user1",
+			Status:        "pending",
+			Reason:        "网络问题",
+			AdminID:       2,
+			AdminUsername: "admin1",
+			RequestAt:     time.Now(),
+		},
+		{
+			ID:            2,
+			TaskID:        1,
+			TaskName:      "任务1",
+			UserID:        3,
+			Username:      "user3",
+			Status:        "approved",
+			Reason:        "位置异常",
+			AdminID:       2,
+			AdminUsername: "admin1",
+			RequestAt:     time.Now(),
+		},
+		{
+			ID:            3,
+			TaskID:        2,
+			TaskName:      "任务2",
+			UserID:        2,
+			Username:      "user2",
+			Status:        "rejected",
+			Reason:        "请求原因不充分",
+			AdminID:       2,
+			AdminUsername: "admin1",
+			RequestAt:     time.Now(),
+		},
+	}
+
+	// Mock期望
+	mockTxManager.On("WithTransaction", ctx, mock.AnythingOfType("func(*gorm.DB) error")).Return(nil)
+	mockCheckApplicationDao.On("GetByGroupID", ctx, groupID, mock.AnythingOfType("[]*gorm.DB")).Return(allRequests, nil)
+
+	// 调用函数
+	requests, err := auditRequestService.GetAuditRequestByGroupIDWithStatus(ctx, groupID, status)
+
+	// 断言
+	assert.NoError(t, err)
+	assert.NotNil(t, requests)
+	assert.Len(t, requests, 1)
+	assert.Equal(t, "pending", requests[0].Status)
+
+	// 验证mock调用
+	mockTxManager.AssertExpectations(t)
+	mockCheckApplicationDao.AssertExpectations(t)
+}
+
+func TestGetAuditRequestByGroupIDWithStatus_Approved_Success(t *testing.T) {
+	auditRequestService, mockCheckApplicationDao, _, _, _, mockTxManager := setupAuditRequestServiceTest()
+	ctx := context.Background()
+	groupID := 1
+	status := "approved"
+
+	allRequests := []*models.CheckApplication{
+		{
+			ID:            1,
+			TaskID:        1,
+			TaskName:      "任务1",
+			UserID:        1,
+			Username:      "user1",
+			Status:        "pending",
+			Reason:        "网络问题",
+			AdminID:       2,
+			AdminUsername: "admin1",
+			RequestAt:     time.Now(),
+		},
+		{
+			ID:            2,
+			TaskID:        1,
+			TaskName:      "任务1",
+			UserID:        3,
+			Username:      "user3",
+			Status:        "approved",
+			Reason:        "位置异常",
+			AdminID:       2,
+			AdminUsername: "admin1",
+			RequestAt:     time.Now(),
+		},
+		{
+			ID:            3,
+			TaskID:        2,
+			TaskName:      "任务2",
+			UserID:        2,
+			Username:      "user2",
+			Status:        "rejected",
+			Reason:        "请求原因不充分",
+			AdminID:       2,
+			AdminUsername: "admin1",
+			RequestAt:     time.Now(),
+		},
+	}
+
+	// Mock期望
+	mockTxManager.On("WithTransaction", ctx, mock.AnythingOfType("func(*gorm.DB) error")).Return(nil)
+	mockCheckApplicationDao.On("GetByGroupID", ctx, groupID, mock.AnythingOfType("[]*gorm.DB")).Return(allRequests, nil)
+
+	// 调用函数
+	requests, err := auditRequestService.GetAuditRequestByGroupIDWithStatus(ctx, groupID, status)
+
+	// 断言
+	assert.NoError(t, err)
+	assert.NotNil(t, requests)
+	assert.Len(t, requests, 1)
+	assert.Equal(t, "approved", requests[0].Status)
+
+	// 验证mock调用
+	mockTxManager.AssertExpectations(t)
+	mockCheckApplicationDao.AssertExpectations(t)
+}
+
+func TestGetAuditRequestByGroupIDWithStatus_Rejected_Success(t *testing.T) {
+	auditRequestService, mockCheckApplicationDao, _, _, _, mockTxManager := setupAuditRequestServiceTest()
+	ctx := context.Background()
+	groupID := 1
+	status := "rejected"
+
+	allRequests := []*models.CheckApplication{
+		{
+			ID:            1,
+			TaskID:        1,
+			TaskName:      "任务1",
+			UserID:        1,
+			Username:      "user1",
+			Status:        "pending",
+			Reason:        "网络问题",
+			AdminID:       2,
+			AdminUsername: "admin1",
+			RequestAt:     time.Now(),
+		},
+		{
+			ID:            2,
+			TaskID:        1,
+			TaskName:      "任务1",
+			UserID:        3,
+			Username:      "user3",
+			Status:        "approved",
+			Reason:        "位置异常",
+			AdminID:       2,
+			AdminUsername: "admin1",
+			RequestAt:     time.Now(),
+		},
+		{
+			ID:            3,
+			TaskID:        2,
+			TaskName:      "任务2",
+			UserID:        2,
+			Username:      "user2",
+			Status:        "rejected",
+			Reason:        "请求原因不充分",
+			AdminID:       2,
+			AdminUsername: "admin1",
+			RequestAt:     time.Now(),
+		},
+	}
+
+	// Mock期望
+	mockTxManager.On("WithTransaction", ctx, mock.AnythingOfType("func(*gorm.DB) error")).Return(nil)
+	mockCheckApplicationDao.On("GetByGroupID", ctx, groupID, mock.AnythingOfType("[]*gorm.DB")).Return(allRequests, nil)
+
+	// 调用函数
+	requests, err := auditRequestService.GetAuditRequestByGroupIDWithStatus(ctx, groupID, status)
+
+	// 断言
+	assert.NoError(t, err)
+	assert.NotNil(t, requests)
+	assert.Len(t, requests, 1)
+	assert.Equal(t, "rejected", requests[0].Status)
+
+	// 验证mock调用
+	mockTxManager.AssertExpectations(t)
+	mockCheckApplicationDao.AssertExpectations(t)
+}
+
+func TestGetAuditRequestByGroupIDWithStatus_NotFound(t *testing.T) {
+	auditRequestService, mockCheckApplicationDao, _, _, _, mockTxManager := setupAuditRequestServiceTest()
+	ctx := context.Background()
+	groupID := 999 // 不存在的组ID
+	status := "all"
+
+	// Mock期望
+	mockTxManager.On("WithTransaction", ctx, mock.AnythingOfType("func(*gorm.DB) error")).Return(nil)
+	mockCheckApplicationDao.On("GetByGroupID", ctx, groupID, mock.AnythingOfType("[]*gorm.DB")).Return(nil, gorm.ErrRecordNotFound)
+
+	// 调用函数
+	requests, err := auditRequestService.GetAuditRequestByGroupIDWithStatus(ctx, groupID, status)
+
+	// 断言
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), appErrors.ErrAuditRequestNotFound.Error())
+	assert.Nil(t, requests)
+
+	// 验证mock调用
+	mockTxManager.AssertExpectations(t)
+	mockCheckApplicationDao.AssertExpectations(t)
+}
+
 // --- CreateAuditRequest 测试 ---
 
 func TestCreateAuditRequest_Success(t *testing.T) {

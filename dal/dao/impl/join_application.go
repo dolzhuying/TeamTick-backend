@@ -34,6 +34,20 @@ func (dao *JoinApplicationDAOMySQLImpl) GetByGroupIDAndStatus(ctx context.Contex
 	return applications, nil
 }
 
+// GetByGroupID 通过group_id查询所有加入申请
+func (dao *JoinApplicationDAOMySQLImpl) GetByGroupID(ctx context.Context, groupID int, tx ...*gorm.DB) ([]*models.JoinApplication, error) {
+	var applications []*models.JoinApplication
+	db := dao.DB
+	if len(tx) > 0 && tx[0] != nil {
+		db = tx[0]
+	}
+	err := db.WithContext(ctx).Where("group_id = ?", groupID).Find(&applications).Error
+	if err != nil {
+		return nil, err
+	}
+	return applications, nil
+}
+
 // GetByUserID 通过user_id查询加入申请
 func (dao *JoinApplicationDAOMySQLImpl) GetByUserID(ctx context.Context, userID int, tx ...*gorm.DB) ([]*models.JoinApplication, error) {
 	var applications []*models.JoinApplication

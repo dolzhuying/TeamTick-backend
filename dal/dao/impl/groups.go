@@ -41,7 +41,7 @@ func (dao *GroupDAOMySQLImpl) GetGroupsByUserID(ctx context.Context, userID int,
 	if len(tx) > 0 && tx[0] != nil {
 		db = tx[0]
 	}
-	err := db.WithContext(ctx).Table("groups g").
+	err := db.WithContext(ctx).Table("`groups` g").
 		Select("g.*").
 		Joins("JOIN group_member gm ON g.group_id = gm.group_id").
 		Where("gm.user_id = ?", userID).
@@ -60,19 +60,21 @@ func (dao *GroupDAOMySQLImpl) GetGroupsByUserIDAndfilter(ctx context.Context, us
 		db = tx[0]
 	}
 	if filter == "created" {
-		err := db.WithContext(ctx).Table("groups g").
+		role := "admin"
+		err := db.WithContext(ctx).Table("`groups` g").
 			Select("g.*").
 			Joins("JOIN group_member gm ON g.group_id = gm.group_id").
-			Where("gm.user_id = ? AND gm.role = ?", userID, "admin").
+			Where("gm.user_id = ? AND gm.role = ?", userID, role).
 			Find(&groups).Error
 		if err != nil {
 			return nil, err
 		}
 	} else if filter == "joined" {
-		err := db.WithContext(ctx).Table("groups g").
+		role := "member"
+		err := db.WithContext(ctx).Table("`groups` g").
 			Select("g.*").
 			Joins("JOIN group_member gm ON g.group_id = gm.group_id").
-			Where("gm.user_id = ? AND gm.role = ?", userID, "member").
+			Where("gm.user_id = ? AND gm.role = ?", userID, role).
 			Find(&groups).Error
 		if err != nil {
 			return nil, err
@@ -112,8 +114,8 @@ func (dao *GroupDAOMySQLImpl) UpdateMemberNum(ctx context.Context, groupID int, 
 		Update("member_num", gorm.Expr(expr)).Error
 }
 
-//删除用户组
-func (dao *GroupDAOMySQLImpl) Delete(ctx context.Context,groupID int,tx ...*gorm.DB) error {
+// 删除用户组
+func (dao *GroupDAOMySQLImpl) Delete(ctx context.Context, groupID int, tx ...*gorm.DB) error {
 	db := dao.DB
 	if len(tx) > 0 && tx[0] != nil {
 		db = tx[0]

@@ -145,11 +145,11 @@ func (m *mockTaskRecordDAO) GetByTaskIDAndUserID(ctx context.Context, taskID, us
 }
 
 // Mock TransactionManager
-type mockTestTransactionManager struct {
+type mockTaskTransactionManager struct {
 	mock.Mock
 }
 
-func (m *mockTestTransactionManager) WithTransaction(ctx context.Context, fn func(*gorm.DB) error) error {
+func (m *mockTaskTransactionManager) WithTransaction(ctx context.Context, fn func(*gorm.DB) error) error {
 	args := m.Called(ctx, mock.AnythingOfType("func(*gorm.DB) error"))
 	// 执行传入的函数
 	if args.Error(0) == nil && fn != nil {
@@ -163,11 +163,13 @@ func setupTaskServiceTest() (*TaskService, *mockTaskDAO, *mockTaskRecordDAO, *mo
 	mockTaskDao := new(mockTaskDAO)
 	mockTaskRecordDao := new(mockTaskRecordDAO)
 	mockTxManager := new(mockTransactionManager)
+	mockGroupDao := new(mockGroupDAO)
 
 	taskService := NewTaskService(
 		mockTaskDao,
 		mockTaskRecordDao,
 		mockTxManager,
+		mockGroupDao,
 	)
 
 	return taskService, mockTaskDao, mockTaskRecordDao, mockTxManager
@@ -271,85 +273,13 @@ func TestGetTasksByGroupID_All_Success(t *testing.T) {
 	mockTaskDao.On("GetByGroupID", ctx, groupID, mock.AnythingOfType("[]*gorm.DB")).Return(expectedTasks, nil)
 
 	// 调用函数 - 获取所有任务
-	tasks, err := taskService.GetTasksByGroupID(ctx, groupID, "all")
+	tasks, err := taskService.GetTasksByGroupID(ctx, groupID)
 
 	// 断言
 	assert.NoError(t, err)
 	assert.NotNil(t, tasks)
 	assert.Equal(t, expectedTasks, tasks)
 	assert.Len(t, tasks, 2)
-
-	// 验证mock调用
-	mockTxManager.AssertExpectations(t)
-	mockTaskDao.AssertExpectations(t)
-}
-
-func TestGetTasksByGroupID_Active_Success(t *testing.T) {
-	taskService, mockTaskDao, _, mockTxManager := setupTaskServiceTest()
-	ctx := context.Background()
-	groupID := 1
-
-	expectedTasks := []*models.Task{
-		{
-			TaskID:      1,
-			TaskName:    "进行中任务",
-			Description: "描述",
-			GroupID:     groupID,
-			StartTime:   time.Now().Add(-1 * time.Hour),
-			EndTime:     time.Now().Add(24 * time.Hour),
-			Latitude:    39.9042,
-			Longitude:   116.4074,
-		},
-	}
-
-	// Mock期望
-	mockTxManager.On("WithTransaction", ctx, mock.AnythingOfType("func(*gorm.DB) error")).Return(nil)
-	mockTaskDao.On("GetActiveTasksByGroupID", ctx, groupID, mock.AnythingOfType("[]*gorm.DB")).Return(expectedTasks, nil)
-
-	// 调用函数 - 获取进行中任务
-	tasks, err := taskService.GetTasksByGroupID(ctx, groupID, "active")
-
-	// 断言
-	assert.NoError(t, err)
-	assert.NotNil(t, tasks)
-	assert.Equal(t, expectedTasks, tasks)
-	assert.Len(t, tasks, 1)
-
-	// 验证mock调用
-	mockTxManager.AssertExpectations(t)
-	mockTaskDao.AssertExpectations(t)
-}
-
-func TestGetTasksByGroupID_Ended_Success(t *testing.T) {
-	taskService, mockTaskDao, _, mockTxManager := setupTaskServiceTest()
-	ctx := context.Background()
-	groupID := 1
-
-	expectedTasks := []*models.Task{
-		{
-			TaskID:      2,
-			TaskName:    "已结束任务",
-			Description: "描述",
-			GroupID:     groupID,
-			StartTime:   time.Now().Add(-48 * time.Hour),
-			EndTime:     time.Now().Add(-24 * time.Hour),
-			Latitude:    39.9042,
-			Longitude:   116.4074,
-		},
-	}
-
-	// Mock期望
-	mockTxManager.On("WithTransaction", ctx, mock.AnythingOfType("func(*gorm.DB) error")).Return(nil)
-	mockTaskDao.On("GetEndedTasksByGroupID", ctx, groupID, mock.AnythingOfType("[]*gorm.DB")).Return(expectedTasks, nil)
-
-	// 调用函数 - 获取已结束任务
-	tasks, err := taskService.GetTasksByGroupID(ctx, groupID, "ended")
-
-	// 断言
-	assert.NoError(t, err)
-	assert.NotNil(t, tasks)
-	assert.Equal(t, expectedTasks, tasks)
-	assert.Len(t, tasks, 1)
 
 	// 验证mock调用
 	mockTxManager.AssertExpectations(t)
@@ -366,7 +296,7 @@ func TestGetTasksByGroupID_NotFound(t *testing.T) {
 	mockTaskDao.On("GetByGroupID", ctx, groupID, mock.AnythingOfType("[]*gorm.DB")).Return(nil, gorm.ErrRecordNotFound)
 
 	// 调用函数
-	tasks, err := taskService.GetTasksByGroupID(ctx, groupID, "all")
+	tasks, err := taskService.GetTasksByGroupID(ctx, groupID)
 
 	// 断言
 	assert.Error(t, err)
@@ -409,81 +339,13 @@ func TestGetTasksByUserID_All_Success(t *testing.T) {
 	mockTaskDao.On("GetByUserID", ctx, userID, mock.AnythingOfType("[]*gorm.DB")).Return(expectedTasks, nil)
 
 	// 调用函数 - 获取所有任务
-	tasks, err := taskService.GetTasksByUserID(ctx, userID, "all")
+	tasks, err := taskService.GetTasksByUserID(ctx, userID)
 
 	// 断言
 	assert.NoError(t, err)
 	assert.NotNil(t, tasks)
 	assert.Equal(t, expectedTasks, tasks)
 	assert.Len(t, tasks, 2)
-
-	// 验证mock调用
-	mockTxManager.AssertExpectations(t)
-	mockTaskDao.AssertExpectations(t)
-}
-
-func TestGetTasksByUserID_Active_Success(t *testing.T) {
-	taskService, mockTaskDao, _, mockTxManager := setupTaskServiceTest()
-	ctx := context.Background()
-	userID := 1
-
-	expectedTasks := []*models.Task{
-		{
-			TaskID:      1,
-			TaskName:    "进行中任务",
-			Description: "描述",
-			GroupID:     1,
-			StartTime:   time.Now().Add(-1 * time.Hour),
-			EndTime:     time.Now().Add(24 * time.Hour),
-		},
-	}
-
-	// Mock期望
-	mockTxManager.On("WithTransaction", ctx, mock.AnythingOfType("func(*gorm.DB) error")).Return(nil)
-	mockTaskDao.On("GetActiveTasksByUserID", ctx, userID, mock.AnythingOfType("[]*gorm.DB")).Return(expectedTasks, nil)
-
-	// 调用函数 - 获取进行中任务
-	tasks, err := taskService.GetTasksByUserID(ctx, userID, "active")
-
-	// 断言
-	assert.NoError(t, err)
-	assert.NotNil(t, tasks)
-	assert.Equal(t, expectedTasks, tasks)
-	assert.Len(t, tasks, 1)
-
-	// 验证mock调用
-	mockTxManager.AssertExpectations(t)
-	mockTaskDao.AssertExpectations(t)
-}
-
-func TestGetTasksByUserID_Ended_Success(t *testing.T) {
-	taskService, mockTaskDao, _, mockTxManager := setupTaskServiceTest()
-	ctx := context.Background()
-	userID := 1
-
-	expectedTasks := []*models.Task{
-		{
-			TaskID:      2,
-			TaskName:    "已结束任务",
-			Description: "描述",
-			GroupID:     1,
-			StartTime:   time.Now().Add(-48 * time.Hour),
-			EndTime:     time.Now().Add(-24 * time.Hour),
-		},
-	}
-
-	// Mock期望
-	mockTxManager.On("WithTransaction", ctx, mock.AnythingOfType("func(*gorm.DB) error")).Return(nil)
-	mockTaskDao.On("GetEndedTasksByUserID", ctx, userID, mock.AnythingOfType("[]*gorm.DB")).Return(expectedTasks, nil)
-
-	// 调用函数 - 获取已结束任务
-	tasks, err := taskService.GetTasksByUserID(ctx, userID, "ended")
-
-	// 断言
-	assert.NoError(t, err)
-	assert.NotNil(t, tasks)
-	assert.Equal(t, expectedTasks, tasks)
-	assert.Len(t, tasks, 1)
 
 	// 验证mock调用
 	mockTxManager.AssertExpectations(t)
@@ -500,7 +362,7 @@ func TestGetTasksByUserID_NotFound(t *testing.T) {
 	mockTaskDao.On("GetByUserID", ctx, userID, mock.AnythingOfType("[]*gorm.DB")).Return(nil, gorm.ErrRecordNotFound)
 
 	// 调用函数
-	tasks, err := taskService.GetTasksByUserID(ctx, userID, "all")
+	tasks, err := taskService.GetTasksByUserID(ctx, userID)
 
 	// 断言
 	assert.Error(t, err)
