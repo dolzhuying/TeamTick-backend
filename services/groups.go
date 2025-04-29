@@ -152,7 +152,8 @@ func (s *GroupsService) CheckMemberPermission(ctx context.Context, groupID, user
 	return appErrors.ErrRolePermissionDenied
 }
 
-func (s*GroupsService) CheckUserExistInGroup(ctx context.Context,groupID,userID int) error {
+// 检查用户是否存在于用户组
+func (s *GroupsService) CheckUserExistInGroup(ctx context.Context, groupID, userID int) error {
 	_, err := s.groupMemberDao.GetMemberByGroupIDAndUserID(ctx, groupID, userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -280,7 +281,7 @@ func (s *GroupsService) CreateJoinApplication(ctx context.Context, groupID, user
 }
 
 // 查看用户组加入申请列表（待审批）
-func (s *GroupsService) GetJoinApplicationsByGroupID(ctx context.Context, groupID, operatorID int) ([]*models.JoinApplication, error) {
+func (s *GroupsService) GetJoinApplicationsByGroupID(ctx context.Context, groupID, operatorID int, filter ...string) ([]*models.JoinApplication, error) {
 	var applications []*models.JoinApplication
 	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
 		//检查操作员权限
@@ -288,21 +289,41 @@ func (s *GroupsService) GetJoinApplicationsByGroupID(ctx context.Context, groupI
 			return appErrors.ErrRolePermissionDenied.WithError(err)
 		}
 		//检查用户组是否存在
-		_, err := s.groupDao.GetByGroupID(ctx, groupID, tx)
-		if err != nil {
+		if _, err := s.groupDao.GetByGroupID(ctx, groupID, tx); err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return appErrors.ErrGroupNotFound
 			}
 			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
 
-		//查询待审批的申请记录
-		existApplications, err := s.joinApplicationDao.GetByGroupIDAndStatus(ctx, groupID, "pending", tx)
-		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return appErrors.ErrJoinApplicationNotFound
+		var existApplications []*models.JoinApplication
+		var err error
+
+		//按照filter查询申请记录
+		if len(filter) == 0 { //默认
+			existApplications, err = s.joinApplicationDao.GetByGroupIDAndStatus(ctx, groupID, "pending", tx)
+			if err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					return appErrors.ErrJoinApplicationNotFound
+				}
+				return appErrors.ErrDatabaseOperation.WithError(err)
 			}
-			return appErrors.ErrDatabaseOperation.WithError(err)
+		} else if len(filter) == 1 && filter[0] != "all" {
+			existApplications, err = s.joinApplicationDao.GetByGroupIDAndStatus(ctx, groupID, filter[0], tx)
+			if err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					return appErrors.ErrJoinApplicationNotFound
+				}
+				return appErrors.ErrDatabaseOperation.WithError(err)
+			}
+		} else {
+			existApplications, err = s.joinApplicationDao.GetByGroupID(ctx, groupID, tx)
+			if err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					return appErrors.ErrJoinApplicationNotFound
+				}
+				return appErrors.ErrDatabaseOperation.WithError(err)
+			}
 		}
 		applications = existApplications
 		return nil
@@ -387,7 +408,7 @@ func (s *GroupsService) DeleteGroup(ctx context.Context, groupID, operatorID int
 }
 
 // 查询当前登录用户在指定用户组中的状态，包括未关联、申请中、普通成员、管理员等(返回申请记录，可在handlers层根据记录的status构建对应的响应)
-func (s *GroupsService) GetUserGroupStatus(ctx context.Context, groupID, userID int) (string,int,error) {
+func (s *GroupsService) GetUserGroupStatus(ctx context.Context, groupID, userID int) (string, int, error) {
 	var status string
 	var requestID int
 	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
@@ -400,15 +421,15 @@ func (s *GroupsService) GetUserGroupStatus(ctx context.Context, groupID, userID 
 			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
 		// 检查是否为组成员
-		member,err:=s.groupMemberDao.GetMemberByGroupIDAndUserID(ctx,groupID,userID,tx)
-		if err!=nil{
-			if !errors.Is(err,gorm.ErrRecordNotFound){
+		member, err := s.groupMemberDao.GetMemberByGroupIDAndUserID(ctx, groupID, userID, tx)
+		if err != nil {
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
 				return appErrors.ErrDatabaseOperation.WithError(err)
 			}
 		}
-		if member!=nil{
-			status=member.Role
-			requestID=0
+		if member != nil {
+			status = member.Role
+			requestID = 0
 			return nil
 		}
 		// 非组成员，查看申请记录
@@ -418,17 +439,17 @@ func (s *GroupsService) GetUserGroupStatus(ctx context.Context, groupID, userID 
 				return appErrors.ErrDatabaseOperation.WithError(err)
 			}
 		}
-		if Application==nil{
-			status="none"
-			requestID=0
-		}else{
-			status=Application.Status
-			requestID=Application.RequestID
+		if Application == nil {
+			status = "none"
+			requestID = 0
+		} else {
+			status = Application.Status
+			requestID = Application.RequestID
 		}
 		return nil
 	})
 	if err != nil {
-		return "",0,err
+		return "", 0, err
 	}
-	return status,requestID,nil
+	return status, requestID, nil
 }
