@@ -201,3 +201,24 @@ func (s *AuditRequestService) UpdateAuditRequest(ctx context.Context, requestID 
 	}
 	return nil
 }
+
+// GetGroupIDByAuditRequestID 获取签到申请的组ID
+func (s *AuditRequestService) GetGroupIDByAuditRequestID(ctx context.Context, requestID int) (int, error) {
+	var groupID int
+	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
+		request, err := s.checkApplicationDAO.GetByID(ctx, requestID, tx)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return appErrors.ErrAuditRequestNotFound
+			}
+			return appErrors.ErrDatabaseOperation.WithError(err)
+		}
+		groupID = request.GroupID
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	return groupID, nil
+}
+
