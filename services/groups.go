@@ -152,6 +152,17 @@ func (s *GroupsService) CheckMemberPermission(ctx context.Context, groupID, user
 	return appErrors.ErrRolePermissionDenied
 }
 
+func (s*GroupsService) CheckUserExistInGroup(ctx context.Context,groupID,userID int) error {
+	_, err := s.groupMemberDao.GetMemberByGroupIDAndUserID(ctx, groupID, userID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return appErrors.ErrGroupMemberNotFound
+		}
+		return appErrors.ErrDatabaseOperation.WithError(err)
+	}
+	return nil
+}
+
 // 添加用户到用户组
 // MVP版本申请加入暂时为直接加入，不需要审批，直接调用该函数
 // 但是迭代版本需要审批，审批通过则会执行 往用户-用户组表添加组员，更新用户组成员数量，更新申请表中记录的状态三个行为，需要放在一个事务中
