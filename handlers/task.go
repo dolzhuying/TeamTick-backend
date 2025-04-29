@@ -254,6 +254,12 @@ func (h *TaskHandler) PutCheckinTasksTaskId(ctx context.Context, request gen.Put
 		request.Body.VerificationConfig.CheckinMethods.Nfc,
 	)
 	if err != nil {
+		if errors.Is(err, appErrors.ErrAuditRequestNotFound) {
+			return gen.PutCheckinTasksTaskId404JSONResponse{
+				Code:    "1",
+				Message: "签到任务不存在",
+			}, nil
+		}
 		return nil, err
 	}
 
@@ -283,21 +289,6 @@ func (h *TaskHandler) PostCheckinTasksTaskIdVerify(ctx context.Context, request 
 			}, nil
 		}
 		return nil, err
-	}
-
-	// 验证任务状态
-	now := time.Now()
-	if now.Before(task.StartTime) {
-		return &gen.PostCheckinTasksTaskIdVerify400JSONResponse{
-			Code:    "1",
-			Message: "任务尚未开始",
-		}, nil
-	}
-	if now.After(task.EndTime) {
-		return &gen.PostCheckinTasksTaskIdVerify400JSONResponse{
-			Code:    "1",
-			Message: "任务已过期",
-		}, nil
 	}
 
 	// 验证用户是否是组的成员
@@ -336,6 +327,7 @@ func (h *TaskHandler) PostCheckinTasksTaskIdVerify(ctx context.Context, request 
 				Message: "该任务未启用NFC验证",
 			}, nil
 		}
+
 	default:
 		return &gen.PostCheckinTasksTaskIdVerify400JSONResponse{
 			Code:    "1",
@@ -857,12 +849,86 @@ func (h *TaskHandler) PostCheckinTasksTaskIdCheckin(ctx context.Context, request
 	// 从上下文中获取用户ID
 	userID, ok := ctx.Value("userID").(int)
 	if !ok {
-		return &gen.PostCheckinTasksTaskIdCheckin401JSONResponse{
-			Code:    "1",
-			Message: "未授权访问",
-		}, nil
+		return nil, appErrors.ErrJwtParseFailed
 	}
 
+	// 获取任务信息以获取组ID
+	task, err := h.taskService.GetTaskByTaskID(ctx, request.TaskId)
+	if err != nil {
+		if errors.Is(err, appErrors.ErrTaskNotFound) {
+			return &gen.PostCheckinTasksTaskIdCheckin404JSONResponse{
+				Code:    "1",
+				Message: "任务不存在",
+			}, nil
+		}
+		return nil, err
+	}
+	// 检查任务的校验策略并验证提供的信息是否完整
+	if task.GPS {
+		if request.Body.VerificationData.LocationInfo == nil {
+			return &gen.PostCheckinTasksTaskIdCheckin400JSONResponse{
+				Code:    "1",
+				Message: "需要提供位置信息",
+			}, nil
+		}
+		if request.Body.VerificationData.LocationInfo.Location.Latitude == 0 && request.Body.VerificationData.LocationInfo.Location.Longitude == 0 {
+			return &gen.PostCheckinTasksTaskIdCheckin400JSONResponse{
+				Code:    "1",
+				Message: "位置信息不完整",
+			}, nil
+		}
+	}
+
+	if task.WiFi {
+		if request.Body.VerificationData.WifiInfo == nil {
+			return &gen.PostCheckinTasksTaskIdCheckin400JSONResponse{
+				Code:    "1",
+				Message: "需要提供WiFi信息",
+			}, nil
+		}
+		if request.Body.VerificationData.WifiInfo.Ssid == "" || request.Body.VerificationData.WifiInfo.Bssid == "" {
+			return &gen.PostCheckinTasksTaskIdCheckin400JSONResponse{
+				Code:    "1",
+				Message: "WiFi信息不完整",
+			}, nil
+		}
+	}
+
+	if task.NFC {
+		if request.Body.VerificationData.NfcInfo == nil {
+			return &gen.PostCheckinTasksTaskIdCheckin400JSONResponse{
+				Code:    "1",
+				Message: "需要提供NFC信息",
+			}, nil
+		}
+		if request.Body.VerificationData.NfcInfo.TagId == "" || request.Body.VerificationData.NfcInfo.TagName == "" {
+			return &gen.PostCheckinTasksTaskIdCheckin400JSONResponse{
+				Code:    "1",
+				Message: "NFC信息不完整",
+			}, nil
+		}
+	}
+
+	if task.Face {
+		if request.Body.VerificationData.FaceData == nil {
+			return &gen.PostCheckinTasksTaskIdCheckin400JSONResponse{
+				Code:    "1",
+				Message: "需要提供人脸信息",
+			}, nil
+		}
+	}
+	GroupId := task.GroupID
+
+	// 检查用户是否是该组成员
+	if err := h.groupsService.CheckMemberPermission(ctx, GroupId, userID); err != nil {
+		if errors.Is(err, appErrors.ErrGroupMemberNotFound) {
+			return &gen.PostCheckinTasksTaskIdCheckin403JSONResponse{
+				Code:    "1",
+				Message: "您不是该组成员",
+			}, nil
+		}
+		return nil, err
+	}
 	// 调用服务执行签到
 	record, err := h.taskService.CheckInTask(ctx, request.TaskId, userID, request.Body.VerificationData.LocationInfo.Location.Latitude, request.Body.VerificationData.LocationInfo.Location.Longitude, time.Now())
 	if err != nil {
@@ -876,6 +942,34 @@ func (h *TaskHandler) PostCheckinTasksTaskIdCheckin(ctx context.Context, request
 			return &gen.PostCheckinTasksTaskIdCheckin404JSONResponse{
 				Code:    "1",
 				Message: "用户组不存在",
+			}, nil
+		}
+		if errors.Is(err, appErrors.ErrTaskHasEnded) {
+			return &gen.PostCheckinTasksTaskIdCheckin200JSONResponse{
+				Code: "0",
+				Data: struct {
+					RecordId   int  `json:"recordId"`
+					SignedTime int  `json:"signedTime"`
+					Success    bool `json:"success"`
+				}{
+					RecordId:   record.RecordID,
+					SignedTime: int(record.SignedTime.Unix()),
+					Success:    true,
+				},
+			}, nil
+		}
+		if errors.Is(err, appErrors.ErrTaskNotInRange) {
+			return &gen.PostCheckinTasksTaskIdCheckin200JSONResponse{
+				Code: "0",
+				Data: struct {
+					RecordId   int  `json:"recordId"`
+					SignedTime int  `json:"signedTime"`
+					Success    bool `json:"success"`
+				}{
+					RecordId:   record.RecordID,
+					SignedTime: int(record.SignedTime.Unix()),
+					Success:    false,
+				},
 			}, nil
 		}
 		return nil, err
@@ -900,10 +994,7 @@ func (h *TaskHandler) GetCheckinTasksTaskIdRecords(ctx context.Context, request 
 	// 从上下文中获取用户ID
 	_, ok := ctx.Value("userID").(int)
 	if !ok {
-		return &gen.GetCheckinTasksTaskIdRecords401JSONResponse{
-			Code:    "1",
-			Message: "未授权访问",
-		}, nil
+		return nil, appErrors.ErrJwtParseFailed
 	}
 
 	// 调用服务获取签到记录列表
@@ -965,10 +1056,7 @@ func (h *TaskHandler) GetUsersMeCheckinRecords(ctx context.Context, request gen.
 	// 从上下文中获取用户ID
 	userID, ok := ctx.Value("userID").(int)
 	if !ok {
-		return &gen.GetUsersMeCheckinRecords401JSONResponse{
-			Code:    "1",
-			Message: "未授权访问",
-		}, nil
+		return nil, appErrors.ErrJwtParseFailed
 	}
 
 	// 调用服务获取签到记录列表
