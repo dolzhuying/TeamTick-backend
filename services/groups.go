@@ -261,6 +261,11 @@ func (s *GroupsService) CreateJoinApplication(ctx context.Context, groupID, user
 		if err == nil && member != nil {
 			return appErrors.ErrGroupMemberAlreadyExists
 		}
+		//检查用户是否已存在申请记录
+		existApplication, err := s.joinApplicationDao.GetByGroupIDAndUserID(ctx, groupID, userID, tx)
+		if err == nil && existApplication != nil && existApplication.Status == "pending" {
+			return appErrors.ErrJoinApplicationAlreadyExists
+		}
 		//创建申请记录
 		newApplication := models.JoinApplication{
 			GroupID:  groupID,
@@ -308,28 +313,40 @@ func (s *GroupsService) GetJoinApplicationsByGroupID(ctx context.Context, groupI
 				}
 				return appErrors.ErrDatabaseOperation.WithError(err)
 			}
-		} else if len(filter) == 1 && filter[0] != "all" {
-			if filter[0] == "processed" {
-				// 查询rejected状态的申请
-				rejectedApps, err := s.joinApplicationDao.GetByGroupIDAndStatus(ctx, groupID, "rejected", tx)
-				if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-					return appErrors.ErrDatabaseOperation.WithError(err)
-				}
-				// 查询accepted状态的申请
-				acceptedApps, err := s.joinApplicationDao.GetByGroupIDAndStatus(ctx, groupID, "accepted", tx)
-				if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-					return appErrors.ErrDatabaseOperation.WithError(err)
-				}
-				// 合并两个结果
-				existApplications = append(rejectedApps, acceptedApps...)
-			}
 		} else {
-			existApplications, err = s.joinApplicationDao.GetByGroupID(ctx, groupID, tx)
-			if err != nil {
-				if errors.Is(err, gorm.ErrRecordNotFound) {
-					return appErrors.ErrJoinApplicationNotFound
+			switch filter[0] {
+			case "pending":
+				existApplications, err = s.joinApplicationDao.GetByGroupIDAndStatus(ctx, groupID, "pending", tx)
+				if err != nil {
+					if errors.Is(err, gorm.ErrRecordNotFound) {
+						return appErrors.ErrJoinApplicationNotFound
+					}
+					return appErrors.ErrDatabaseOperation.WithError(err)
 				}
-				return appErrors.ErrDatabaseOperation.WithError(err)
+			case "approved":
+				existApplications, err = s.joinApplicationDao.GetByGroupIDAndStatus(ctx, groupID, "accepted", tx)
+				if err != nil {
+					if errors.Is(err, gorm.ErrRecordNotFound) {
+						return appErrors.ErrJoinApplicationNotFound
+					}
+					return appErrors.ErrDatabaseOperation.WithError(err)
+				}
+			case "rejected":
+				existApplications, err = s.joinApplicationDao.GetByGroupIDAndStatus(ctx, groupID, "rejected", tx)
+				if err != nil {
+					if errors.Is(err, gorm.ErrRecordNotFound) {
+						return appErrors.ErrJoinApplicationNotFound
+					}
+					return appErrors.ErrDatabaseOperation.WithError(err)
+				}
+			default:
+				existApplications, err = s.joinApplicationDao.GetByGroupID(ctx, groupID, tx)
+				if err != nil {
+					if errors.Is(err, gorm.ErrRecordNotFound) {
+						return appErrors.ErrJoinApplicationNotFound
+					}
+					return appErrors.ErrDatabaseOperation.WithError(err)
+				}
 			}
 		}
 		applications = existApplications
@@ -405,6 +422,16 @@ func (s *GroupsService) DeleteGroup(ctx context.Context, groupID, operatorID int
 		//删除用户组
 		if err := s.groupDao.Delete(ctx, groupID, tx); err != nil {
 			return appErrors.ErrGroupDeletionFailed.WithError(err)
+		}
+		//删除用户组成员
+		groupMembers, err := s.groupMemberDao.GetMembersByGroupID(ctx, groupID, tx)
+		if err != nil {
+			return appErrors.ErrDatabaseOperation.WithError(err)
+		}
+		for _, member := range groupMembers {
+			if err := s.groupMemberDao.Delete(ctx, groupID, member.UserID, tx); err != nil {
+				return appErrors.ErrGroupMemberDeletionFailed.WithError(err)
+			}
 		}
 		return nil
 	})

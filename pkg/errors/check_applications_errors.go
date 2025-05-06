@@ -15,7 +15,7 @@ var(
 
 	ErrAuditRequestAlreadyExists=&AppError{
 		Message:"Audit request already exists",
-		Status:http.StatusBadRequest,
+		Status:http.StatusConflict,
 	}
 
 	ErrAuditRequestUpdateFailed=&AppError{

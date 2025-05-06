@@ -931,6 +931,12 @@ func (h *TaskHandler) PostCheckinTasksTaskIdCheckin(ctx context.Context, request
 	// 调用服务执行签到
 	record, err := h.taskService.CheckInTask(ctx, request.TaskId, userID, request.Body.VerificationData.LocationInfo.Location.Latitude, request.Body.VerificationData.LocationInfo.Location.Longitude, time.Now())
 	if err != nil {
+		if errors.Is(err, appErrors.ErrTaskRecordAlreadyExists) {
+			return &gen.PostCheckinTasksTaskIdCheckin409JSONResponse{
+				Code:    "1",
+				Message: "您已经签到过该任务",
+			}, nil
+		}
 		if errors.Is(err, appErrors.ErrTaskNotFound) {
 			return &gen.PostCheckinTasksTaskIdCheckin404JSONResponse{
 				Code:    "1",

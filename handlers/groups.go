@@ -433,6 +433,12 @@ func (h *GroupsHandler) PostGroupsGroupIdJoinRequests(ctx context.Context, reque
 				Message: "您已经是该组成员",
 			}, nil
 		}
+		if errors.Is(err, appErrors.ErrJoinApplicationAlreadyExists) {
+			return &gen.PostGroupsGroupIdJoinRequests409JSONResponse{
+				Code:    "1",
+				Message: "您已经提交过加入申请",
+			}, nil
+		}
 		return nil, err
 	}
 
