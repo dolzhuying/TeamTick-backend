@@ -114,7 +114,7 @@ func RegisterCheckinRecordsHandlersWithOptions(router gin.IRouter, si CheckinRec
 	errorHandler := options.ErrorHandler
 	if errorHandler == nil {
 		errorHandler = func(c *gin.Context, err error, statusCode int) {
-			c.JSON(statusCode, gin.H{"code": "1", "message": err.Error()})
+			c.JSON(statusCode, gin.H{"msg": err.Error()})
 		}
 	}
 
@@ -191,6 +191,15 @@ type PostCheckinTasksTaskIdCheckin404JSONResponse NotFound
 func (response PostCheckinTasksTaskIdCheckin404JSONResponse) VisitPostCheckinTasksTaskIdCheckinResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PostCheckinTasksTaskIdCheckin409JSONResponse Conflict
+
+func (response PostCheckinTasksTaskIdCheckin409JSONResponse) VisitPostCheckinTasksTaskIdCheckinResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
 
 	return json.NewEncoder(w).Encode(response)
 }

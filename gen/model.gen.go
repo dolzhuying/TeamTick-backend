@@ -18,8 +18,8 @@ const (
 
 // Defines values for BaseResponseCode.
 const (
-	N0 BaseResponseCode = 0
-	N1 BaseResponseCode = 1
+	N0 BaseResponseCode = "0"
+	N1 BaseResponseCode = "1"
 )
 
 // Defines values for CheckinTaskStatus.
@@ -61,10 +61,9 @@ const (
 const (
 	UserCheckinStatusAuditApproved UserCheckinStatus = "audit_approved"
 	UserCheckinStatusAuditRejected UserCheckinStatus = "audit_rejected"
-	UserCheckinStatusPending       UserCheckinStatus = "pending"
 	UserCheckinStatusPendingAudit  UserCheckinStatus = "pending_audit"
 	UserCheckinStatusSuccess       UserCheckinStatus = "success"
-	UserCheckinStatusTimeout       UserCheckinStatus = "timeout"
+	UserCheckinStatusUnchecked     UserCheckinStatus = "unchecked"
 )
 
 // Defines values for PutAuditRequestsAuditRequestIdJSONBodyAction.
@@ -78,6 +77,21 @@ const (
 	Gps  PostCheckinTasksTaskIdVerifyJSONBodyVerifyType = "gps"
 	Nfc  PostCheckinTasksTaskIdVerifyJSONBodyVerifyType = "nfc"
 	Wifi PostCheckinTasksTaskIdVerifyJSONBodyVerifyType = "wifi"
+)
+
+// Defines values for PostExportTasksJSONBodyStatuses.
+const (
+	PostExportTasksJSONBodyStatusesAbsent         PostExportTasksJSONBodyStatuses = "absent"
+	PostExportTasksJSONBodyStatusesAuditApproved  PostExportTasksJSONBodyStatuses = "audit_approved"
+	PostExportTasksJSONBodyStatusesAuditRejected  PostExportTasksJSONBodyStatuses = "audit_rejected"
+	PostExportTasksJSONBodyStatusesFailedFace     PostExportTasksJSONBodyStatuses = "failed_face"
+	PostExportTasksJSONBodyStatusesFailedLocation PostExportTasksJSONBodyStatuses = "failed_location"
+	PostExportTasksJSONBodyStatusesFailedNfc      PostExportTasksJSONBodyStatuses = "failed_nfc"
+	PostExportTasksJSONBodyStatusesFailedOther    PostExportTasksJSONBodyStatuses = "failed_other"
+	PostExportTasksJSONBodyStatusesFailedTime     PostExportTasksJSONBodyStatuses = "failed_time"
+	PostExportTasksJSONBodyStatusesFailedWifi     PostExportTasksJSONBodyStatuses = "failed_wifi"
+	PostExportTasksJSONBodyStatusesPendingAudit   PostExportTasksJSONBodyStatuses = "pending_audit"
+	PostExportTasksJSONBodyStatusesSuccess        PostExportTasksJSONBodyStatuses = "success"
 )
 
 // Defines values for GetGroupsParamsFilter.
@@ -147,7 +161,7 @@ type BaseResponse struct {
 }
 
 // BaseResponseCode 响应码，0表示成功，1表示失败
-type BaseResponseCode int
+type BaseResponseCode string
 
 // CheckinMethods 校验方式组合
 type CheckinMethods struct {
@@ -517,6 +531,26 @@ type PostCheckinTasksTaskIdVerifyJSONBody struct {
 // PostCheckinTasksTaskIdVerifyJSONBodyVerifyType defines parameters for PostCheckinTasksTaskIdVerify.
 type PostCheckinTasksTaskIdVerifyJSONBodyVerifyType string
 
+// PostExportTasksJSONBody defines parameters for PostExportTasks.
+type PostExportTasksJSONBody struct {
+	DateRange struct {
+		// End 结束日期（Unix时间戳，单位：秒）
+		End int `binding:"required,gtefield=start" json:"end"`
+
+		// Start 开始日期（Unix时间戳，单位：秒）
+		Start int `binding:"required" json:"start"`
+	} `binding:"required" json:"dateRange"`
+
+	// GroupIds 需要导出的用户组ID列表
+	GroupIds []int `binding:"required,min=1,dive,gt=0" json:"groupIds"`
+
+	// Statuses 需要导出的签到状态列表
+	Statuses *[]PostExportTasksJSONBodyStatuses `binding:"omitempty" json:"statuses,omitempty"`
+}
+
+// PostExportTasksJSONBodyStatuses defines parameters for PostExportTasks.
+type PostExportTasksJSONBodyStatuses string
+
 // GetGroupsParams defines parameters for GetGroups.
 type GetGroupsParams struct {
 	// Filter 筛选条件: `created` (我创建的), `joined` (我加入的)。不传则返回所有相关的。
@@ -592,6 +626,63 @@ type PutGroupsGroupIdJoinRequestsRequestIdJSONBody struct {
 // PutGroupsGroupIdJoinRequestsRequestIdJSONBodyAction defines parameters for PutGroupsGroupIdJoinRequestsRequestId.
 type PutGroupsGroupIdJoinRequestsRequestIdJSONBodyAction string
 
+// GetStatisticsDailyParams defines parameters for GetStatisticsDaily.
+type GetStatisticsDailyParams struct {
+	// GroupId 用户组ID（可选，筛选特定用户组的统计数据）
+	GroupId *int `form:"groupId,omitempty" json:"groupId,omitempty"`
+
+	// StartDate 开始日期（Unix时间戳，单位：秒）
+	StartDate *int `form:"startDate,omitempty" json:"startDate,omitempty"`
+
+	// EndDate 结束日期（Unix时间戳，单位：秒）
+	EndDate *int `form:"endDate,omitempty" json:"endDate,omitempty"`
+}
+
+// GetStatisticsGroupsParams defines parameters for GetStatisticsGroups.
+type GetStatisticsGroupsParams struct {
+	// StartDate 开始日期（Unix时间戳，单位：秒）
+	StartDate *int `form:"startDate,omitempty" json:"startDate,omitempty"`
+
+	// EndDate 结束日期（Unix时间戳，单位：秒）
+	EndDate *int `form:"endDate,omitempty" json:"endDate,omitempty"`
+}
+
+// GetStatisticsUsersParams defines parameters for GetStatisticsUsers.
+type GetStatisticsUsersParams struct {
+	// GroupId 用户组ID（筛选特定用户组的用户）
+	GroupId *int `form:"groupId,omitempty" json:"groupId,omitempty"`
+
+	// StartDate 开始日期（Unix时间戳，单位：秒）
+	StartDate *int `form:"startDate,omitempty" json:"startDate,omitempty"`
+
+	// EndDate 结束日期（Unix时间戳，单位：秒）
+	EndDate *int `form:"endDate,omitempty" json:"endDate,omitempty"`
+}
+
+// GetUsersMeFaceParams defines parameters for GetUsersMeFace.
+type GetUsersMeFaceParams struct {
+	// UserId 用户ID
+	UserId int `form:"userId" json:"userId"`
+}
+
+// PutUsersMeFaceJSONBody defines parameters for PutUsersMeFace.
+type PutUsersMeFaceJSONBody struct {
+	// FaceImageBase64 人脸图像的Base64编码
+	FaceImageBase64 string `binding:"required" json:"faceImageBase64"`
+
+	// UserId 用户ID
+	UserId int `binding:"required" json:"userId"`
+}
+
+// PostUsersMeFaceVerifyJSONBody defines parameters for PostUsersMeFaceVerify.
+type PostUsersMeFaceVerifyJSONBody struct {
+	// FaceImagesBase64 待验证的人脸图像Base64编码数组
+	FaceImagesBase64 []string `binding:"required,min=1" json:"faceImagesBase64"`
+
+	// UserId 用户ID
+	UserId int `json:"userId,omitempty"`
+}
+
 // PutAuditRequestsAuditRequestIdJSONRequestBody defines body for PutAuditRequestsAuditRequestId for application/json ContentType.
 type PutAuditRequestsAuditRequestIdJSONRequestBody PutAuditRequestsAuditRequestIdJSONBody
 
@@ -613,6 +704,9 @@ type PostCheckinTasksTaskIdCheckinJSONRequestBody PostCheckinTasksTaskIdCheckinJ
 // PostCheckinTasksTaskIdVerifyJSONRequestBody defines body for PostCheckinTasksTaskIdVerify for application/json ContentType.
 type PostCheckinTasksTaskIdVerifyJSONRequestBody PostCheckinTasksTaskIdVerifyJSONBody
 
+// PostExportTasksJSONRequestBody defines body for PostExportTasks for application/json ContentType.
+type PostExportTasksJSONRequestBody PostExportTasksJSONBody
+
 // PostGroupsJSONRequestBody defines body for PostGroups for application/json ContentType.
 type PostGroupsJSONRequestBody PostGroupsJSONBody
 
@@ -627,6 +721,12 @@ type PostGroupsGroupIdJoinRequestsJSONRequestBody PostGroupsGroupIdJoinRequestsJ
 
 // PutGroupsGroupIdJoinRequestsRequestIdJSONRequestBody defines body for PutGroupsGroupIdJoinRequestsRequestId for application/json ContentType.
 type PutGroupsGroupIdJoinRequestsRequestIdJSONRequestBody PutGroupsGroupIdJoinRequestsRequestIdJSONBody
+
+// PutUsersMeFaceJSONRequestBody defines body for PutUsersMeFace for application/json ContentType.
+type PutUsersMeFaceJSONRequestBody PutUsersMeFaceJSONBody
+
+// PostUsersMeFaceVerifyJSONRequestBody defines body for PostUsersMeFaceVerify for application/json ContentType.
+type PostUsersMeFaceVerifyJSONRequestBody PostUsersMeFaceVerifyJSONBody
 
 // AsSuccessWithDataData0 returns the union data inside the SuccessWithData_Data as a SuccessWithDataData0
 func (t SuccessWithData_Data) AsSuccessWithDataData0() (SuccessWithDataData0, error) {
