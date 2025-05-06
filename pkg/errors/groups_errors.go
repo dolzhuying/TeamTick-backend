@@ -53,6 +53,11 @@ var (
 		Status:  http.StatusNotFound,
 	}
 
+	ErrJoinApplicationAlreadyExists = &AppError{
+		Message: "用户申请加入记录已存在",
+		Status:  http.StatusConflict,
+	}
+
 	ErrJoinApplicationUpdateFailed = &AppError{
 		Message: "用户申请加入记录更新失败",
 		Status:  http.StatusInternalServerError,

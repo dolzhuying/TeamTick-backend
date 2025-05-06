@@ -258,6 +258,12 @@ func (s *TaskService) CheckInTask(
 		// 	return appErrors.ErrTaskHasEnded
 		// }
 
+		//检查用户是否已签到
+		record, err := s.taskRecordDao.GetByTaskIDAndUserID(ctx, taskID, userID, tx)
+		if err == nil && record != nil {
+			return appErrors.ErrTaskRecordAlreadyExists
+		}
+
 		group, err := s.groupDao.GetByGroupID(ctx, task.GroupID, tx)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
