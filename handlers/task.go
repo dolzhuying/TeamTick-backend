@@ -785,7 +785,7 @@ func (h *TaskHandler) GetUsersMeCheckinTasks(ctx context.Context, request gen.Ge
 				myCheckinStatus = gen.UserCheckinStatusAuditRejected
 			}
 		} else {
-			myCheckinStatus = gen.UserCheckinStatusPending
+			myCheckinStatus = "unchecked"
 		}
 
 		// 判断任务状态
@@ -1000,7 +1000,7 @@ func (h *TaskHandler) GetCheckinTasksTaskIdRecords(ctx context.Context, request 
 	if err != nil {
 		if errors.Is(err, appErrors.ErrTaskNotFound) {
 			return &gen.GetCheckinTasksTaskIdRecords404JSONResponse{
-				Code:    "1", 
+				Code:    "1",
 				Message: "任务不存在",
 			}, nil
 		}
