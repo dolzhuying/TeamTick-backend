@@ -190,6 +190,7 @@ func (s *AuditRequestService) UpdateAuditRequest(ctx context.Context, requestID 
 				UserID:     request.UserID,
 				Username:   request.Username,
 				SignedTime: time.Now(),
+				Status:     2,
 			}
 			if err := s.taskRecordDAO.Create(ctx, &record, tx); err != nil {
 				return appErrors.ErrTaskRecordCreationFailed.WithError(err)
@@ -227,4 +228,3 @@ func (s *AuditRequestService) GetGroupIDByAuditRequestID(ctx context.Context, re
 	}
 	return groupID, nil
 }
-

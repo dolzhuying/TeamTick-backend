@@ -10,21 +10,11 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// GetByGroupID(ctx context.Context,groupID int,tx ...*redis.Client) ([]*models.Task,error)
-// SetByGroupID(ctx context.Context,groupID int,tasks []*models.Task) error
-// GetByUserID(ctx context.Context,userID int,tx ...*redis.Client) ([]*models.Task,error)
-// SetByUserID(ctx context.Context,userID int,tasks []*models.Task) error
-// GetByTaskID(ctx context.Context,taskID int,tx ...*redis.Client) (*models.Task,error)
-// SetByTaskID(ctx context.Context,taskID int,task *models.Task) error
-// DeleteCacheByTaskID(ctx context.Context,taskID int) error
-// DeleteCacheByUserID(ctx context.Context,userID int) error
-// DeleteCacheByGroupID(ctx context.Context,groupID int) error
-
 const (
 	TaskKeyPrefix = "task:"
 	TaskGroupIDKeyPrefix = "task:group:"
 	TaskUserIDKeyPrefix = "task:user:"
-	DefaultExpireTime = 5 * time.Minute
+	DefaultExpireTime = 30 * time.Minute
 )
 
 type TaskRedisDAOImpl struct {
