@@ -1,4 +1,4 @@
-package impl
+package mysqlImpl
 
 import (
 	"TeamTickBackend/dal/models"

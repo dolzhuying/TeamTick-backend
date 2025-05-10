@@ -3,6 +3,7 @@ package app
 import (
 	db "TeamTickBackend/dal"
 	"TeamTickBackend/dal/dao"
+	"TeamTickBackend/dal/redis" 
 	"TeamTickBackend/pkg"
 
 	"gorm.io/gorm"
@@ -19,7 +20,14 @@ func NewAppContainer() *AppContainer {
 	if db == nil {
 		panic("Failed to initialize database")
 	}
-	daoFactory := dao.NewDAOFactory(db)
+
+	redisClient := redis.InitRedis()
+	if redisClient == nil {
+		panic("Failed to initialize redis")
+	}
+
+	daoFactory := dao.NewDAOFactory(db, redisClient)
+
 	jwtHandler, err := pkg.NewJwtHandler()
 	if err != nil {
 		panic("Failed to initialize JWT handler")

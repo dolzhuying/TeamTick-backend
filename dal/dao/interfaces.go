@@ -4,6 +4,7 @@ import (
 	"TeamTickBackend/dal/models"
 	"context"
 
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
@@ -74,4 +75,25 @@ type CheckApplicationDAO interface {
 	Update(ctx context.Context, status string, requestID int, tx ...*gorm.DB) error
 	GetByTaskIDAndUserID(ctx context.Context, taskID int, userID int, tx ...*gorm.DB) (*models.CheckApplication, error)
 	GetByID(ctx context.Context, id int, tx ...*gorm.DB) (*models.CheckApplication, error)
+}
+
+
+// TaskRecordRedisDAO Redis缓存实现的签到记录访问接口
+type TaskRecordRedisDAO interface {
+	GetByTaskID(ctx context.Context, taskID int, tx ...*redis.Client) ([]*models.TaskRecord, error)
+	SetByTaskID(ctx context.Context, taskID int, records []*models.TaskRecord) error
+	GetByUserID(ctx context.Context, userID int, tx ...*redis.Client) ([]*models.TaskRecord, error)
+	SetByUserID(ctx context.Context, userID int, records []*models.TaskRecord) error
+	GetByTaskIDAndUserID(ctx context.Context, taskID, userID int, tx ...*redis.Client) (*models.TaskRecord, error)
+	SetTaskIDAndUserID(ctx context.Context, record *models.TaskRecord) error
+	DeleteCache(ctx context.Context, taskID, userID int) error
+}
+
+type TaskRedisDAO interface {
+	GetByGroupID(ctx context.Context,groupID int,tx ...*redis.Client) ([]*models.Task,error)
+	SetByGroupID(ctx context.Context,groupID int,tasks []*models.Task) error
+	GetByTaskID(ctx context.Context,taskID int,tx ...*redis.Client) (*models.Task,error)
+	SetByTaskID(ctx context.Context,taskID int,task *models.Task) error
+	DeleteCacheByTaskID(ctx context.Context,taskID int) error
+	DeleteCacheByGroupID(ctx context.Context,groupID int) error
 }

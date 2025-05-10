@@ -21,6 +21,8 @@ func NewTaskHandler(container *app.AppContainer) (gen.CheckinTasksServerInterfac
 	TaskService := service.NewTaskService(
 		container.DaoFactory.TaskDAO,
 		container.DaoFactory.TaskRecordDAO,
+		container.DaoFactory.TaskRecordRedisDAO,
+		container.DaoFactory.TaskRedisDAO,
 		container.DaoFactory.TransactionManager,
 		container.DaoFactory.GroupDAO,
 	)
