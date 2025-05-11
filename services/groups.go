@@ -6,15 +6,19 @@ import (
 	appErrors "TeamTickBackend/pkg/errors"
 	"context"
 	"errors"
+	"log"
 
 	"gorm.io/gorm"
 )
 
 type GroupsService struct {
-	groupDao           dao.GroupDAO
-	groupMemberDao     dao.GroupMemberDAO
-	joinApplicationDao dao.JoinApplicationDAO
-	transactionManager dao.TransactionManager
+	groupDao                dao.GroupDAO
+	groupMemberDao          dao.GroupMemberDAO
+	joinApplicationDao      dao.JoinApplicationDAO
+	transactionManager      dao.TransactionManager
+	groupRedisDAO           dao.GroupRedisDAO
+	groupMemberRedisDAO     dao.GroupMemberRedisDAO
+	joinApplicationRedisDAO dao.JoinApplicationRedisDAO
 }
 
 func NewGroupsService(
@@ -22,13 +26,19 @@ func NewGroupsService(
 	groupMemberDao dao.GroupMemberDAO,
 	joinApplicationDao dao.JoinApplicationDAO,
 	transactionManager dao.TransactionManager,
+	groupRedisDAO dao.GroupRedisDAO,
+	groupMemberRedisDAO dao.GroupMemberRedisDAO,
+	joinApplicationRedisDAO dao.JoinApplicationRedisDAO,
 ) *GroupsService {
 
 	return &GroupsService{
-		groupDao:           groupDao,
-		groupMemberDao:     groupMemberDao,
-		joinApplicationDao: joinApplicationDao,
-		transactionManager: transactionManager,
+		groupDao:                groupDao,
+		groupMemberDao:          groupMemberDao,
+		joinApplicationDao:      joinApplicationDao,
+		transactionManager:      transactionManager,
+		groupRedisDAO:           groupRedisDAO,
+		groupMemberRedisDAO:     groupMemberRedisDAO,
+		joinApplicationRedisDAO: joinApplicationRedisDAO,
 	}
 }
 
@@ -62,13 +72,25 @@ func (s *GroupsService) CreateGroup(ctx context.Context, groupName, description,
 	if err != nil {
 		return nil, err
 	}
+
+	// 缓存用户组
+	if err := s.groupRedisDAO.SetByGroupID(ctx, createdGroup.GroupID, &createdGroup); err != nil {
+		log.Printf("set group to redis failed, err: %v", err)
+	}
 	return &createdGroup, nil
 }
 
 // 通过GroupID查询用户组信息
 func (s *GroupsService) GetGroupByGroupID(ctx context.Context, groupID int) (*models.Group, error) {
+	// 从缓存中查找用户组
+	existGroup, err := s.groupRedisDAO.GetByGroupID(ctx, groupID)
+	if err == nil && existGroup != nil {
+		return existGroup, nil
+	}
+
+	// 从数据库中查找用户组
 	var group models.Group
-	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
+	err = s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
 		Group, err := s.groupDao.GetByGroupID(ctx, groupID, tx)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -81,6 +103,11 @@ func (s *GroupsService) GetGroupByGroupID(ctx context.Context, groupID int) (*mo
 	})
 	if err != nil {
 		return nil, err
+	}
+
+	// 缓存用户组
+	if err := s.groupRedisDAO.SetByGroupID(ctx, group.GroupID, &group); err != nil {
+		log.Printf("set group to redis failed, err: %v", err)
 	}
 	return &group, nil
 }
@@ -114,6 +141,7 @@ func (s *GroupsService) GetGroupsByUserID(ctx context.Context, userID int, filte
 // 更新用户组信息
 func (s *GroupsService) UpdateGroup(ctx context.Context, groupID, operatorID int, groupName, description string) (*models.Group, error) {
 	var updatedGroup models.Group
+	var members []*models.GroupMember
 	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
 		//检查操作员权限
 		if err := s.CheckMemberPermission(ctx, groupID, operatorID); err != nil {
@@ -128,17 +156,45 @@ func (s *GroupsService) UpdateGroup(ctx context.Context, groupID, operatorID int
 		if err != nil {
 			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
+		// 查询用户组成员列表以删除缓存
+		members, err = s.groupMemberDao.GetMembersByGroupID(ctx, groupID, tx)
+		if err != nil {
+			return appErrors.ErrDatabaseOperation.WithError(err)
+		}
 		updatedGroup = *group
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
+
+	// 删除用户组及成员缓存
+	if err := s.groupRedisDAO.DeleteCacheByGroupID(ctx, groupID); err != nil {
+		log.Printf("delete group cache failed, err: %v", err)
+	}
+	if err := s.groupMemberRedisDAO.DeleteCacheByGroupID(ctx, groupID); err != nil {
+		log.Printf("delete group members cache failed, err: %v", err)
+	}
+	for _, member := range members {
+		if err := s.groupMemberRedisDAO.DeleteCacheByGroupIDAndUserID(ctx, groupID, member.UserID); err != nil {
+			log.Printf("delete group member cache failed, err: %v", err)
+		}
+	}
 	return &updatedGroup, nil
 }
 
 // 检查用户组成员权限
 func (s *GroupsService) CheckMemberPermission(ctx context.Context, groupID, userID int) error {
+	// 从缓存查找
+	existMember, err := s.groupMemberRedisDAO.GetMemberByGroupIDAndUserID(ctx, groupID, userID)
+	if err == nil && existMember != nil {
+		if existMember.Role == "admin" {
+			return nil
+		}
+		return appErrors.ErrRolePermissionDenied
+	}
+
+	// 从数据库查找
 	member, err := s.groupMemberDao.GetMemberByGroupIDAndUserID(ctx, groupID, userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -146,6 +202,12 @@ func (s *GroupsService) CheckMemberPermission(ctx context.Context, groupID, user
 		}
 		return appErrors.ErrDatabaseOperation.WithError(err)
 	}
+
+	// 缓存用户组成员
+	if err := s.groupMemberRedisDAO.SetMemberByGroupIDAndUserID(ctx, member); err != nil {
+		log.Printf("set group member to redis failed, err: %v", err)
+	}
+
 	if member.Role == "admin" {
 		return nil
 	}
@@ -154,51 +216,25 @@ func (s *GroupsService) CheckMemberPermission(ctx context.Context, groupID, user
 
 // 检查用户是否存在于用户组
 func (s *GroupsService) CheckUserExistInGroup(ctx context.Context, groupID, userID int) error {
-	_, err := s.groupMemberDao.GetMemberByGroupIDAndUserID(ctx, groupID, userID)
+	// 从缓存查找
+	existMember, err := s.groupMemberRedisDAO.GetMemberByGroupIDAndUserID(ctx, groupID, userID)
+	if err == nil && existMember != nil {
+		return nil
+	}
+	// 从数据库查找
+	member, err := s.groupMemberDao.GetMemberByGroupIDAndUserID(ctx, groupID, userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return appErrors.ErrGroupMemberNotFound
 		}
 		return appErrors.ErrDatabaseOperation.WithError(err)
 	}
-	return nil
-}
 
-// 添加用户到用户组
-// MVP版本申请加入暂时为直接加入，不需要审批，直接调用该函数
-// 但是迭代版本需要审批，审批通过则会执行 往用户-用户组表添加组员，更新用户组成员数量，更新申请表中记录的状态三个行为，需要放在一个事务中
-func (s *GroupsService) AddMemberToGroup(ctx context.Context, groupID, userID, operatorID int, username string) (*models.GroupMember, error) {
-	var member models.GroupMember
-	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
-		//检查操作员权限
-		// if err:=s.CheckMemberPermission(ctx,groupID,operatorID);err!=nil{
-		// 	return apperrors.ErrRolePermissionDenied.WithError(err)
-		// }
-		//检查用户组是否存在
-		existMember, err := s.groupMemberDao.GetMemberByGroupIDAndUserID(ctx, groupID, userID, tx)
-		if err == nil && existMember != nil {
-			return appErrors.ErrGroupMemberAlreadyExists
-		}
-		newMember := models.GroupMember{
-			GroupID:  groupID,
-			UserID:   userID,
-			Username: username,
-		}
-		//创建用户组成员
-		if err := s.groupMemberDao.Create(ctx, &newMember, tx); err != nil {
-			return appErrors.ErrGroupMemberCreationFailed.WithError(err)
-		}
-		//更新用户组成员数量
-		if err := s.groupDao.UpdateMemberNum(ctx, groupID, true, tx); err != nil {
-			return appErrors.ErrGroupUpdateFailed.WithError(err)
-		}
-		member = newMember
-		return nil
-	})
-	if err != nil {
-		return nil, err
+	// 缓存用户组成员
+	if err := s.groupMemberRedisDAO.SetMemberByGroupIDAndUserID(ctx, member); err != nil {
+		log.Printf("set group member to redis failed, err: %v", err)
 	}
-	return &member, nil
+	return nil
 }
 
 // 删除用户组中的用户
@@ -221,13 +257,31 @@ func (s *GroupsService) RemoveMemberFromGroup(ctx context.Context, groupID, user
 	if err != nil {
 		return err
 	}
+
+	// 删除用户组及成员缓存
+	if err := s.groupRedisDAO.DeleteCacheByGroupID(ctx, groupID); err != nil {
+		log.Printf("delete group cache failed, err: %v", err)
+	}
+	if err := s.groupMemberRedisDAO.DeleteCacheByGroupID(ctx, groupID); err != nil {
+		log.Printf("delete group members cache failed, err: %v", err)
+	}
+	if err := s.groupMemberRedisDAO.DeleteCacheByGroupIDAndUserID(ctx, groupID, userID); err != nil {
+		log.Printf("delete group member cache failed, err: %v", err)
+	}
 	return nil
 }
 
 // 查询用户组中的所有成员
 func (s *GroupsService) GetMembersByGroupID(ctx context.Context, groupID int) ([]*models.GroupMember, error) {
+	// 从缓存查找
+	existMembers, err := s.groupMemberRedisDAO.GetMembersByGroupID(ctx, groupID)
+	if err == nil && existMembers != nil && len(existMembers) > 0 {
+		return existMembers, nil
+	}
+
+	// 从数据库查找
 	var members []*models.GroupMember
-	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
+	err = s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
 		groupMembers, err := s.groupMemberDao.GetMembersByGroupID(ctx, groupID, tx)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -241,13 +295,25 @@ func (s *GroupsService) GetMembersByGroupID(ctx context.Context, groupID int) ([
 	if err != nil {
 		return nil, err
 	}
+
+	// 缓存用户组成员
+	if err := s.groupMemberRedisDAO.SetMembersByGroupID(ctx, groupID, members); err != nil {
+		log.Printf("set group members to redis failed, err: %v", err)
+	}
 	return members, nil
 }
 
 // 创建用户申请加入记录(返回值？是否需要返回申请记录)
 func (s *GroupsService) CreateJoinApplication(ctx context.Context, groupID, userID int, username, reason string) (*models.JoinApplication, error) {
+	// 从缓存查找是否已存在申请记录，避免重复申请
+	existApplication, err := s.joinApplicationRedisDAO.GetByGroupIDAndUserID(ctx, groupID, userID)
+	if err == nil && existApplication != nil && existApplication.Status == "pending" {
+		return nil, appErrors.ErrJoinApplicationAlreadyExists
+	}
+
+	// 数据库层面进行查询并防止重复申请
 	var application models.JoinApplication
-	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
+	err = s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
 		//检查用户组是否存在
 		_, err := s.groupDao.GetByGroupID(ctx, groupID, tx)
 		if err != nil {
@@ -282,11 +348,65 @@ func (s *GroupsService) CreateJoinApplication(ctx context.Context, groupID, user
 	if err != nil {
 		return nil, err
 	}
+
+	// 缓存申请记录
+
+	// 缓存单个用户申请记录
+	if err := s.joinApplicationRedisDAO.SetByGroupIDAndUserID(ctx, &application); err != nil {
+		log.Printf("set join application by userid and groupid to redis failed, err: %v", err)
+	}
+
+	// 缓存用户组所有申请记录
+	existGroupApplication, err := s.joinApplicationRedisDAO.GetByGroupID(ctx, groupID)
+	if existGroupApplication == nil {
+		existGroupApplication = []*models.JoinApplication{}
+	}
+	existGroupApplication = append(existGroupApplication, &application)
+	if err := s.joinApplicationRedisDAO.SetByGroupID(ctx, groupID, existGroupApplication); err != nil {
+		log.Printf("set join application by groupid to redis failed, err: %v", err)
+	}
+
+	// 缓存用户组待审批申请记录
+	existGroupPendingApplication, err := s.joinApplicationRedisDAO.GetByGroupIDAndStatus(ctx, groupID, "pending")
+	if existGroupPendingApplication == nil {
+		existGroupPendingApplication = []*models.JoinApplication{}
+	}
+	existGroupPendingApplication = append(existGroupPendingApplication, &application)
+	if err := s.joinApplicationRedisDAO.SetByGroupIDAndStatus(ctx, groupID, "pending", existGroupPendingApplication); err != nil {
+		log.Printf("set join application by groupid and status to redis failed, err: %v", err)
+	}
 	return &application, nil
 }
 
-// 查看用户组加入申请列表（待审批）
+// 查看用户组加入申请列表
 func (s *GroupsService) GetJoinApplicationsByGroupID(ctx context.Context, groupID, operatorID int, filter ...string) ([]*models.JoinApplication, error) {
+	// 从缓存查找,按照有无filter进行不同查询
+	if len(filter) == 0 {
+		existGroupApplication, err := s.joinApplicationRedisDAO.GetByGroupIDAndStatus(ctx, groupID, "pending")
+		if err == nil && existGroupApplication != nil {
+			return existGroupApplication, nil
+		}
+	} else {
+		var joinApplicaiton []*models.JoinApplication
+		var err error
+
+		switch filter[0]{
+		case "pending":
+			joinApplicaiton, err = s.joinApplicationRedisDAO.GetByGroupIDAndStatus(ctx, groupID, "pending")
+		case "approved":
+			joinApplicaiton, err = s.joinApplicationRedisDAO.GetByGroupIDAndStatus(ctx, groupID, "accepted")
+		case "rejected":
+			joinApplicaiton, err = s.joinApplicationRedisDAO.GetByGroupIDAndStatus(ctx, groupID, "rejected")
+		default:
+			joinApplicaiton, err = s.joinApplicationRedisDAO.GetByGroupID(ctx, groupID)
+		}
+
+		if err == nil && joinApplicaiton != nil {
+			return joinApplicaiton, nil
+		}
+	}
+
+	// 从数据库查找
 	var applications []*models.JoinApplication
 	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
 		//检查操作员权限
@@ -355,11 +475,37 @@ func (s *GroupsService) GetJoinApplicationsByGroupID(ctx context.Context, groupI
 	if err != nil {
 		return nil, err
 	}
+
+	// 根据对应filter缓存记录
+	if len(filter) == 0 {
+		if err := s.joinApplicationRedisDAO.SetByGroupIDAndStatus(ctx, groupID, "pending", applications); err != nil {
+			log.Printf("set join application by groupid and status to redis failed, err: %v", err)
+		}
+	} else {
+		var err error
+		switch filter[0] {
+			case "pending":
+				err = s.joinApplicationRedisDAO.SetByGroupIDAndStatus(ctx, groupID, "pending", applications)
+			case "approved":
+				err = s.joinApplicationRedisDAO.SetByGroupIDAndStatus(ctx, groupID, "accepted", applications)
+			case "rejected":
+				err = s.joinApplicationRedisDAO.SetByGroupIDAndStatus(ctx, groupID, "rejected", applications)
+			default:
+				err = s.joinApplicationRedisDAO.SetByGroupID(ctx, groupID, applications)
+		}
+		if err != nil {
+			log.Printf("set join application by groupid (with status) to redis failed, err: %v", err)
+		}
+	}
+
 	return applications, nil
 }
 
-// 审批用户组加入申请（通过申请）（迭代，涉及多个操作，AddMemberToGroup提及）
+// 审批用户组加入申请（通过申请）
 func (s *GroupsService) ApproveJoinApplication(ctx context.Context, groupID, userID, operatorID, requestID int, username string) error {
+	// 用于缓存审批通过的记录
+	var application models.JoinApplication
+
 	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
 		//检查操作员权限
 		if err := s.CheckMemberPermission(ctx, groupID, operatorID); err != nil {
@@ -381,16 +527,76 @@ func (s *GroupsService) ApproveJoinApplication(ctx context.Context, groupID, use
 		if err := s.joinApplicationDao.UpdateStatus(ctx, requestID, "accepted", tx); err != nil {
 			return appErrors.ErrJoinApplicationUpdateFailed.WithError(err)
 		}
+		
+		// 接受审批通过的记录，用于缓存
+		newApplication,err:=s.joinApplicationDao.GetByRequestID(ctx,requestID,tx)
+		if err!=nil{
+			return appErrors.ErrDatabaseOperation.WithError(err)
+		}
+		application = *newApplication
 		return nil
 	})
 	if err != nil {
 		return err
 	}
+
+	// 删除用户组及成员缓存(单个用户记录没有变化，不需要删除)
+	if err := s.groupRedisDAO.DeleteCacheByGroupID(ctx, groupID); err != nil {
+		log.Printf("delete group cache failed, err: %v", err)
+	}
+	if err := s.groupMemberRedisDAO.DeleteCacheByGroupID(ctx, groupID); err != nil {
+		log.Printf("delete group members cache failed, err: %v", err)
+	}
+
+	// 删除申请缓存
+
+	// 删除用户申请缓存
+	if err := s.joinApplicationRedisDAO.DeleteCacheByGroupIDAndUserID(ctx, groupID, userID); err != nil {
+		log.Printf("delete join application by userid and groupid to redis failed, err: %v", err)
+	}
+
+	// 删除用户组所有申请缓存（所有状态）
+	if err := s.joinApplicationRedisDAO.DeleteCacheByGroupID(ctx, groupID); err != nil {
+		log.Printf("delete join application by groupid to redis failed, err: %v", err)
+	}
+
+	// 更新用户组待审批状态缓存
+	existGroupPendingApplication, err := s.joinApplicationRedisDAO.GetByGroupIDAndStatus(ctx, groupID, "pending")
+	if existGroupPendingApplication !=nil && len(existGroupPendingApplication)>0{
+		for i:=0;i<len(existGroupPendingApplication);i++{
+			if existGroupPendingApplication[i].RequestID == requestID {
+				existGroupPendingApplication=append(existGroupPendingApplication[:i],existGroupPendingApplication[i+1:]...)
+				break
+			}
+		}
+	}
+	if err := s.joinApplicationRedisDAO.SetByGroupIDAndStatus(ctx, groupID, "pending", existGroupPendingApplication); err != nil {
+		log.Printf("set join application by groupid and status to redis failed, err: %v", err)
+	}
+
+	// 更新用户组加入申请审批通过缓存
+	existGroupApprovedApplication, err := s.joinApplicationRedisDAO.GetByGroupIDAndStatus(ctx, groupID, "accepted")
+	if existGroupApprovedApplication ==nil{
+		existGroupApprovedApplication = []*models.JoinApplication{}
+	}
+	existGroupApprovedApplication = append(existGroupApprovedApplication, &application)
+	if err := s.joinApplicationRedisDAO.SetByGroupIDAndStatus(ctx, groupID, "accepted", existGroupApprovedApplication); err != nil {
+		log.Printf("set join application by groupid and status to redis failed, err: %v", err)
+	}
+
+	// 删除用户加入用户组的申请缓存
+	if err := s.joinApplicationRedisDAO.DeleteCacheByGroupIDAndUserID(ctx, groupID, userID); err != nil {
+		log.Printf("delete join application by userid and groupid to redis failed, err: %v", err)
+	}
+
 	return nil
 }
 
 // 拒绝用户组加入申请
 func (s *GroupsService) RejectJoinApplication(ctx context.Context, groupID, userID, operatorID, requestID int, username, rejectReason string) error {
+	// 用于缓存审批拒绝的记录
+	var application models.JoinApplication
+
 	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
 		//检查操作员权限
 		if err := s.CheckMemberPermission(ctx, groupID, operatorID); err != nil {
@@ -404,16 +610,66 @@ func (s *GroupsService) RejectJoinApplication(ctx context.Context, groupID, user
 		if err := s.joinApplicationDao.UpdateRejectReason(ctx, requestID, rejectReason, tx); err != nil {
 			return appErrors.ErrJoinApplicationUpdateFailed.WithError(err)
 		}
+
+		// 接受审批拒绝的记录，用于缓存
+		newApplication, err := s.joinApplicationDao.GetByRequestID(ctx, requestID, tx)
+		if err != nil {
+			return appErrors.ErrDatabaseOperation.WithError(err)
+		}
+		application = *newApplication
 		return nil
 	})
 	if err != nil {
 		return err
 	}
+
+	// 删除申请缓存
+
+	// 删除用户申请缓存
+	if err := s.joinApplicationRedisDAO.DeleteCacheByGroupIDAndUserID(ctx, groupID, userID); err != nil {
+		log.Printf("delete join application by userid and groupid to redis failed, err: %v", err)
+	}
+
+	// 删除用户组所有申请缓存（所有状态）
+	if err := s.joinApplicationRedisDAO.DeleteCacheByGroupID(ctx, groupID); err != nil {
+		log.Printf("delete join application by groupid to redis failed, err: %v", err)
+	}
+
+	// 更新用户组待审批状态缓存
+	existGroupPendingApplication, err := s.joinApplicationRedisDAO.GetByGroupIDAndStatus(ctx, groupID, "pending")
+	if existGroupPendingApplication !=nil && len(existGroupPendingApplication)>0{
+		for i:=0;i<len(existGroupPendingApplication);i++{
+			if existGroupPendingApplication[i].RequestID == requestID {
+				existGroupPendingApplication=append(existGroupPendingApplication[:i],existGroupPendingApplication[i+1:]...)
+				break
+			}
+		}
+	}
+	if err := s.joinApplicationRedisDAO.SetByGroupIDAndStatus(ctx, groupID, "pending", existGroupPendingApplication); err != nil {
+		log.Printf("set join application by groupid and status to redis failed, err: %v", err)
+	}
+
+	// 更新用户组加入申请审批拒绝缓存
+	existGroupRejectedApplication, err := s.joinApplicationRedisDAO.GetByGroupIDAndStatus(ctx, groupID, "rejected")
+	if existGroupRejectedApplication ==nil{
+		existGroupRejectedApplication = []*models.JoinApplication{}
+	}
+	existGroupRejectedApplication = append(existGroupRejectedApplication, &application)
+	if err := s.joinApplicationRedisDAO.SetByGroupIDAndStatus(ctx, groupID, "rejected", existGroupRejectedApplication); err != nil {
+		log.Printf("set join application by groupid and status to redis failed, err: %v", err)
+	}
+
+	// 删除用户加入用户组的申请缓存
+	if err := s.joinApplicationRedisDAO.DeleteCacheByGroupIDAndUserID(ctx, groupID, userID); err != nil {
+		log.Printf("delete join application by userid and groupid to redis failed, err: %v", err)
+	}
+
 	return nil
 }
 
 // 删除用户组
 func (s *GroupsService) DeleteGroup(ctx context.Context, groupID, operatorID int) error {
+	var members []*models.GroupMember
 	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
 		//检查操作员权限
 		if err := s.CheckMemberPermission(ctx, groupID, operatorID); err != nil {
@@ -428,6 +684,7 @@ func (s *GroupsService) DeleteGroup(ctx context.Context, groupID, operatorID int
 		if err != nil {
 			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
+		members = groupMembers
 		for _, member := range groupMembers {
 			if err := s.groupMemberDao.Delete(ctx, groupID, member.UserID, tx); err != nil {
 				return appErrors.ErrGroupMemberDeletionFailed.WithError(err)
@@ -438,6 +695,37 @@ func (s *GroupsService) DeleteGroup(ctx context.Context, groupID, operatorID int
 	if err != nil {
 		return err
 	}
+
+	// 删除用户组及 成员缓存（组内记录+申请记录）
+	if err := s.groupRedisDAO.DeleteCacheByGroupID(ctx, groupID); err != nil {
+		log.Printf("delete group cache failed, err: %v", err)
+	}
+	if err := s.groupMemberRedisDAO.DeleteCacheByGroupID(ctx, groupID); err != nil {
+		log.Printf("delete group members cache failed, err: %v", err)
+	}
+	for _, member := range members {
+		if err := s.groupMemberRedisDAO.DeleteCacheByGroupIDAndUserID(ctx, groupID, member.UserID); err != nil {
+			log.Printf("delete group member cache failed, err: %v", err)
+		}
+		if err:=s.joinApplicationRedisDAO.DeleteCacheByGroupIDAndUserID(ctx,groupID,member.UserID);err!=nil{
+			log.Printf("delete join application by userid and groupid to redis failed, err: %v", err)
+		}
+	}
+
+	// 删除用户组相关所有申请缓存
+	if err := s.joinApplicationRedisDAO.DeleteCacheByGroupID(ctx, groupID); err != nil {
+		log.Printf("delete join application by groupid to redis failed, err: %v", err)
+	}
+	if err:=s.joinApplicationRedisDAO.DeleteCacheByGroupIDAndStatus(ctx,groupID,"pending");err!=nil{
+		log.Printf("delete join application by groupid and status to redis failed, err: %v", err)
+	}
+	if err:=s.joinApplicationRedisDAO.DeleteCacheByGroupIDAndStatus(ctx,groupID,"accepted");err!=nil{
+		log.Printf("delete join application by groupid and status to redis failed, err: %v", err)
+	}
+	if err:=s.joinApplicationRedisDAO.DeleteCacheByGroupIDAndStatus(ctx,groupID,"rejected");err!=nil{
+		log.Printf("delete join application by groupid and status to redis failed, err: %v", err)
+	}
+
 	return nil
 }
 

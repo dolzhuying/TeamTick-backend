@@ -27,6 +27,9 @@ func NewAuditRequestHandler(container *app.AppContainer) gen.AuditRequestsServer
 		container.DaoFactory.GroupMemberDAO,
 		container.DaoFactory.JoinApplicationDAO,
 		container.DaoFactory.TransactionManager,
+		container.DaoFactory.GroupRedisDAO,
+		container.DaoFactory.GroupMemberRedisDAO,
+		container.DaoFactory.JoinApplicationRedisDAO,
 	)
 	handler := &AuditRequestHandler{
 		auditRequestService: auditRequestService,

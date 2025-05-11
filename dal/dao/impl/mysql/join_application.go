@@ -1,4 +1,4 @@
-package impl
+package mysqlImpl
 
 import (
 	"TeamTickBackend/dal/models"
@@ -98,3 +98,16 @@ func (dao *JoinApplicationDAOMySQLImpl) GetByGroupIDAndUserID(ctx context.Contex
 	return &application, nil
 }
 
+// GetByRequestID 通过request_id查询加入申请
+func (dao *JoinApplicationDAOMySQLImpl) GetByRequestID(ctx context.Context, requestID int, tx ...*gorm.DB) (*models.JoinApplication, error) {
+	var application models.JoinApplication
+	db := dao.DB
+	if len(tx) > 0 && tx[0] != nil {
+		db = tx[0]
+	}
+	err := db.WithContext(ctx).Where("request_id = ?", requestID).First(&application).Error
+	if err != nil {
+		return nil, err
+	}
+	return &application, nil
+}

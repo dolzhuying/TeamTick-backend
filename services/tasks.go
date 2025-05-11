@@ -10,6 +10,8 @@ import (
 
 	appErrors "TeamTickBackend/pkg/errors"
 
+	"log"
+
 	"gorm.io/gorm"
 )
 
@@ -17,18 +19,24 @@ type TaskService struct {
 	taskDao            dao.TaskDAO
 	taskRecordDao      dao.TaskRecordDAO
 	groupDao           dao.GroupDAO
+	taskRedisDao       dao.TaskRedisDAO
+	taskRecordRedisDao dao.TaskRecordRedisDAO
 	transactionManager dao.TransactionManager
 }
 
 func NewTaskService(
 	taskDao dao.TaskDAO,
 	taskRecordDao dao.TaskRecordDAO,
+	taskRecordRedisDao dao.TaskRecordRedisDAO,
+	taskRedisDao dao.TaskRedisDAO,
 	transactionManager dao.TransactionManager,
-	groupDao           dao.GroupDAO,
+	groupDao dao.GroupDAO,
 ) *TaskService {
 	return &TaskService{
 		taskDao:            taskDao,
 		taskRecordDao:      taskRecordDao,
+		taskRecordRedisDao: taskRecordRedisDao,
+		taskRedisDao:       taskRedisDao,
 		transactionManager: transactionManager,
 		groupDao:           groupDao,
 	}
@@ -64,6 +72,7 @@ func (s *TaskService) CreateTask(ctx context.Context,
 			WiFi:        wifi,
 			NFC:         nfc,
 		}
+
 		//根据info选择字段，待完善
 		//n:=len(wifiAndNFCInfo)
 
@@ -76,14 +85,37 @@ func (s *TaskService) CreateTask(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
+
+	// 将任务写入缓存
+	if err := s.taskRedisDao.SetByTaskID(ctx, createdTask.TaskID, &createdTask); err != nil {
+		log.Printf("Failed to set task by taskID to Redis: %v", err)
+	}
+
+	// 写入用户组任务缓存
+	taskList, _ := s.taskRedisDao.GetByGroupID(ctx, createdTask.GroupID)
+	if taskList == nil {
+		taskList = []*models.Task{}
+	}
+	taskList = append(taskList, &createdTask)
+	if err := s.taskRedisDao.SetByGroupID(ctx, createdTask.GroupID, taskList); err != nil {
+		log.Printf("Failed to set task by groupID to Redis: %v", err)
+	}
+
 	return &createdTask, nil
 }
 
 // 通过GroupID查询签到任务
 func (s *TaskService) GetTasksByGroupID(ctx context.Context, groupID int) ([]*models.Task, error) {
+	// 先查缓存
+	existTasks, err := s.taskRedisDao.GetByGroupID(ctx, groupID)
+	if err == nil && existTasks != nil && len(existTasks) > 0 {
+		return existTasks, nil
+	}
+
+	// 缓存未命中，从数据库查询
 	var tasks []*models.Task
 
-	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
+	err = s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
 		var err error
 		var groupsTasks []*models.Task
 		groupsTasks, err = s.taskDao.GetByGroupID(ctx, groupID, tx)
@@ -100,11 +132,19 @@ func (s *TaskService) GetTasksByGroupID(ctx context.Context, groupID int) ([]*mo
 	if err != nil {
 		return nil, err
 	}
+
+	// 将任务写入缓存
+	if err := s.taskRedisDao.SetByGroupID(ctx, groupID, tasks); err != nil {
+		log.Printf("Failed to set task by groupID to Redis: %v", err)
+	}
+
 	return tasks, nil
 }
 
 // 通过UserID查询签到任务
 func (s *TaskService) GetTasksByUserID(ctx context.Context, userID int) ([]*models.Task, error) {
+
+	// 缓存未命中，从数据库查询
 	var tasks []*models.Task
 
 	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
@@ -123,14 +163,22 @@ func (s *TaskService) GetTasksByUserID(ctx context.Context, userID int) ([]*mode
 	if err != nil {
 		return nil, err
 	}
+
 	return tasks, nil
 }
 
 // 通过TaskID查询指定签到任务
 func (s *TaskService) GetTaskByTaskID(ctx context.Context, taskID int) (*models.Task, error) {
+	// 先查缓存
+	existTask, err := s.taskRedisDao.GetByTaskID(ctx, taskID)
+	if err == nil && existTask != nil {
+		return existTask, nil
+	}
+
+	// 缓存未命中，从数据库查询
 	var task *models.Task
 
-	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
+	err = s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
 		var err error
 		task, err = s.taskDao.GetByTaskID(ctx, taskID, tx)
 		if err != nil {
@@ -144,6 +192,12 @@ func (s *TaskService) GetTaskByTaskID(ctx context.Context, taskID int) (*models.
 	if err != nil {
 		return nil, err
 	}
+
+	// 将任务写入缓存
+	if err := s.taskRedisDao.SetByTaskID(ctx, taskID, task); err != nil {
+		log.Printf("Failed to set task by taskID to Redis: %v", err)
+	}
+
 	return task, nil
 }
 
@@ -232,7 +286,7 @@ func (s *TaskService) VerifyWiFi(ctx context.Context, ssid, bssid string, taskID
 	return isValid
 }
 
-// 签到记录写入,待完善
+// 签到记录写入
 func (s *TaskService) CheckInTask(
 	ctx context.Context,
 	taskID, userID int,
@@ -250,6 +304,7 @@ func (s *TaskService) CheckInTask(
 			}
 			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
+
 		//时间校验
 		// if signedInTime.Before(task.StartTime) {
 		// 	return appErrors.ErrTaskNotInRange
@@ -282,24 +337,59 @@ func (s *TaskService) CheckInTask(
 		}
 
 		//根据otherInfo选择字段
-
 		if err := s.taskRecordDao.Create(ctx, &createdTaskRecord, tx); err != nil {
 			return appErrors.ErrTaskRecordCreationFailed.WithError(err)
 		}
 		taskRecord = createdTaskRecord
+
 		return nil
 	})
+
 	if err != nil {
 		return nil, err
 	}
-	return &taskRecord, nil
 
+	// 数据库操作成功后，更新/写入缓存
+
+	// 缓存单个新创建的记录
+	if err := s.taskRecordRedisDao.SetTaskIDAndUserID(ctx, &taskRecord); err != nil {
+		log.Printf("Failed to set user task record by taskID and userID to Redis: %v", err)
+	}
+
+	// 更新任务的签到记录列表缓存
+	taskRecordsList, _ := s.taskRecordRedisDao.GetByTaskID(ctx, taskID)
+	if taskRecordsList == nil {
+		taskRecordsList = []*models.TaskRecord{}
+	}
+	taskRecordsList = append(taskRecordsList, &taskRecord)
+	if err := s.taskRecordRedisDao.SetByTaskID(ctx, taskID, taskRecordsList); err != nil {
+		log.Printf("Failed to set task records by taskID to Redis: %v", err)
+	}
+
+	// 更新用户的签到记录列表缓存
+	userRecordsList, _ := s.taskRecordRedisDao.GetByUserID(ctx, userID)
+	if userRecordsList == nil {
+		userRecordsList = []*models.TaskRecord{}
+	}
+	userRecordsList = append(userRecordsList, &taskRecord)
+	if err := s.taskRecordRedisDao.SetByUserID(ctx, userID, userRecordsList); err != nil {
+		log.Printf("Failed to set user task records by userID to Redis: %v", err)
+	}
+
+	return &taskRecord, nil
 }
 
 // 通过TaskID查询特定任务签到记录，待完善
 func (s *TaskService) GetTaskRecordsByTaskID(ctx context.Context, taskID int) ([]*models.TaskRecord, error) {
+	// 先尝试从缓存获取
+	records, err := s.taskRecordRedisDao.GetByTaskID(ctx, taskID)
+	if err == nil && records != nil && len(records) > 0 {
+		return records, nil
+	}
+
+	// 缓存未命中，从数据库查询
 	var taskRecords []*models.TaskRecord
-	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
+	err = s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
 		var err error
 		taskRecords, err = s.taskRecordDao.GetByTaskID(ctx, taskID, tx)
 		if err != nil {
@@ -313,13 +403,26 @@ func (s *TaskService) GetTaskRecordsByTaskID(ctx context.Context, taskID int) ([
 	if err != nil {
 		return nil, err
 	}
+
+	// 将结果写入缓存
+	if err := s.taskRecordRedisDao.SetByTaskID(ctx, taskID, taskRecords); err != nil {
+		log.Printf("Failed to set task records by taskID to Redis: %v", err)
+	}
+
 	return taskRecords, nil
 }
 
 // 查询个人签到历史记录(涉及多种查询策略，考虑多个函数实现，待完善)
 func (s *TaskService) GetTaskRecordsByUserID(ctx context.Context, userID int) ([]*models.TaskRecord, error) {
+	// 先尝试从缓存获取
+	records, err := s.taskRecordRedisDao.GetByUserID(ctx, userID)
+	if err == nil && records != nil && len(records) > 0 {
+		return records, nil
+	}
+
+	// 缓存未命中，从数据库查询
 	var taskRecords []*models.TaskRecord
-	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
+	err = s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
 		var err error
 		taskRecords, err = s.taskRecordDao.GetByUserID(ctx, userID, tx)
 		if err != nil {
@@ -333,7 +436,47 @@ func (s *TaskService) GetTaskRecordsByUserID(ctx context.Context, userID int) ([
 	if err != nil {
 		return nil, err
 	}
+
+	// 将结果写入缓存
+	if err := s.taskRecordRedisDao.SetByUserID(ctx, userID, taskRecords); err != nil {
+		log.Printf("Failed to set user task records by userID to Redis: %v", err)
+	}
+
 	return taskRecords, nil
+}
+
+// 获取指定任务和用户的签到记录
+func (s *TaskService) GetTaskRecordByTaskIDAndUserID(ctx context.Context, taskID, userID int) (*models.TaskRecord, error) {
+	// 先尝试从缓存获取
+
+	record, err := s.taskRecordRedisDao.GetByTaskIDAndUserID(ctx, taskID, userID)
+	if err == nil && record != nil {
+		return record, nil
+	}
+
+	// 缓存未命中，从数据库查询
+	var taskRecord *models.TaskRecord
+	err = s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
+		var err error
+		taskRecord, err = s.taskRecordDao.GetByTaskIDAndUserID(ctx, taskID, userID, tx)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return appErrors.ErrTaskNotFound
+			}
+			return appErrors.ErrDatabaseOperation.WithError(err)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// 将结果写入缓存
+	if err = s.taskRecordRedisDao.SetTaskIDAndUserID(ctx, taskRecord); err != nil {
+		log.Printf("Failed to set user task record by taskID and userID to Redis: %v", err)
+	}
+
+	return taskRecord, nil
 }
 
 // 更新签到任务
@@ -393,12 +536,31 @@ func (s *TaskService) UpdateTask(
 	if err != nil {
 		return nil, err
 	}
+
+	//将任务从缓存中删除
+	if err := s.taskRedisDao.DeleteCacheByTaskID(ctx, taskID); err != nil {
+		log.Printf("Failed to delete task by taskID from Redis: %v", err)
+	}
+	if err := s.taskRedisDao.DeleteCacheByGroupID(ctx, task.GroupID); err != nil {
+		log.Printf("Failed to delete task by groupID from Redis: %v", err)
+	}
+
 	return &task, nil
 }
 
 // 删除签到任务
 func (s *TaskService) DeleteTask(ctx context.Context, taskID int) error {
+	var groupID int
 	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
+		//先查询任务获取组ID
+		task, err := s.taskDao.GetByTaskID(ctx, taskID, tx)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return appErrors.ErrTaskNotFound
+			}
+			return appErrors.ErrDatabaseOperation.WithError(err)
+		}
+		groupID = task.GroupID
 		if err := s.taskDao.Delete(ctx, taskID, tx); err != nil {
 			return appErrors.ErrTaskDeleteFailed.WithError(err)
 		}
@@ -407,5 +569,14 @@ func (s *TaskService) DeleteTask(ctx context.Context, taskID int) error {
 	if err != nil {
 		return err
 	}
+
+	//将任务从缓存中删除
+	if err := s.taskRedisDao.DeleteCacheByTaskID(ctx, taskID); err != nil {
+		log.Printf("Failed to delete task by taskID from Redis: %v", err)
+	}
+	if err := s.taskRedisDao.DeleteCacheByGroupID(ctx, groupID); err != nil {
+		log.Printf("Failed to delete task by groupID from Redis: %v", err)
+	}
+
 	return nil
 }
