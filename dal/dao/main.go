@@ -1,9 +1,8 @@
 package dao
 
 import (
-	"TeamTickBackend/dal/dao/impl/mysql"
-	"TeamTickBackend/dal/dao/impl/redis"
-
+	mysqlImpl "TeamTickBackend/dal/dao/impl/mysql"
+	redisImpl "TeamTickBackend/dal/dao/impl/redis"
 
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
@@ -24,14 +23,17 @@ type DAOFactory struct {
 
 	TaskRecordRedisDAO  TaskRecordRedisDAO
 	TaskRedisDAO        TaskRedisDAO
+	GroupRedisDAO       GroupRedisDAO
+	GroupMemberRedisDAO GroupMemberRedisDAO
+	JoinApplicationRedisDAO JoinApplicationRedisDAO
 }
 
 func NewDAOFactory(db *gorm.DB, redisClient *redis.Client) *DAOFactory {
 
 	return &DAOFactory{
-		Db:                  db,
-		RedisClient:         redisClient,
-		TransactionManager:  NewTransactionManager(db),
+		Db:                 db,
+		RedisClient:        redisClient,
+		TransactionManager: NewTransactionManager(db),
 
 		UserDAO:             &mysqlImpl.UserDAOMySQLImpl{DB: db},
 		GroupDAO:            &mysqlImpl.GroupDAOMySQLImpl{DB: db},
@@ -43,6 +45,8 @@ func NewDAOFactory(db *gorm.DB, redisClient *redis.Client) *DAOFactory {
 
 		TaskRecordRedisDAO:  &redisImpl.TaskRecordDAORedisImpl{Client: redisClient},
 		TaskRedisDAO:        &redisImpl.TaskRedisDAOImpl{Client: redisClient},
-
+		GroupRedisDAO:       &redisImpl.GroupRedisDAOImpl{Client: redisClient},
+		GroupMemberRedisDAO: &redisImpl.GroupMemberRedisDAOImpl{Client: redisClient},
+		JoinApplicationRedisDAO: &redisImpl.JoinApplicationRedisDAO{Client: redisClient},
 	}
 }

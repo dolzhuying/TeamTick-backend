@@ -5,8 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"time"
-
 	"github.com/redis/go-redis/v9"
 )
 
@@ -14,7 +12,6 @@ const (
 	TaskRecordKeyPrefix     = "task_record:"
 	TaskRecordUserKeyPrefix = "task_record:user:"
 	TaskRecordTaskKeyPrefix = "task_record:task:"
-	DefaultExpiration       = 30 * time.Minute
 )
 
 type TaskRecordDAORedisImpl struct {
@@ -68,7 +65,7 @@ func (dao *TaskRecordDAORedisImpl) SetByTaskID(ctx context.Context, taskID int, 
 	}
 
 	key := buildTaskRecordsTaskKey(taskID)
-	return dao.Client.Set(ctx, key, data, DefaultExpiration).Err()
+	return dao.Client.Set(ctx, key, data, DefaultExpireTime).Err()
 }
 
 // GetByUserID 通过user_id查询个人所有签到记录
@@ -103,7 +100,7 @@ func (dao *TaskRecordDAORedisImpl) SetByUserID(ctx context.Context, userID int, 
 	}
 
 	key := buildTaskRecordsUserKey(userID)
-	return dao.Client.Set(ctx, key, data, DefaultExpiration).Err()
+	return dao.Client.Set(ctx, key, data, DefaultExpireTime).Err()
 }
 
 // GetByTaskIDAndUserID 通过task_id和user_id查询指定签到记录
@@ -138,7 +135,7 @@ func (dao *TaskRecordDAORedisImpl) SetTaskIDAndUserID(ctx context.Context, recor
 	}
 
 	key := buildTaskRecordKey(record.TaskID, record.UserID)
-	return dao.Client.Set(ctx, key, data, DefaultExpiration).Err()
+	return dao.Client.Set(ctx, key, data, DefaultExpireTime).Err()
 }
 
 // DeleteCache 删除所有相关缓存

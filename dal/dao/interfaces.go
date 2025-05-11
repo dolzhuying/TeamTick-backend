@@ -64,6 +64,7 @@ type JoinApplicationDAO interface {
 	UpdateStatus(ctx context.Context, requestID int, status string, tx ...*gorm.DB) error
 	UpdateRejectReason(ctx context.Context, requestID int, rejectReason string, tx ...*gorm.DB) error
 	GetByGroupIDAndUserID(ctx context.Context, groupID int, userID int, tx ...*gorm.DB) (*models.JoinApplication, error)
+	GetByRequestID(ctx context.Context, requestID int, tx ...*gorm.DB) (*models.JoinApplication, error)
 	GetByGroupID(ctx context.Context, groupID int, tx ...*gorm.DB) ([]*models.JoinApplication, error)
 }
 
@@ -89,6 +90,7 @@ type TaskRecordRedisDAO interface {
 	DeleteCache(ctx context.Context, taskID, userID int) error
 }
 
+// TaskRedisDAO Redis缓存实现的签到任务访问接口
 type TaskRedisDAO interface {
 	GetByGroupID(ctx context.Context,groupID int,tx ...*redis.Client) ([]*models.Task,error)
 	SetByGroupID(ctx context.Context,groupID int,tasks []*models.Task) error
@@ -96,4 +98,34 @@ type TaskRedisDAO interface {
 	SetByTaskID(ctx context.Context,taskID int,task *models.Task) error
 	DeleteCacheByTaskID(ctx context.Context,taskID int) error
 	DeleteCacheByGroupID(ctx context.Context,groupID int) error
+}
+
+// GroupRedisDAO Redis缓存实现的组访问接口
+type GroupRedisDAO interface{
+	GetByGroupID(ctx context.Context,groupID int,tx ...*redis.Client) (*models.Group,error)
+	SetByGroupID(ctx context.Context,groupID int,group *models.Group) error
+	DeleteCacheByGroupID(ctx context.Context,groupID int) error
+}
+
+// GroupMemberRedisDAO Redis缓存实现的组成员访问接口
+type GroupMemberRedisDAO interface{
+	GetMembersByGroupID(ctx context.Context,groupID int,tx ...*redis.Client) ([]*models.GroupMember,error)
+	SetMembersByGroupID(ctx context.Context,groupID int,members []*models.GroupMember) error
+	DeleteCacheByGroupID(ctx context.Context,groupID int) error
+	GetMemberByGroupIDAndUserID(ctx context.Context,groupID,userID int,tx ...*redis.Client) (*models.GroupMember,error)
+	SetMemberByGroupIDAndUserID(ctx context.Context,member *models.GroupMember) error
+	DeleteCacheByGroupIDAndUserID(ctx context.Context,groupID,userID int) error
+}
+
+// JoinApplicationRedisDAO Redis缓存实现的加入申请访问接口
+type JoinApplicationRedisDAO interface{
+	GetByGroupID(ctx context.Context,groupID int,tx ...*redis.Client) ([]*models.JoinApplication,error)
+	SetByGroupID(ctx context.Context,groupID int,applications []*models.JoinApplication) error
+	DeleteCacheByGroupID(ctx context.Context,groupID int) error
+	GetByGroupIDAndStatus(ctx context.Context,groupID int,status string,tx ...*redis.Client) ([]*models.JoinApplication,error)
+	SetByGroupIDAndStatus(ctx context.Context,groupID int,status string,applications []*models.JoinApplication) error
+	DeleteCacheByGroupIDAndStatus(ctx context.Context,groupID int,status string) error
+	SetByGroupIDAndUserID(ctx context.Context,application *models.JoinApplication) error
+	DeleteCacheByGroupIDAndUserID(ctx context.Context,groupID,userID int) error
+	GetByGroupIDAndUserID(ctx context.Context, groupID int, userID int, tx ...*redis.Client) (*models.JoinApplication, error)
 }
