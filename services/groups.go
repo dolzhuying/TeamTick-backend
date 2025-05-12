@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -52,6 +53,7 @@ func (s *GroupsService) CreateGroup(ctx context.Context, groupName, description,
 			Description: description,
 			CreatorID:   creatorID,
 			CreatorName: creatorName,
+			CreatedAt:   time.Now(),
 		}
 		//创建用户组
 		if err := s.groupDao.Create(ctx, &group, tx); err != nil {
@@ -63,6 +65,7 @@ func (s *GroupsService) CreateGroup(ctx context.Context, groupName, description,
 			UserID:   creatorID,
 			Username: creatorName,
 			Role:     "admin",
+			CreatedAt: time.Now(),
 		}, tx); err != nil {
 			return appErrors.ErrGroupMemberCreationFailed.WithError(err)
 		}
@@ -338,6 +341,7 @@ func (s *GroupsService) CreateJoinApplication(ctx context.Context, groupID, user
 			UserID:   userID,
 			Username: username,
 			Reason:   reason,
+			CreatedAt: time.Now(),
 		}
 		if err := s.joinApplicationDao.Create(ctx, &newApplication, tx); err != nil {
 			return appErrors.ErrJoinApplicationCreationFailed.WithError(err)
@@ -520,6 +524,7 @@ func (s *GroupsService) ApproveJoinApplication(ctx context.Context, groupID, use
 			GroupID:  groupID,
 			UserID:   userID,
 			Username: username,
+			CreatedAt: time.Now(),
 		}, tx); err != nil {
 			return appErrors.ErrGroupMemberCreationFailed.WithError(err)
 		}
