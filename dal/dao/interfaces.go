@@ -3,6 +3,7 @@ package dao
 import (
 	"TeamTickBackend/dal/models"
 	"context"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
@@ -129,3 +130,15 @@ type JoinApplicationRedisDAO interface{
 	DeleteCacheByGroupIDAndUserID(ctx context.Context,groupID,userID int) error
 	GetByGroupIDAndUserID(ctx context.Context, groupID int, userID int, tx ...*redis.Client) (*models.JoinApplication, error)
 }
+
+// StatisticsDAO 统计数据访问接口
+type StatisticsDAO interface {
+	GetAllGroups(ctx context.Context,tx ...*gorm.DB) ([]*models.Group,error)
+	GetGroupSignInSuccess(ctx context.Context,groupID int,startTime, endTime time.Time,tx ...*gorm.DB) ([]*models.TaskRecord,error)
+	GetGroupSignInException(ctx context.Context, groupID int, startTime, endTime time.Time, tx ...*gorm.DB) ([]*models.CheckApplication, error)
+	GetGroupSignInAbsent(ctx context.Context, groupID int, startTime, endTime time.Time, tx ...*gorm.DB) ([]*models.AbsentRecord, error)
+	GetMemberSignInSuccessNum(ctx context.Context,groupID,userID int,startTime, endTime time.Time,tx ...*gorm.DB) (int,error)
+	GetMemberSignInExceptionNum(ctx context.Context,groupID,userID int,startTime, endTime time.Time,tx ...*gorm.DB) (int,error)
+	GetMemberSignInAbsentNum(ctx context.Context,groupID,userID int,startTime, endTime time.Time,tx ...*gorm.DB) (int,error)
+}
+
