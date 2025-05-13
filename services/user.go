@@ -43,3 +43,22 @@ func (s *UserService) GetUserMe(ctx context.Context, userID int) (*models.User, 
 	}
 	return &existUser, nil
 }
+
+func (s *UserService) GetUserByUsername(ctx context.Context,username string)(*models.User,error){
+	var user *models.User
+	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
+		User, err := s.userDao.GetByUsername(ctx, username, tx)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return appErrors.ErrUserNotFound
+			}
+			return appErrors.ErrDatabaseOperation.WithError(err)
+		}
+		user=User
+		return nil
+	})
+	if err!=nil{
+		return nil,err
+	}
+	return user,nil
+}
