@@ -962,7 +962,7 @@ type GetGroupsGroupIdMyStatus200JSONResponse struct {
 		// Message 附加信息说明 (可选)
 		Message string `json:"message,omitempty"`
 
-		// Status 用户在组中的状态：none(未关联)、pending(申请中)、member(普通成员)、rejected(申请被拒绝)
+		// Status 用户在组中的状态：none(未关联)、pending(申请中)、member(普通成员)、admin(管理员)、rejected(申请被拒绝)
 		Status GroupMembershipStatus `json:"status"`
 	} `json:"data"`
 }

@@ -15,6 +15,9 @@ import (
 
 // AuthServerInterface 代表所有服务器处理程序。
 type AuthServerInterface interface {
+	// 管理员登录
+	// (POST /auth/admin/login)
+	PostAuthAdminLogin(c *gin.Context)
 	// 用户登录
 	// (POST /auth/login)
 	PostAuthLogin(c *gin.Context)
@@ -31,6 +34,19 @@ type AuthServerInterfaceWrapper struct {
 }
 
 type AuthMiddlewareFunc func(c *gin.Context)
+
+// PostAuthAdminLogin 操作中间件
+func (siw *AuthServerInterfaceWrapper) PostAuthAdminLogin(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostAuthAdminLogin(c)
+}
 
 // PostAuthLogin 操作中间件
 func (siw *AuthServerInterfaceWrapper) PostAuthLogin(c *gin.Context) {
@@ -85,8 +101,83 @@ func RegisterAuthHandlersWithOptions(router gin.IRouter, si AuthServerInterface,
 		ErrorHandler:       errorHandler,
 	}
 
+	router.POST(options.BaseURL+"/auth/admin/login", wrapper.PostAuthAdminLogin)
 	router.POST(options.BaseURL+"/auth/login", wrapper.PostAuthLogin)
 	router.POST(options.BaseURL+"/auth/register", wrapper.PostAuthRegister)
+}
+
+type PostAuthAdminLoginRequestObject struct {
+	Body *PostAuthAdminLoginJSONRequestBody
+}
+
+type PostAuthAdminLoginResponseObject interface {
+	VisitPostAuthAdminLoginResponse(w http.ResponseWriter) error
+}
+
+type PostAuthAdminLogin200JSONResponse struct {
+	Code string `json:"code"`
+	Data struct {
+		// ManagedGroups 管理的群组列表
+		ManagedGroups *[]struct {
+			// GroupId 群组ID
+			GroupId int `json:"groupId,omitempty"`
+
+			// GroupName 群组名称
+			GroupName string `json:"groupName,omitempty"`
+		} `json:"managedGroups,omitempty"`
+
+		// Token 管理员 JWT 令牌
+		Token string `json:"token,omitempty"`
+
+		// UserId 用户ID
+		UserId int `json:"userId,omitempty"`
+
+		// Username 用户名
+		Username string `json:"username,omitempty"`
+	} `json:"data"`
+}
+
+func (response PostAuthAdminLogin200JSONResponse) VisitPostAuthAdminLoginResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PostAuthAdminLogin400JSONResponse BadRequest
+
+func (response PostAuthAdminLogin400JSONResponse) VisitPostAuthAdminLoginResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PostAuthAdminLogin401JSONResponse Unauthorized
+
+func (response PostAuthAdminLogin401JSONResponse) VisitPostAuthAdminLoginResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PostAuthAdminLogin403JSONResponse Forbidden
+
+func (response PostAuthAdminLogin403JSONResponse) VisitPostAuthAdminLoginResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PostAuthAdminLogin500JSONResponse InternalServerError
+
+func (response PostAuthAdminLogin500JSONResponse) VisitPostAuthAdminLoginResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
 }
 
 type PostAuthLoginRequestObject struct {
@@ -194,6 +285,9 @@ func (response PostAuthRegister500JSONResponse) VisitPostAuthRegisterResponse(w 
 
 // AuthStrictServerInterface represents all server handlers.
 type AuthStrictServerInterface interface {
+	// 管理员登录
+	// (POST /auth/admin/login)
+	PostAuthAdminLogin(ctx context.Context, request PostAuthAdminLoginRequestObject) (PostAuthAdminLoginResponseObject, error)
 	// 用户登录
 	// (POST /auth/login)
 	PostAuthLogin(ctx context.Context, request PostAuthLoginRequestObject) (PostAuthLoginResponseObject, error)
@@ -212,6 +306,39 @@ func NewAuthStrictHandler(ssi AuthStrictServerInterface, middlewares []AuthStric
 type AuthstrictHandler struct {
 	ssi         AuthStrictServerInterface
 	middlewares []AuthStrictMiddlewareFunc
+}
+
+// PostAuthAdminLogin 操作中间件
+func (sh *AuthstrictHandler) PostAuthAdminLogin(ctx *gin.Context) {
+	var request PostAuthAdminLoginRequestObject
+
+	var body PostAuthAdminLoginJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.Status(http.StatusBadRequest)
+		ctx.Error(err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostAuthAdminLogin(ctx, request.(PostAuthAdminLoginRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostAuthAdminLogin")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(PostAuthAdminLoginResponseObject); ok {
+		if err := validResponse.VisitPostAuthAdminLoginResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
 }
 
 // PostAuthLogin 操作中间件
