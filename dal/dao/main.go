@@ -20,6 +20,7 @@ type DAOFactory struct {
 	TaskRecordDAO       TaskRecordDAO
 	JoinApplicationDAO  JoinApplicationDAO
 	CheckApplicationDAO CheckApplicationDAO
+	StatisticsDAO       StatisticsDAO
 
 	TaskRecordRedisDAO  TaskRecordRedisDAO
 	TaskRedisDAO        TaskRedisDAO
@@ -42,6 +43,7 @@ func NewDAOFactory(db *gorm.DB, redisClient *redis.Client) *DAOFactory {
 		TaskRecordDAO:       &mysqlImpl.TaskRecordDAOMySQLImpl{DB: db},
 		JoinApplicationDAO:  &mysqlImpl.JoinApplicationDAOMySQLImpl{DB: db},
 		CheckApplicationDAO: &mysqlImpl.CheckApplicationDAOMySQLImpl{DB: db},
+		StatisticsDAO:       &mysqlImpl.StatisticsDAOMySQLImpl{DB: db},
 
 		TaskRecordRedisDAO:  &redisImpl.TaskRecordDAORedisImpl{Client: redisClient},
 		TaskRedisDAO:        &redisImpl.TaskRedisDAOImpl{Client: redisClient},

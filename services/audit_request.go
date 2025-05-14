@@ -153,6 +153,7 @@ func (s *AuditRequestService) CreateAuditRequest(
 			RequestAt:     time.Now(),
 			AdminID:       group.CreatorID,
 			AdminUsername: group.CreatorName,
+			CreatedAt:     time.Now(),
 		}
 		// 创建申请
 		if err := s.checkApplicationDAO.Create(ctx, &newRequest, tx); err != nil {
@@ -191,6 +192,7 @@ func (s *AuditRequestService) UpdateAuditRequest(ctx context.Context, requestID 
 				Username:   request.Username,
 				SignedTime: time.Now(),
 				Status:     2,
+				CreatedAt:  time.Now(),
 			}
 			if err := s.taskRecordDAO.Create(ctx, &record, tx); err != nil {
 				return appErrors.ErrTaskRecordCreationFailed.WithError(err)

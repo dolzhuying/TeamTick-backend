@@ -71,6 +71,7 @@ func (s *TaskService) CreateTask(ctx context.Context,
 			Face:        face,
 			WiFi:        wifi,
 			NFC:         nfc,
+			CreatedAt:   time.Now(),
 		}
 
 		//根据info选择字段，待完善
@@ -334,6 +335,7 @@ func (s *TaskService) CheckInTask(
 			Longitude:  longitude,
 			GroupName:  group.GroupName,
 			SignedTime: signedInTime,
+			CreatedAt:  time.Now(),
 		}
 
 		//根据otherInfo选择字段
@@ -514,6 +516,7 @@ func (s *TaskService) UpdateTask(
 			Face:        face,
 			WiFi:        wifi,
 			NFC:         nfc,
+			UpdatedAt:   time.Now(),
 		}
 		if len(wifiAndNFCInfo) > 0 {
 			//todo 根据info选择字段
