@@ -1,5 +1,5 @@
 {
-  "openapi": "3.0.1",
+  "openapi": "3.1.0",
   "info": {
     "title": "实训打卡",
     "description": "",
@@ -138,7 +138,11 @@
             "headers": {}
           }
         },
-        "security": []
+        "security": [
+          {
+            "JWT鉴权": []
+          }
+        ]
       }
     },
     "/auth/login": {
@@ -258,7 +262,166 @@
             "headers": {}
           }
         },
-        "security": []
+        "security": [
+          {
+            "JWT鉴权": []
+          }
+        ]
+      }
+    },
+    "/auth/admin/login": {
+      "post": {
+        "summary": "管理员登录",
+        "deprecated": false,
+        "description": "拥有群组的管理员用户登录管理后台，获取管理员 JWT。",
+        "tags": [
+          "Auth"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": {
+                    "type": "string",
+                    "description": "用户名",
+                    "x-go-type-skip-optional-pointer": true,
+                    "x-oapi-codegen-extra-tags": {
+                      "binding": "required"
+                    }
+                  },
+                  "password": {
+                    "type": "string",
+                    "description": "密码",
+                    "writeOnly": true,
+                    "x-go-type-skip-optional-pointer": true,
+                    "x-oapi-codegen-extra-tags": {
+                      "binding": "required"
+                    }
+                  }
+                },
+                "required": [
+                  "username",
+                  "password"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "管理员登录成功，返回管理员JWT令牌及相关信息",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/SuccessWithData"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "token": {
+                              "type": "string",
+                              "description": "管理员 JWT 令牌",
+                              "x-go-type-skip-optional-pointer": true
+                            },
+                            "userId": {
+                              "type": "integer",
+                              "format": "int",
+                              "description": "用户ID",
+                              "x-go-type-skip-optional-pointer": true
+                            },
+                            "username": {
+                              "type": "string",
+                              "description": "用户名",
+                              "x-go-type-skip-optional-pointer": true
+                            },
+                            "managedGroups": {
+                              "type": "array",
+                              "description": "管理的群组列表",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "groupId": {
+                                    "type": "integer",
+                                    "format": "int",
+                                    "description": "群组ID",
+                                    "x-go-type-skip-optional-pointer": true
+                                  },
+                                  "groupName": {
+                                    "type": "string",
+                                    "description": "群组名称",
+                                    "x-go-type-skip-optional-pointer": true
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {}
+          },
+          "400": {
+            "description": "请求参数错误，例如缺少用户名或密码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequest"
+                }
+              }
+            },
+            "headers": {}
+          },
+          "401": {
+            "description": "认证失败，用户名或密码错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Unauthorized"
+                }
+              }
+            },
+            "headers": {}
+          },
+          "403": {
+            "description": "用户不是任何群组的管理员，无权访问管理后台",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Forbidden"
+                }
+              }
+            },
+            "headers": {}
+          },
+          "500": {
+            "description": "服务器内部错误，处理登录请求时发生异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerError"
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": [
+          {
+            "JWT鉴权": []
+          }
+        ]
       }
     },
     "/users/me": {
@@ -290,16 +453,11 @@
                     }
                   ]
                 },
-                "examples": {
-                  "用户信息示例": {
-                    "summary": "用户信息返回",
-                    "value": {
-                      "code": 0,
-                      "data": {
-                        "userId": 101,
-                        "username": "zhangsan"
-                      }
-                    }
+                "example": {
+                  "code": 0,
+                  "data": {
+                    "userId": 101,
+                    "username": "zhangsan"
                   }
                 }
               }
@@ -329,7 +487,11 @@
             "headers": {}
           }
         },
-        "security": []
+        "security": [
+          {
+            "JWT鉴权": []
+          }
+        ]
       }
     },
     "/groups": {
@@ -432,7 +594,11 @@
             "headers": {}
           }
         },
-        "security": []
+        "security": [
+          {
+            "JWT鉴权": []
+          }
+        ]
       },
       "get": {
         "summary": "获取用户相关的用户组列表",
@@ -508,7 +674,11 @@
             "headers": {}
           }
         },
-        "security": []
+        "security": [
+          {
+            "JWT鉴权": []
+          }
+        ]
       }
     },
     "/groups/{groupId}": {
@@ -594,7 +764,11 @@
             "headers": {}
           }
         },
-        "security": []
+        "security": [
+          {
+            "JWT鉴权": []
+          }
+        ]
       },
       "put": {
         "summary": "修改用户组信息",
@@ -723,7 +897,11 @@
             "headers": {}
           }
         },
-        "security": []
+        "security": [
+          {
+            "JWT鉴权": []
+          }
+        ]
       },
       "delete": {
         "summary": "删除用户组",
@@ -806,7 +984,11 @@
             "headers": {}
           }
         },
-        "security": []
+        "security": [
+          {
+            "JWT鉴权": []
+          }
+        ]
       }
     },
     "/groups/{groupId}/join-requests": {
@@ -934,7 +1116,11 @@
             "headers": {}
           }
         },
-        "security": []
+        "security": [
+          {
+            "JWT鉴权": []
+          }
+        ]
       },
       "get": {
         "summary": "查看用户组的加入申请列表",
@@ -1046,7 +1232,11 @@
             "headers": {}
           }
         },
-        "security": []
+        "security": [
+          {
+            "JWT鉴权": []
+          }
+        ]
       }
     },
     "/groups/{groupId}/join-requests/{requestId}": {
@@ -1203,7 +1393,11 @@
             "headers": {}
           }
         },
-        "security": []
+        "security": [
+          {
+            "JWT鉴权": []
+          }
+        ]
       }
     },
     "/groups/{groupId}/members": {
@@ -1303,7 +1497,11 @@
             "headers": {}
           }
         },
-        "security": []
+        "security": [
+          {
+            "JWT鉴权": []
+          }
+        ]
       }
     },
     "/groups/{groupId}/members/{userId}": {
@@ -1403,7 +1601,11 @@
             "headers": {}
           }
         },
-        "security": []
+        "security": [
+          {
+            "JWT鉴权": []
+          }
+        ]
       }
     },
     "/groups/{groupId}/my-status": {
@@ -1509,7 +1711,11 @@
             "headers": {}
           }
         },
-        "security": []
+        "security": [
+          {
+            "JWT鉴权": []
+          }
+        ]
       }
     },
     "/users/me/checkin-tasks": {
@@ -1575,55 +1781,50 @@
                     }
                   ]
                 },
-                "examples": {
-                  "签到任务列表": {
-                    "summary": "签到任务列表示例",
-                    "value": {
-                      "code": 0,
-                      "data": [
-                        {
-                          "taskId": 2023081501,
-                          "groupId": 50,
-                          "groupName": "技术一组",
-                          "taskName": "早会签到",
-                          "description": "每天早上9:00准时签到",
-                          "startTime": 1692057600,
-                          "endTime": 1692061200,
-                          "status": "ongoing",
-                          "verificationConfig": {
-                            "checkinMethods": {
-                              "gps": true,
-                              "face": true,
-                              "wifi": false,
-                              "nfc": false
-                            }
-                          },
-                          "myCheckinStatus": "pending",
-                          "createdAt": 1692050000
-                        },
-                        {
-                          "taskId": 2023081502,
-                          "groupId": 51,
-                          "groupName": "项目组A",
-                          "taskName": "项目例会",
-                          "description": "项目组请通过WiFi签到",
-                          "startTime": 1692144000,
-                          "endTime": 1692147600,
-                          "status": "upcoming",
-                          "verificationConfig": {
-                            "checkinMethods": {
-                              "gps": false,
-                              "face": false,
-                              "wifi": true,
-                              "nfc": false
-                            }
-                          },
-                          "myCheckinStatus": "pending",
-                          "createdAt": 1692050000
+                "example": {
+                  "code": 0,
+                  "data": [
+                    {
+                      "taskId": 2023081501,
+                      "groupId": 50,
+                      "groupName": "技术一组",
+                      "taskName": "早会签到",
+                      "description": "每天早上9:00准时签到",
+                      "startTime": 1692057600,
+                      "endTime": 1692061200,
+                      "status": "ongoing",
+                      "verificationConfig": {
+                        "checkinMethods": {
+                          "gps": true,
+                          "face": true,
+                          "wifi": false,
+                          "nfc": false
                         }
-                      ]
+                      },
+                      "myCheckinStatus": "pending_audit",
+                      "createdAt": 1692050000
+                    },
+                    {
+                      "taskId": 2023081502,
+                      "groupId": 51,
+                      "groupName": "项目组A",
+                      "taskName": "项目例会",
+                      "description": "项目组请通过WiFi签到",
+                      "startTime": 1692144000,
+                      "endTime": 1692147600,
+                      "status": "upcoming",
+                      "verificationConfig": {
+                        "checkinMethods": {
+                          "gps": false,
+                          "face": false,
+                          "wifi": true,
+                          "nfc": false
+                        }
+                      },
+                      "myCheckinStatus": "pending_audit",
+                      "createdAt": 1692050000
                     }
-                  }
+                  ]
                 }
               }
             },
@@ -1652,7 +1853,11 @@
             "headers": {}
           }
         },
-        "security": []
+        "security": [
+          {
+            "JWT鉴权": []
+          }
+        ]
       }
     },
     "/groups/{groupId}/checkin-tasks": {
@@ -1819,7 +2024,11 @@
             "headers": {}
           }
         },
-        "security": []
+        "security": [
+          {
+            "JWT鉴权": []
+          }
+        ]
       },
       "get": {
         "summary": "获取用户组的签到任务列表",
@@ -1917,7 +2126,11 @@
             "headers": {}
           }
         },
-        "security": []
+        "security": [
+          {
+            "JWT鉴权": []
+          }
+        ]
       }
     },
     "/checkin-tasks/{taskId}": {
@@ -2117,7 +2330,11 @@
             "headers": {}
           }
         },
-        "security": []
+        "security": [
+          {
+            "JWT鉴权": []
+          }
+        ]
       },
       "put": {
         "summary": "更新签到任务",
@@ -2293,7 +2510,11 @@
             "headers": {}
           }
         },
-        "security": []
+        "security": [
+          {
+            "JWT鉴权": []
+          }
+        ]
       },
       "delete": {
         "summary": "删除签到任务",
@@ -2372,7 +2593,11 @@
             "headers": {}
           }
         },
-        "security": []
+        "security": [
+          {
+            "JWT鉴权": []
+          }
+        ]
       }
     },
     "/checkin-tasks/{taskId}/verify": {
@@ -2518,7 +2743,7 @@
                   ]
                 },
                 "examples": {
-                  "GPS验证通过": {
+                  "1": {
                     "summary": "GPS验证通过示例",
                     "value": {
                       "code": 0,
@@ -2529,7 +2754,7 @@
                       }
                     }
                   },
-                  "WiFi验证失败": {
+                  "2": {
                     "summary": "WiFi验证失败示例",
                     "value": {
                       "code": 0,
@@ -2601,21 +2826,25 @@
             "headers": {}
           }
         },
-        "security": []
+        "security": [
+          {
+            "JWT鉴权": []
+          }
+        ]
       }
     },
     "/users/me/checkin-records": {
       "get": {
         "summary": "获取当前用户签到记录",
         "deprecated": false,
-        "description": "获取当前用户的所有签到记录",
+        "description": "获取当前用户的所有签到记录，只返回签到成功的记录",
         "tags": [
           "CheckinRecords"
         ],
         "parameters": [],
         "responses": {
           "200": {
-            "description": "成功返回用户的签到记录列表",
+            "description": "成功返回用户的签到记录列表，只包含签到成功的记录",
             "content": {
               "application/json": {
                 "schema": {
@@ -2636,66 +2865,58 @@
                     }
                   ]
                 },
-                "examples": {
-                  "签到记录": {
-                    "summary": "用户签到记录列表示例",
-                    "value": {
-                      "code": 0,
-                      "data": [
-                        {
-                          "recordId": 98765,
-                          "taskId": 2023081501,
-                          "taskName": "早会签到",
-                          "groupId": 50,
-                          "groupName": "技术一组",
-                          "userId": 101,
-                          "username": "zhangsan",
-                          "signedTime": 1689486600,
-                          "locationInfo": {
-                            "location": {
-                              "latitude": 39.915,
-                              "longitude": 116.404
-                            }
-                          },
-                          "status": "success",
-                          "message": "签到成功",
-                          "checkinMethods": {
-                            "gps": true,
-                            "face": true,
-                            "wifi": false,
-                            "nfc": false
-                          },
-                          "createdAt": 1689486600
-                        },
-                        {
-                          "recordId": 98766,
-                          "taskId": 2023081405,
-                          "taskName": "项目进度汇报",
-                          "groupId": 51,
-                          "groupName": "项目组A",
-                          "userId": 101,
-                          "username": "zhangsan",
-                          "signedTime": 1689399900,
-                          "locationInfo": {
-                            "location": {
-                              "latitude": 39.917,
-                              "longitude": 116.406
-                            }
-                          },
-                          "status": "failed_location",
-                          "message": "位置不符",
-                          "failureReason": "不在签到范围内",
-                          "checkinMethods": {
-                            "gps": true,
-                            "face": false,
-                            "wifi": true,
-                            "nfc": false
-                          },
-                          "createdAt": 1689399900
+                "example": {
+                  "code": 0,
+                  "data": [
+                    {
+                      "recordId": 98765,
+                      "taskId": 2023081501,
+                      "taskName": "早会签到",
+                      "groupId": 50,
+                      "groupName": "技术一组",
+                      "userId": 101,
+                      "username": "zhangsan",
+                      "signedTime": 1689486600,
+                      "locationInfo": {
+                        "location": {
+                          "latitude": 39.915,
+                          "longitude": 116.404
                         }
-                      ]
+                      },
+                      "message": "签到成功",
+                      "checkinMethods": {
+                        "gps": true,
+                        "face": true,
+                        "wifi": false,
+                        "nfc": false
+                      },
+                      "createdAt": 1689486600
+                    },
+                    {
+                      "recordId": 98766,
+                      "taskId": 2023081405,
+                      "taskName": "项目进度汇报",
+                      "groupId": 51,
+                      "groupName": "项目组A",
+                      "userId": 101,
+                      "username": "zhangsan",
+                      "signedTime": 1689399900,
+                      "locationInfo": {
+                        "location": {
+                          "latitude": 39.917,
+                          "longitude": 116.406
+                        }
+                      },
+                      "message": "签到成功",
+                      "checkinMethods": {
+                        "gps": true,
+                        "face": false,
+                        "wifi": true,
+                        "nfc": false
+                      },
+                      "createdAt": 1689399900
                     }
-                  }
+                  ]
                 }
               }
             },
@@ -2724,7 +2945,11 @@
             "headers": {}
           }
         },
-        "security": []
+        "security": [
+          {
+            "JWT鉴权": []
+          }
+        ]
       }
     },
     "/checkin-tasks/{taskId}/checkin": {
@@ -2888,6 +3113,17 @@
             },
             "headers": {}
           },
+          "409": {
+            "description": "资源冲突，可能原因：用户已经签到过该任务",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Conflict"
+                }
+              }
+            },
+            "headers": {}
+          },
           "500": {
             "description": "服务器内部错误，处理签到请求时发生异常",
             "content": {
@@ -2900,7 +3136,11 @@
             "headers": {}
           }
         },
-        "security": []
+        "security": [
+          {
+            "JWT鉴权": []
+          }
+        ]
       }
     },
     "/checkin-tasks/{taskId}/records": {
@@ -2952,49 +3192,44 @@
                     }
                   ]
                 },
-                "examples": {
-                  "签到记录列表": {
-                    "summary": "任务签到记录示例",
-                    "value": {
-                      "code": 0,
-                      "data": [
-                        {
-                          "recordId": 98765,
-                          "taskId": 2023081501,
-                          "taskName": "每日站会签到",
-                          "groupId": 50,
-                          "groupName": "研发一部",
-                          "userId": 101,
-                          "username": "张三",
-                          "signedTime": 1689486600,
-                          "message": "签到成功",
-                          "checkinMethods": {
-                            "gps": true,
-                            "face": true,
-                            "wifi": false,
-                            "nfc": false
-                          }
-                        },
-                        {
-                          "recordId": 98770,
-                          "taskId": 2023081501,
-                          "taskName": "每日站会签到",
-                          "groupId": 50,
-                          "groupName": "研发一部",
-                          "userId": 105,
-                          "username": "钱七",
-                          "signedTime": 1689486800,
-                          "message": "签到成功",
-                          "checkinMethods": {
-                            "gps": true,
-                            "face": true,
-                            "wifi": false,
-                            "nfc": false
-                          }
-                        }
-                      ]
+                "example": {
+                  "code": 0,
+                  "data": [
+                    {
+                      "recordId": 98765,
+                      "taskId": 2023081501,
+                      "taskName": "每日站会签到",
+                      "groupId": 50,
+                      "groupName": "研发一部",
+                      "userId": 101,
+                      "username": "张三",
+                      "signedTime": 1689486600,
+                      "message": "签到成功",
+                      "checkinMethods": {
+                        "gps": true,
+                        "face": true,
+                        "wifi": false,
+                        "nfc": false
+                      }
+                    },
+                    {
+                      "recordId": 98770,
+                      "taskId": 2023081501,
+                      "taskName": "每日站会签到",
+                      "groupId": 50,
+                      "groupName": "研发一部",
+                      "userId": 105,
+                      "username": "钱七",
+                      "signedTime": 1689486800,
+                      "message": "签到成功",
+                      "checkinMethods": {
+                        "gps": true,
+                        "face": true,
+                        "wifi": false,
+                        "nfc": false
+                      }
                     }
-                  }
+                  ]
                 }
               }
             },
@@ -3045,7 +3280,11 @@
             "headers": {}
           }
         },
-        "security": []
+        "security": [
+          {
+            "JWT鉴权": []
+          }
+        ]
       }
     },
     "/users/me/audit-requests": {
@@ -3080,40 +3319,35 @@
                     }
                   ]
                 },
-                "examples": {
-                  "审核请求": {
-                    "summary": "用户审核请求列表示例",
-                    "value": {
-                      "code": 0,
-                      "data": [
-                        {
-                          "auditRequestId": 4005,
-                          "taskId": 2023081402,
-                          "taskName": "项目进度汇报",
-                          "userId": 101,
-                          "username": "zhangsan",
-                          "reason": "系统定位有误，实际已到场",
-                          "proofImageUrls": "https://example.com/proof/IMG_1234.jpg",
-                          "status": "pending",
-                          "requestedAt": 1689398400
-                        },
-                        {
-                          "auditRequestId": 4001,
-                          "taskId": 2023081301,
-                          "taskName": "早会签到",
-                          "userId": 101,
-                          "username": "zhangsan",
-                          "reason": "人脸识别失败，实际已到场",
-                          "proofImageUrls": "https://example.com/proof/IMG_1200.jpg",
-                          "status": "approved",
-                          "requestedAt": 1689312000,
-                          "adminId": 105,
-                          "adminUsername": "wangwu",
-                          "processedAt": 1689315600
-                        }
-                      ]
+                "example": {
+                  "code": 0,
+                  "data": [
+                    {
+                      "auditRequestId": 4005,
+                      "taskId": 2023081402,
+                      "taskName": "项目进度汇报",
+                      "userId": 101,
+                      "username": "zhangsan",
+                      "reason": "系统定位有误，实际已到场",
+                      "proofImageUrls": "https://example.com/proof/IMG_1234.jpg",
+                      "status": "pending",
+                      "requestedAt": 1689398400
+                    },
+                    {
+                      "auditRequestId": 4001,
+                      "taskId": 2023081301,
+                      "taskName": "早会签到",
+                      "userId": 101,
+                      "username": "zhangsan",
+                      "reason": "人脸识别失败，实际已到场",
+                      "proofImageUrls": "https://example.com/proof/IMG_1200.jpg",
+                      "status": "approved",
+                      "requestedAt": 1689312000,
+                      "adminId": 105,
+                      "adminUsername": "wangwu",
+                      "processedAt": 1689315600
                     }
-                  }
+                  ]
                 }
               }
             },
@@ -3131,7 +3365,11 @@
             "headers": {}
           }
         },
-        "security": []
+        "security": [
+          {
+            "JWT鉴权": []
+          }
+        ]
       }
     },
     "/groups/{groupId}/audit-requests": {
@@ -3245,7 +3483,11 @@
             "headers": {}
           }
         },
-        "security": []
+        "security": [
+          {
+            "JWT鉴权": []
+          }
+        ]
       }
     },
     "/checkin-tasks/{taskId}/audit-requests": {
@@ -3395,7 +3637,11 @@
             "headers": {}
           }
         },
-        "security": []
+        "security": [
+          {
+            "JWT鉴权": []
+          }
+        ]
       }
     },
     "/audit-requests/{auditRequestId}": {
@@ -3517,436 +3763,104 @@
             "headers": {}
           }
         },
-        "security": []
+        "security": [
+          {
+            "JWT鉴权": []
+          }
+        ]
       }
     },
-    "/export/tasks": {
+    "/export/checkins.xlsx": {
       "get": {
-        "summary": "获取导出任务列表",
+        "summary": "导出签到记录为XLSX文件",
         "deprecated": false,
-        "description": "获取当前用户创建的所有导出任务及状态",
+        "description": "根据指定的查询参数导出签到记录，并直接返回 XLSX 文件。",
         "tags": [
           "Export"
         ],
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/SuccessWithData"
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "data": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "taskId": {
-                                "type": "integer",
-                                "format": "int",
-                                "description": "导出任务ID",
-                                "readOnly": true,
-                                "x-go-type-skip-optional-pointer": true
-                              },
-                              "params": {
-                                "type": "object",
-                                "properties": {
-                                  "groupIds": {
-                                    "type": "array",
-                                    "items": {
-                                      "type": "integer",
-                                      "format": "int"
-                                    },
-                                    "description": "用户组ID列表"
-                                  },
-                                  "dateRange": {
-                                    "type": "object",
-                                    "properties": {
-                                      "start": {
-                                        "type": "integer",
-                                        "format": "int",
-                                        "description": "开始日期（Unix时间戳，单位：秒）"
-                                      },
-                                      "end": {
-                                        "type": "integer",
-                                        "format": "int",
-                                        "description": "结束日期（Unix时间戳，单位：秒）"
-                                      }
-                                    },
-                                    "required": [
-                                      "start",
-                                      "end"
-                                    ]
-                                  },
-                                  "statuses": {
-                                    "type": "array",
-                                    "items": {
-                                      "type": "string",
-                                      "enum": [
-                                        "success",
-                                        "failed_location",
-                                        "failed_time",
-                                        "failed_face",
-                                        "failed_wifi",
-                                        "failed_nfc",
-                                        "failed_other",
-                                        "pending_audit",
-                                        "audit_approved",
-                                        "audit_rejected",
-                                        "absent"
-                                      ]
-                                    },
-                                    "description": "签到状态列表"
-                                  }
-                                },
-                                "required": [
-                                  "groupIds",
-                                  "dateRange",
-                                  "statuses"
-                                ]
-                              },
-                              "status": {
-                                "type": "string",
-                                "enum": [
-                                  "pending",
-                                  "processing",
-                                  "completed",
-                                  "failed"
-                                ],
-                                "description": "导出任务状态",
-                                "x-go-type-skip-optional-pointer": true
-                              },
-                              "startTime": {
-                                "type": "integer",
-                                "format": "int",
-                                "description": "开始时间（Unix时间戳，单位：秒）",
-                                "readOnly": true,
-                                "x-go-type-skip-optional-pointer": true
-                              },
-                              "endTime": {
-                                "type": "integer",
-                                "format": "int",
-                                "description": "完成时间（Unix时间戳，单位：秒）",
-                                "readOnly": true,
-                                "x-go-type-skip-optional-pointer": true
-                              },
-                              "fileName": {
-                                "type": "string",
-                                "description": "导出文件名",
-                                "readOnly": true,
-                                "x-go-type-skip-optional-pointer": true
-                              },
-                              "fileUrl": {
-                                "type": "string",
-                                "description": "文件下载URL",
-                                "readOnly": true,
-                                "x-go-type-skip-optional-pointer": true
-                              },
-                              "error": {
-                                "type": "string",
-                                "description": "错误信息（仅当导出失败时存在）",
-                                "readOnly": true,
-                                "x-go-type-skip-optional-pointer": true
-                              },
-                              "createdAt": {
-                                "type": "integer",
-                                "format": "int",
-                                "description": "创建时间（Unix时间戳，单位：秒）",
-                                "readOnly": true,
-                                "x-go-type-skip-optional-pointer": true
-                              }
-                            },
-                            "required": [
-                              "taskId",
-                              "params",
-                              "status",
-                              "startTime",
-                              "createdAt"
-                            ]
-                          }
-                        }
-                      }
-                    }
-                  ]
-                },
-                "examples": {
-                  "导出任务列表示例": {
-                    "summary": "导出任务列表",
-                    "value": {
-                      "code": 0,
-                      "data": [
-                        {
-                          "taskId": 123,
-                          "params": {
-                            "groupIds": [
-                              50,
-                              51
-                            ],
-                            "dateRange": {
-                              "start": 1709251200,
-                              "end": 1711929600
-                            },
-                            "statuses": [
-                              "success",
-                              "failed_location",
-                              "absent"
-                            ]
-                          },
-                          "status": "completed",
-                          "startTime": 1711075200,
-                          "endTime": 1711075260,
-                          "fileName": "checkins_20240322.csv",
-                          "fileUrl": "/api/v1/export/files/checkins_20240322.csv",
-                          "createdAt": 1711075200
-                        },
-                        {
-                          "taskId": 122,
-                          "params": {
-                            "groupIds": [
-                              50
-                            ],
-                            "dateRange": {
-                              "start": 1706745600,
-                              "end": 1709337600
-                            },
-                            "statuses": [
-                              "success",
-                              "failed_location",
-                              "absent",
-                              "pending_audit",
-                              "audit_approved",
-                              "audit_rejected"
-                            ]
-                          },
-                          "status": "processing",
-                          "startTime": 1711075080,
-                          "createdAt": 1711075080
-                        },
-                        {
-                          "taskId": 121,
-                          "params": {
-                            "groupIds": [
-                              50,
-                              51,
-                              52
-                            ],
-                            "dateRange": {
-                              "start": 1704067200,
-                              "end": 1711929600
-                            },
-                            "statuses": [
-                              "success"
-                            ]
-                          },
-                          "status": "failed",
-                          "startTime": 1711074900,
-                          "endTime": 1711074930,
-                          "error": "导出失败：数据量过大",
-                          "createdAt": 1711074900
-                        }
-                      ]
-                    }
-                  }
-                }
+        "parameters": [
+          {
+            "name": "groupIds",
+            "in": "query",
+            "description": "需要导出的用户组ID列表。例如：`groupIds=1&groupIds=2` 或 `groupIds=1,2,3`。",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "int",
+                "minimum": 1
+              },
+              "minItems": 1,
+              "x-oapi-codegen-extra-tags": {
+                "form": "groupIds",
+                "binding": "required,dive,gt=0"
               }
-            },
-            "headers": {}
+            }
           },
-          "401": {
-            "description": "认证失败，用户未登录、Token无效或已过期，需要重新登录获取有效凭证",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/BaseResponse"
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "message"
-                      ]
-                    }
-                  ]
-                }
+          {
+            "name": "dateStart",
+            "in": "query",
+            "description": "开始日期（Unix时间戳，单位：秒）",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int",
+              "x-oapi-codegen-extra-tags": {
+                "form": "dateStart",
+                "binding": "required,gte=0"
               }
-            },
-            "headers": {}
+            }
           },
-          "500": {
-            "description": "服务器内部错误，获取导出任务列表时发生异常",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InternalServerError"
-                }
+          {
+            "name": "dateEnd",
+            "in": "query",
+            "description": "结束日期（Unix时间戳，单位：秒）。必须大于或等于开始日期。",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int",
+              "x-oapi-codegen-extra-tags": {
+                "form": "dateEnd",
+                "binding": "required,gtefield=dateStart,gte=0"
               }
-            },
-            "headers": {}
-          }
-        },
-        "security": []
-      },
-      "post": {
-        "summary": "创建导出任务",
-        "deprecated": false,
-        "description": "根据指定的参数创建新的签到数据导出任务",
-        "tags": [
-          "Export"
-        ],
-        "parameters": [],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "groupIds": {
-                    "type": "array",
-                    "items": {
-                      "type": "integer",
-                      "format": "int"
-                    },
-                    "description": "需要导出的用户组ID列表",
-                    "minItems": 1,
-                    "x-oapi-codegen-extra-tags": {
-                      "binding": "required,min=1,dive,gt=0"
-                    }
-                  },
-                  "dateRange": {
-                    "type": "object",
-                    "properties": {
-                      "start": {
-                        "type": "integer",
-                        "format": "int",
-                        "description": "开始日期（Unix时间戳，单位：秒）",
-                        "x-oapi-codegen-extra-tags": {
-                          "binding": "required"
-                        }
-                      },
-                      "end": {
-                        "type": "integer",
-                        "format": "int",
-                        "description": "结束日期（Unix时间戳，单位：秒）",
-                        "x-oapi-codegen-extra-tags": {
-                          "binding": "required,gtefield=start"
-                        }
-                      }
-                    },
-                    "required": [
-                      "start",
-                      "end"
-                    ],
-                    "x-oapi-codegen-extra-tags": {
-                      "binding": "required"
-                    }
-                  },
-                  "statuses": {
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "enum": [
-                        "success",
-                        "failed_location",
-                        "failed_time",
-                        "failed_face",
-                        "failed_wifi",
-                        "failed_nfc",
-                        "failed_other",
-                        "pending_audit",
-                        "audit_approved",
-                        "audit_rejected",
-                        "absent"
-                      ]
-                    },
-                    "description": "需要导出的签到状态列表",
-                    "default": [
-                      "success",
-                      "failed_location",
-                      "failed_time",
-                      "failed_face",
-                      "failed_wifi",
-                      "failed_nfc",
-                      "failed_other",
-                      "absent"
-                    ],
-                    "x-oapi-codegen-extra-tags": {
-                      "binding": "omitempty"
-                    }
-                  }
-                },
-                "required": [
-                  "groupIds",
-                  "dateRange"
+            }
+          },
+          {
+            "name": "statuses",
+            "in": "query",
+            "description": "需要导出的签到状态列表。例如：`statuses=success&statuses=absent` 或 `statuses=success,absent`。如果未提供，则使用默认状态列表。",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "absent",
+                  "exception"
                 ]
+              },
+              "default": [
+                "success",
+                "absent",
+                "exception"
+              ],
+              "x-oapi-codegen-extra-tags": {
+                "form": "statuses",
+                "binding": "omitempty,dive,oneof=success absent exception"
               }
             }
           }
-        },
+        ],
         "responses": {
-          "201": {
-            "description": "",
+          "200": {
+            "description": "签到记录XLSX文件",
             "content": {
-              "application/json": {
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
                 "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/SuccessWithData"
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "data": {
-                          "type": "object",
-                          "properties": {
-                            "taskId": {
-                              "type": "integer",
-                              "format": "int",
-                              "description": "导出任务ID",
-                              "x-go-type-skip-optional-pointer": true
-                            },
-                            "status": {
-                              "type": "string",
-                              "enum": [
-                                "pending",
-                                "processing",
-                                "completed",
-                                "failed"
-                              ],
-                              "description": "导出任务状态",
-                              "x-go-type-skip-optional-pointer": true
-                            }
-                          }
-                        }
-                      }
-                    }
-                  ]
-                },
-                "examples": {
-                  "创建导出任务响应": {
-                    "summary": "创建导出任务响应示例",
-                    "value": {
-                      "code": 0,
-                      "data": {
-                        "taskId": 124,
-                        "status": "pending"
-                      }
-                    }
-                  }
+                  "type": "object",
+                  "properties": {}
                 }
               }
             },
@@ -4040,7 +3954,7 @@
             "headers": {}
           },
           "500": {
-            "description": "服务器内部错误，创建导出任务时发生异常",
+            "description": "服务器内部错误，导出时发生异常",
             "content": {
               "application/json": {
                 "schema": {
@@ -4051,146 +3965,11 @@
             "headers": {}
           }
         },
-        "security": []
-      }
-    },
-    "/export/files/{fileName}": {
-      "get": {
-        "summary": "下载导出文件",
-        "deprecated": false,
-        "description": "下载指定的导出文件",
-        "tags": [
-          "Export"
-        ],
-        "parameters": [
+        "security": [
           {
-            "name": "fileName",
-            "in": "path",
-            "description": "导出文件名",
-            "required": true,
-            "example": "",
-            "schema": {
-              "type": "string",
-              "x-oapi-codegen-extra-tags": {
-                "uri": "fileName",
-                "binding": "required"
-              }
-            }
+            "JWT鉴权": []
           }
-        ],
-        "responses": {
-          "200": {
-            "description": "导出文件内容",
-            "content": {
-              "application/csv": {
-                "schema": {
-                  "type": "object",
-                  "properties": {}
-                }
-              }
-            },
-            "headers": {}
-          },
-          "401": {
-            "description": "认证失败，用户未登录、Token无效或已过期，需要重新登录获取有效凭证",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/BaseResponse"
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "message"
-                      ]
-                    }
-                  ]
-                }
-              }
-            },
-            "headers": {}
-          },
-          "403": {
-            "description": "权限不足，用户身份已验证但不具备执行当前操作的权限，如非管理员尝试执行管理操作",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/BaseResponse"
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "message"
-                      ]
-                    }
-                  ]
-                }
-              }
-            },
-            "headers": {}
-          },
-          "404": {
-            "description": "请求的资源不存在，如查询不存在的用户组、签到任务或用户ID",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/BaseResponse"
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "message"
-                      ]
-                    }
-                  ]
-                }
-              }
-            },
-            "headers": {}
-          },
-          "500": {
-            "description": "服务器内部错误，获取导出文件时发生异常",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InternalServerError"
-                }
-              }
-            },
-            "headers": {}
-          }
-        },
-        "security": []
+        ]
       }
     },
     "/statistics/groups": {
@@ -4212,7 +3991,7 @@
               "format": "int",
               "x-oapi-codegen-extra-tags": {
                 "form": "startDate",
-                "binding": "omitempty"
+                "binding": "omitempty,gte=0"
               }
             }
           },
@@ -4226,7 +4005,7 @@
               "format": "int",
               "x-oapi-codegen-extra-tags": {
                 "form": "endDate",
-                "binding": "omitempty,gtefield=StartDate"
+                "binding": "omitempty,gtefield=startDate,gte=0"
               }
             }
           }
@@ -4260,22 +4039,10 @@
                                 "description": "用户组名称",
                                 "x-go-type-skip-optional-pointer": true
                               },
-                              "total": {
-                                "type": "integer",
-                                "format": "int",
-                                "description": "总签到次数",
-                                "x-go-type-skip-optional-pointer": true
-                              },
                               "success": {
                                 "type": "integer",
                                 "format": "int",
                                 "description": "成功签到次数",
-                                "x-go-type-skip-optional-pointer": true
-                              },
-                              "failed": {
-                                "type": "integer",
-                                "format": "int",
-                                "description": "失败签到次数",
                                 "x-go-type-skip-optional-pointer": true
                               },
                               "absent": {
@@ -4294,9 +4061,7 @@
                             "required": [
                               "groupId",
                               "groupName",
-                              "total",
                               "success",
-                              "failed",
                               "absent",
                               "exception"
                             ]
@@ -4306,33 +4071,53 @@
                     }
                   ]
                 },
-                "examples": {
-                  "用户组统计数据示例": {
-                    "summary": "用户组签到统计",
-                    "value": {
-                      "code": 0,
-                      "data": [
-                        {
-                          "groupId": 50,
-                          "groupName": "技术一组",
-                          "total": 1000,
-                          "success": 850,
-                          "failed": 50,
-                          "absent": 70,
-                          "exception": 30
+                "example": {
+                  "code": 0,
+                  "data": [
+                    {
+                      "groupId": 50,
+                      "groupName": "技术一组",
+                      "success": 850,
+                      "absent": 70,
+                      "exception": 30
+                    },
+                    {
+                      "groupId": 51,
+                      "groupName": "技术二组",
+                      "success": 840,
+                      "absent": 80,
+                      "exception": 20
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {}
+          },
+          "400": {
+            "description": "请求参数错误，如参数格式不正确、缺少必需参数、参数值无效或超出范围",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/BaseResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
                         },
-                        {
-                          "groupId": 51,
-                          "groupName": "技术二组",
-                          "total": 1000,
-                          "success": 840,
-                          "failed": 60,
-                          "absent": 80,
-                          "exception": 20
+                        "message": {
+                          "type": "string"
                         }
+                      },
+                      "required": [
+                        "message"
                       ]
                     }
-                  }
+                  ]
                 }
               }
             },
@@ -4408,7 +4193,11 @@
             "headers": {}
           }
         },
-        "security": []
+        "security": [
+          {
+            "JWT鉴权": []
+          }
+        ]
       }
     },
     "/statistics/users": {
@@ -4444,7 +4233,7 @@
               "format": "int",
               "x-oapi-codegen-extra-tags": {
                 "form": "startDate",
-                "binding": "omitempty"
+                "binding": "omitempty,gte=0"
               }
             }
           },
@@ -4458,7 +4247,7 @@
               "format": "int",
               "x-oapi-codegen-extra-tags": {
                 "form": "endDate",
-                "binding": "omitempty,gtefield=StartDate"
+                "binding": "omitempty,gtefield=startDate,gte=0"
               }
             }
           }
@@ -4503,22 +4292,10 @@
                                 "description": "用户组名称",
                                 "x-go-type-skip-optional-pointer": true
                               },
-                              "total": {
-                                "type": "integer",
-                                "format": "int",
-                                "description": "总签到次数",
-                                "x-go-type-skip-optional-pointer": true
-                              },
                               "success": {
                                 "type": "integer",
                                 "format": "int",
                                 "description": "成功签到次数",
-                                "x-go-type-skip-optional-pointer": true
-                              },
-                              "failed": {
-                                "type": "integer",
-                                "format": "int",
-                                "description": "失败签到次数",
                                 "x-go-type-skip-optional-pointer": true
                               },
                               "absent": {
@@ -4539,9 +4316,7 @@
                               "username",
                               "groupId",
                               "groupName",
-                              "total",
                               "success",
-                              "failed",
                               "absent",
                               "exception"
                             ]
@@ -4551,37 +4326,57 @@
                     }
                   ]
                 },
-                "examples": {
-                  "用户统计数据示例": {
-                    "summary": "用户签到统计",
-                    "value": {
-                      "code": 0,
-                      "data": [
-                        {
-                          "userId": 101,
-                          "username": "张工",
-                          "groupId": 50,
-                          "groupName": "技术一组",
-                          "total": 100,
-                          "success": 85,
-                          "failed": 5,
-                          "absent": 7,
-                          "exception": 3
+                "example": {
+                  "code": 0,
+                  "data": [
+                    {
+                      "userId": 101,
+                      "username": "张工",
+                      "groupId": 50,
+                      "groupName": "技术一组",
+                      "success": 85,
+                      "absent": 7,
+                      "exception": 3
+                    },
+                    {
+                      "userId": 102,
+                      "username": "李工",
+                      "groupId": 50,
+                      "groupName": "技术一组",
+                      "success": 88,
+                      "absent": 6,
+                      "exception": 2
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {}
+          },
+          "400": {
+            "description": "请求参数错误，如参数格式不正确、缺少必需参数、参数值无效或超出范围",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/BaseResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
                         },
-                        {
-                          "userId": 102,
-                          "username": "李工",
-                          "groupId": 50,
-                          "groupName": "技术一组",
-                          "total": 100,
-                          "success": 88,
-                          "failed": 4,
-                          "absent": 6,
-                          "exception": 2
+                        "message": {
+                          "type": "string"
                         }
+                      },
+                      "required": [
+                        "message"
                       ]
                     }
-                  }
+                  ]
                 }
               }
             },
@@ -4657,231 +4452,11 @@
             "headers": {}
           }
         },
-        "security": []
-      }
-    },
-    "/statistics/daily": {
-      "get": {
-        "summary": "获取每日签到统计",
-        "deprecated": false,
-        "description": "获取每日签到统计数据，按日期分组展示",
-        "tags": [
-          "Statistics"
-        ],
-        "parameters": [
+        "security": [
           {
-            "name": "groupId",
-            "in": "query",
-            "description": "用户组ID（可选，筛选特定用户组的统计数据）",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "format": "int",
-              "x-oapi-codegen-extra-tags": {
-                "form": "groupId",
-                "binding": "omitempty,gt=0"
-              }
-            }
-          },
-          {
-            "name": "startDate",
-            "in": "query",
-            "description": "开始日期（Unix时间戳，单位：秒）",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "format": "int",
-              "x-oapi-codegen-extra-tags": {
-                "form": "startDate",
-                "binding": "omitempty"
-              }
-            }
-          },
-          {
-            "name": "endDate",
-            "in": "query",
-            "description": "结束日期（Unix时间戳，单位：秒）",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "format": "int",
-              "x-oapi-codegen-extra-tags": {
-                "form": "endDate",
-                "binding": "omitempty,gtefield=StartDate"
-              }
-            }
+            "JWT鉴权": []
           }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/SuccessWithData"
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "data": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "date": {
-                                "type": "integer",
-                                "format": "int",
-                                "description": "日期（Unix时间戳，单位：秒）",
-                                "x-go-type-skip-optional-pointer": true
-                              },
-                              "total": {
-                                "type": "integer",
-                                "format": "int",
-                                "description": "总签到次数",
-                                "x-go-type-skip-optional-pointer": true
-                              },
-                              "success": {
-                                "type": "integer",
-                                "format": "int",
-                                "description": "成功签到次数",
-                                "x-go-type-skip-optional-pointer": true
-                              },
-                              "failed": {
-                                "type": "integer",
-                                "format": "int",
-                                "description": "失败签到次数",
-                                "x-go-type-skip-optional-pointer": true
-                              },
-                              "absent": {
-                                "type": "integer",
-                                "format": "int",
-                                "description": "缺勤次数",
-                                "x-go-type-skip-optional-pointer": true
-                              },
-                              "exception": {
-                                "type": "integer",
-                                "format": "int",
-                                "description": "异常签到次数（包括审核中和已审核）",
-                                "x-go-type-skip-optional-pointer": true
-                              }
-                            },
-                            "required": [
-                              "date",
-                              "total",
-                              "success",
-                              "failed",
-                              "absent",
-                              "exception"
-                            ]
-                          }
-                        }
-                      }
-                    }
-                  ]
-                },
-                "examples": {
-                  "每日统计数据示例": {
-                    "summary": "每日签到统计",
-                    "value": {
-                      "code": 0,
-                      "data": [
-                        {
-                          "date": 1711056000,
-                          "total": 100,
-                          "success": 85,
-                          "failed": 5,
-                          "absent": 7,
-                          "exception": 3
-                        },
-                        {
-                          "date": 1711142400,
-                          "total": 100,
-                          "success": 88,
-                          "failed": 4,
-                          "absent": 6,
-                          "exception": 2
-                        }
-                      ]
-                    }
-                  }
-                }
-              }
-            },
-            "headers": {}
-          },
-          "401": {
-            "description": "认证失败，用户未登录、Token无效或已过期，需要重新登录获取有效凭证",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/BaseResponse"
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "message"
-                      ]
-                    }
-                  ]
-                }
-              }
-            },
-            "headers": {}
-          },
-          "403": {
-            "description": "权限不足，用户身份已验证但不具备执行当前操作的权限，如非管理员尝试执行管理操作",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/BaseResponse"
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "message"
-                      ]
-                    }
-                  ]
-                }
-              }
-            },
-            "headers": {}
-          },
-          "500": {
-            "description": "服务器内部错误，获取统计数据时发生异常",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InternalServerError"
-                }
-              }
-            },
-            "headers": {}
-          }
-        },
-        "security": []
+        ]
       }
     },
     "/users/me/face": {
@@ -5235,8 +4810,7 @@
                   "faceImagesBase64"
                 ],
                 "description": "人脸验证请求数据"
-              },
-              "examples": {}
+              }
             }
           }
         },
@@ -5271,15 +4845,10 @@
                     }
                   ]
                 },
-                "examples": {
-                  "验证示例": {
-                    "summary": "人脸验证示例",
-                    "value": {
-                      "code": 0,
-                      "data": {
-                        "isMatch": true
-                      }
-                    }
+                "example": {
+                  "code": 0,
+                  "data": {
+                    "isMatch": true
                   }
                 }
               }
@@ -5956,16 +5525,15 @@
       "UserCheckinStatus": {
         "type": "string",
         "enum": [
-          "pending",
+          "unchecked",
           "success",
           "pending_audit",
           "audit_approved",
-          "audit_rejected",
-          "timeout"
+          "audit_rejected"
         ],
         "x-go-type-skip-optional-pointer": true,
         "examples": [
-          "pending"
+          "unchecked"
         ]
       },
       "TaskQueryStatus": {
@@ -5997,10 +5565,10 @@
         "type": "object",
         "properties": {
           "code": {
-            "type": "integer",
+            "type": "string",
             "enum": [
-              0,
-              1
+              "0",
+              "1"
             ],
             "description": "响应码，0表示成功，1表示失败",
             "x-go-type-skip-optional-pointer": true
@@ -6085,9 +5653,10 @@
           "none",
           "pending",
           "member",
+          "admin",
           "rejected"
         ],
-        "description": "用户在组中的状态：none(未关联)、pending(申请中)、member(普通成员)、rejected(申请被拒绝)",
+        "description": "用户在组中的状态：none(未关联)、pending(申请中)、member(普通成员)、admin(管理员)、rejected(申请被拒绝)",
         "x-go-type-skip-optional-pointer": true,
         "examples": [
           "none"
@@ -6373,11 +5942,19 @@
     "securitySchemes": {
       "JWT鉴权": {
         "type": "http",
+        "scheme": "bearer"
+      },
+      "BearerAuth": {
+        "type": "http",
         "scheme": "bearer",
         "bearerFormat": "JWT"
       }
     }
   },
   "servers": [],
-  "security": []
+  "security": [
+    {
+      "JWT鉴权": []
+    }
+  ]
 }

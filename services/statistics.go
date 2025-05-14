@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	appErrors "TeamTickBackend/pkg/errors"
@@ -246,15 +247,15 @@ func (s *StatisticsService) GenerateGroupSignInStatisticsExcel(ctx context.Conte
 		}
 
 		// 设置表头
-		headers := []string{"用户ID", "用户名"}
+		headers := []string{"用户ID", "用户名", "总任务数"}
 		for _, status := range statuses {
 			switch status {
 			case "success":
-				headers = append(headers, "成功签到次数")
+				headers = append(headers, "成功签到次数", "成功签到任务ID")
 			case "absent":
-				headers = append(headers, "缺勤次数")
+				headers = append(headers, "缺勤次数", "缺勤任务ID")
 			case "exception":
-				headers = append(headers, "异常次数")
+				headers = append(headers, "异常次数", "异常任务ID")
 			}
 		}
 
@@ -280,10 +281,8 @@ func (s *StatisticsService) GenerateGroupSignInStatisticsExcel(ctx context.Conte
 			return "", appErrors.ErrStatisticsQueryFailed.WithError(err)
 		}
 
-		// 遍历每个成员，获取其统计数据
 		row := 2 // 从第2行开始写入数据
 		for _, member := range members {
-			// 获取成员统计数据
 			statistics, err := s.GetGroupMemberSignInStatistics(ctx, groupID, member.UserID, startTime, endTime)
 			if err != nil {
 				logger.Error("获取成员统计数据失败：数据库操作错误",
@@ -294,16 +293,67 @@ func (s *StatisticsService) GenerateGroupSignInStatisticsExcel(ctx context.Conte
 				return "", appErrors.ErrStatisticsQueryFailed.WithError(err)
 			}
 
-			// 写入数据
-			data := []interface{}{member.UserID, member.Username}
+			// 计算总任务数
+			totalTasks := statistics.SuccessNum + statistics.AbsentNum + statistics.ExceptionNum
+			data := []interface{}{member.UserID, member.Username, totalTasks}
+			// 统计每种状态的taskId
 			for _, status := range statuses {
+				taskIDs := ""
 				switch status {
 				case "success":
-					data = append(data, statistics.SuccessNum)
+					num := statistics.SuccessNum
+					records, err := s.statisticsDao.GetGroupSignInSuccess(ctx, groupID, startTime, endTime, nil)
+					if err != nil {
+						logger.Error("获取成功签到记录失败",
+							zap.Int("groupID", groupID),
+							zap.Error(err),
+						)
+						return "", appErrors.ErrStatisticsQueryFailed.WithError(err)
+					}
+					var ids []string
+					for _, r := range records {
+						if r.UserID == member.UserID {
+							ids = append(ids, fmt.Sprintf("%d", r.TaskID))
+						}
+					}
+					taskIDs = strings.Join(ids, ",")
+					data = append(data, num, taskIDs)
 				case "absent":
-					data = append(data, statistics.AbsentNum)
+					num := statistics.AbsentNum
+					records, err := s.statisticsDao.GetGroupSignInAbsent(ctx, groupID, startTime, endTime, nil)
+					if err != nil {
+						logger.Error("获取缺勤记录失败",
+							zap.Int("groupID", groupID),
+							zap.Error(err),
+						)
+						return "", appErrors.ErrStatisticsQueryFailed.WithError(err)
+					}
+					var ids []string
+					for _, r := range records {
+						if r.UserID == member.UserID {
+							ids = append(ids, fmt.Sprintf("%d", r.TaskID))
+						}
+					}
+					taskIDs = strings.Join(ids, ",")
+					data = append(data, num, taskIDs)
 				case "exception":
-					data = append(data, statistics.ExceptionNum)
+					num := statistics.ExceptionNum
+					records, err := s.statisticsDao.GetGroupSignInException(ctx, groupID, startTime, endTime, nil)
+					if err != nil {
+						logger.Error("获取异常记录失败",
+							zap.Int("groupID", groupID),
+							zap.Error(err),
+						)
+						return "", appErrors.ErrStatisticsQueryFailed.WithError(err)
+					}
+					var ids []string
+					for _, r := range records {
+						if r.UserID == member.UserID {
+							ids = append(ids, fmt.Sprintf("%d", r.TaskID))
+						}
+					}
+					taskIDs = strings.Join(ids, ",")
+					data = append(data, num, taskIDs)
 				}
 			}
 
@@ -319,11 +369,20 @@ func (s *StatisticsService) GenerateGroupSignInStatisticsExcel(ctx context.Conte
 
 		// 写总计行
 		sumRow := row + 1
-		f.SetCellValue(sheetName, fmt.Sprintf("B%d", sumRow), "总计")
-		for i := range statuses {
-			col := 'C' + i
-			formula := fmt.Sprintf("SUM(%c2:%c%d)", col, col, row-1)
-			f.SetCellFormula(sheetName, fmt.Sprintf("%c%d", col, sumRow), formula)
+		f.SetCellValue(sheetName, fmt.Sprintf("A%d", sumRow), "总计")
+		f.SetCellValue(sheetName, fmt.Sprintf("B%d", sumRow), "") // B列空
+		f.SetCellValue(sheetName, fmt.Sprintf("C%d", sumRow), "") // C列空
+		colIdx := 3                                               // 从D列开始（因为C列是总任务数）
+		for range statuses {
+			if row == 2 {
+				f.SetCellValue(sheetName, fmt.Sprintf("%c%d", 'A'+colIdx, sumRow), 0)
+				f.SetCellValue(sheetName, fmt.Sprintf("%c%d", 'A'+colIdx+1, sumRow), "")
+			} else {
+				formula := fmt.Sprintf("SUM(%c2:%c%d)", 'A'+colIdx, 'A'+colIdx, row-1)
+				f.SetCellFormula(sheetName, fmt.Sprintf("%c%d", 'A'+colIdx, sumRow), formula)
+				f.SetCellValue(sheetName, fmt.Sprintf("%c%d", 'A'+colIdx+1, sumRow), "")
+			}
+			colIdx += 2
 		}
 
 		// 调试输出
@@ -337,7 +396,7 @@ func (s *StatisticsService) GenerateGroupSignInStatisticsExcel(ctx context.Conte
 		quotedSheet := fmt.Sprintf("'%s'", sheetName)
 		series := []excelize.ChartSeries{}
 		for i := range statuses {
-			col := 'C' + i
+			col := 'D' + i // 从D列开始，因为C列是总任务数
 			var catRange, valRange string
 			if row-2 == 1 {
 				catRange = fmt.Sprintf("%s!$B$2", quotedSheet)
@@ -360,17 +419,17 @@ func (s *StatisticsService) GenerateGroupSignInStatisticsExcel(ctx context.Conte
 			},
 			GapWidth: func() *uint { v := uint(500); return &v }(),
 		}
-		f.AddChart(sheetName, "H2", barChart)
-		f.SetCellValue(sheetName, "H18", "用户签到统计")
+		f.AddChart(sheetName, "J2", barChart)
+		f.SetCellValue(sheetName, "J18", "用户签到统计")
 
 		// 饼图：用总计行，显示所有用户的总计数据
 		var pieCatRange, pieValRange string
 		if len(statuses) == 1 {
-			pieCatRange = fmt.Sprintf("%s!$C$%d", quotedSheet, sumRow)
-			pieValRange = fmt.Sprintf("%s!$C$%d", quotedSheet, sumRow)
+			pieCatRange = fmt.Sprintf("%s!$D$%d", quotedSheet, sumRow)
+			pieValRange = fmt.Sprintf("%s!$D$%d", quotedSheet, sumRow)
 		} else {
-			pieCatRange = fmt.Sprintf("%s!$C$%d:$%c$%d", quotedSheet, sumRow, 'C'+len(statuses)-1, sumRow)
-			pieValRange = fmt.Sprintf("%s!$C$%d:$%c$%d", quotedSheet, sumRow, 'C'+len(statuses)-1, sumRow)
+			pieCatRange = fmt.Sprintf("%s!$D$%d:$%c$%d", quotedSheet, sumRow, 'D'+len(statuses)-1, sumRow)
+			pieValRange = fmt.Sprintf("%s!$D$%d:$%c$%d", quotedSheet, sumRow, 'D'+len(statuses)-1, sumRow)
 		}
 		pieChart := &excelize.Chart{
 			Type: excelize.Pie,
@@ -385,8 +444,8 @@ func (s *StatisticsService) GenerateGroupSignInStatisticsExcel(ctx context.Conte
 				ShowPercent: true,
 			},
 		}
-		f.AddChart(sheetName, "H20", pieChart)
-		f.SetCellValue(sheetName, "H36", "签到状态分布")
+		f.AddChart(sheetName, "J20", pieChart)
+		f.SetCellValue(sheetName, "J36", "签到状态分布")
 	}
 
 	// 生成文件名

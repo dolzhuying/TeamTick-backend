@@ -81,7 +81,7 @@ func ResponseMiddleware() gin.HandlerFunc {
 			}
 
 			// 设置响应码
-			standardResp.Code = strStatusCode
+			standardResp.Code = "1"
 		} else {
 			// 情况2: 不存在错误
 			// 2.1 处理状态码
@@ -101,7 +101,7 @@ func ResponseMiddleware() gin.HandlerFunc {
 						}
 					}
 				}
-				standardResp.Code = strStatusCode
+				standardResp.Code = "0"
 				return // 2xx 且不是标准格式，不做处理
 			} else if statusCode >= 400 && statusCode < 500 {
 				// 4xx 状态码
@@ -122,11 +122,11 @@ func ResponseMiddleware() gin.HandlerFunc {
 					}
 				}
 				// 没有消息，添加默认消息
-				standardResp.Message = "请求错误："+http.StatusText(statusCode)
-				standardResp.Code = strStatusCode
+				standardResp.Message = "请求错误：" + http.StatusText(statusCode)
+				standardResp.Code = "1"
 			} else {
 				// 其他状态码或未设置状态码
-				standardResp.Code = "500"
+				standardResp.Code = "1"
 				standardResp.Message = "服务器发生未知错误。"
 				statusCode = http.StatusInternalServerError
 			}

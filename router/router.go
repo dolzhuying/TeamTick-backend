@@ -45,23 +45,32 @@ func SetupRouter(container *app.AppContainer) *gin.Engine {
 	auditRequestRouter.Use(middlewares.AuthMiddleware(container.JwtHandler))
 	gen.RegisterAuditRequestsHandlers(auditRequestRouter, auditRequestHandler)
 
+	// 注册导出相关路由
+	exportHandler := handlers.NewExportHandler(container)
+	exportRouter := router.Group("")
+	exportRouter.Use(middlewares.AuthMiddleware(container.JwtHandler))
+	gen.RegisterExportHandlers(exportRouter, exportHandler)
+
+	// 注册统计相关路由
+	statisticsHandler := handlers.NewStatisticsHandler(container)
+	statisticsRouter := router.Group("")
+	statisticsRouter.Use(middlewares.AuthMiddleware(container.JwtHandler))
+	gen.RegisterStatisticsHandlers(statisticsRouter, statisticsHandler)
+
 	return router
 }
 
-
 func RunServer(router *gin.Engine, addr string) error {
-	
+
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
-	
 	go func() {
 		if err := router.Run(addr); err != nil {
 			logger.Error("服务器启动失败", zap.Error(err))
 		}
 	}()
 
-	
 	<-quit
 	logger.Info("正在关闭服务器...")
 	return nil

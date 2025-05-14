@@ -67,10 +67,10 @@ func (s *GroupsService) CreateGroup(ctx context.Context, groupName, description,
 		}
 		//添加用户组管理员
 		if err := s.groupMemberDao.Create(ctx, &models.GroupMember{
-			GroupID:  group.GroupID,
-			UserID:   creatorID,
-			Username: creatorName,
-			Role:     "admin",
+			GroupID:   group.GroupID,
+			UserID:    creatorID,
+			Username:  creatorName,
+			Role:      "admin",
 			CreatedAt: time.Now(),
 		}, tx); err != nil {
 			logger.Error("创建用户组失败：添加管理员失败",
@@ -569,10 +569,10 @@ func (s *GroupsService) CreateJoinApplication(ctx context.Context, groupID, user
 		}
 		//创建申请记录
 		newApplication := models.JoinApplication{
-			GroupID:  groupID,
-			UserID:   userID,
-			Username: username,
-			Reason:   reason,
+			GroupID:   groupID,
+			UserID:    userID,
+			Username:  username,
+			Reason:    reason,
 			CreatedAt: time.Now(),
 		}
 		if err := s.joinApplicationDao.Create(ctx, &newApplication, tx); err != nil {
@@ -614,6 +614,12 @@ func (s *GroupsService) CreateJoinApplication(ctx context.Context, groupID, user
 
 	// 缓存用户组所有申请记录
 	existGroupApplication, err := s.joinApplicationRedisDAO.GetByGroupID(ctx, groupID)
+	if err != nil {
+		logger.Error("缓存用户组申请记录失败：Redis操作错误",
+			zap.Int("groupID", groupID),
+			zap.Error(err),
+		)
+	}
 	if existGroupApplication == nil {
 		existGroupApplication = []*models.JoinApplication{}
 	}
@@ -631,6 +637,12 @@ func (s *GroupsService) CreateJoinApplication(ctx context.Context, groupID, user
 
 	// 缓存用户组待审批申请记录
 	existGroupPendingApplication, err := s.joinApplicationRedisDAO.GetByGroupIDAndStatus(ctx, groupID, "pending")
+	if err != nil {
+		logger.Error("缓存用户组待审批申请记录失败：Redis操作错误",
+			zap.Int("groupID", groupID),
+			zap.Error(err),
+		)
+	}
 	if existGroupPendingApplication == nil {
 		existGroupPendingApplication = []*models.JoinApplication{}
 	}
@@ -869,9 +881,9 @@ func (s *GroupsService) ApproveJoinApplication(ctx context.Context, groupID, use
 		}
 		//添加用户组成员
 		if err := s.groupMemberDao.Create(ctx, &models.GroupMember{
-			GroupID:  groupID,
-			UserID:   userID,
-			Username: username,
+			GroupID:   groupID,
+			UserID:    userID,
+			Username:  username,
 			CreatedAt: time.Now(),
 		}, tx); err != nil {
 			logger.Error("审批加入申请失败：添加成员失败",
@@ -962,6 +974,12 @@ func (s *GroupsService) ApproveJoinApplication(ctx context.Context, groupID, use
 
 	// 更新用户组待审批状态缓存
 	existGroupPendingApplication, err := s.joinApplicationRedisDAO.GetByGroupIDAndStatus(ctx, groupID, "pending")
+	if err != nil {
+		logger.Error("更新用户组待审批状态缓存失败：Redis操作错误",
+			zap.Int("groupID", groupID),
+			zap.Error(err),
+		)
+	}
 	if existGroupPendingApplication != nil && len(existGroupPendingApplication) > 0 {
 		for i := 0; i < len(existGroupPendingApplication); i++ {
 			if existGroupPendingApplication[i].RequestID == requestID {
@@ -981,6 +999,12 @@ func (s *GroupsService) ApproveJoinApplication(ctx context.Context, groupID, use
 
 	// 更新用户组加入申请审批通过缓存
 	existGroupApprovedApplication, err := s.joinApplicationRedisDAO.GetByGroupIDAndStatus(ctx, groupID, "accepted")
+	if err != nil {
+		logger.Error("更新用户组加入申请审批通过缓存失败：Redis操作错误",
+			zap.Int("groupID", groupID),
+			zap.Error(err),
+		)
+	}
 	if existGroupApprovedApplication == nil {
 		existGroupApprovedApplication = []*models.JoinApplication{}
 	}
@@ -1106,6 +1130,12 @@ func (s *GroupsService) RejectJoinApplication(ctx context.Context, groupID, user
 
 	// 更新用户组待审批状态缓存
 	existGroupPendingApplication, err := s.joinApplicationRedisDAO.GetByGroupIDAndStatus(ctx, groupID, "pending")
+	if err != nil {
+		logger.Error("更新用户组待审批状态缓存失败：Redis操作错误",
+			zap.Int("groupID", groupID),
+			zap.Error(err),
+		)
+	}
 	if existGroupPendingApplication != nil && len(existGroupPendingApplication) > 0 {
 		for i := 0; i < len(existGroupPendingApplication); i++ {
 			if existGroupPendingApplication[i].RequestID == requestID {
@@ -1126,6 +1156,12 @@ func (s *GroupsService) RejectJoinApplication(ctx context.Context, groupID, user
 
 	// 更新用户组加入申请审批拒绝缓存
 	existGroupRejectedApplication, err := s.joinApplicationRedisDAO.GetByGroupIDAndStatus(ctx, groupID, "rejected")
+	if err != nil {
+		logger.Error("更新用户组加入申请审批拒绝缓存失败：Redis操作错误",
+			zap.Int("groupID", groupID),
+			zap.Error(err),
+		)
+	}
 	if existGroupRejectedApplication == nil {
 		existGroupRejectedApplication = []*models.JoinApplication{}
 	}
