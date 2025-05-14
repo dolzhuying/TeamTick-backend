@@ -31,6 +31,7 @@ const (
 
 // Defines values for GroupMembershipStatus.
 const (
+	GroupMembershipStatusAdmin    GroupMembershipStatus = "admin"
 	GroupMembershipStatusMember   GroupMembershipStatus = "member"
 	GroupMembershipStatusNone     GroupMembershipStatus = "none"
 	GroupMembershipStatusPending  GroupMembershipStatus = "pending"
@@ -79,19 +80,11 @@ const (
 	Wifi PostCheckinTasksTaskIdVerifyJSONBodyVerifyType = "wifi"
 )
 
-// Defines values for PostExportTasksJSONBodyStatuses.
+// Defines values for GetExportCheckinsXlsxParamsStatuses.
 const (
-	PostExportTasksJSONBodyStatusesAbsent         PostExportTasksJSONBodyStatuses = "absent"
-	PostExportTasksJSONBodyStatusesAuditApproved  PostExportTasksJSONBodyStatuses = "audit_approved"
-	PostExportTasksJSONBodyStatusesAuditRejected  PostExportTasksJSONBodyStatuses = "audit_rejected"
-	PostExportTasksJSONBodyStatusesFailedFace     PostExportTasksJSONBodyStatuses = "failed_face"
-	PostExportTasksJSONBodyStatusesFailedLocation PostExportTasksJSONBodyStatuses = "failed_location"
-	PostExportTasksJSONBodyStatusesFailedNfc      PostExportTasksJSONBodyStatuses = "failed_nfc"
-	PostExportTasksJSONBodyStatusesFailedOther    PostExportTasksJSONBodyStatuses = "failed_other"
-	PostExportTasksJSONBodyStatusesFailedTime     PostExportTasksJSONBodyStatuses = "failed_time"
-	PostExportTasksJSONBodyStatusesFailedWifi     PostExportTasksJSONBodyStatuses = "failed_wifi"
-	PostExportTasksJSONBodyStatusesPendingAudit   PostExportTasksJSONBodyStatuses = "pending_audit"
-	PostExportTasksJSONBodyStatusesSuccess        PostExportTasksJSONBodyStatuses = "success"
+	GetExportCheckinsXlsxParamsStatusesAbsent    GetExportCheckinsXlsxParamsStatuses = "absent"
+	GetExportCheckinsXlsxParamsStatusesException GetExportCheckinsXlsxParamsStatuses = "exception"
+	GetExportCheckinsXlsxParamsStatusesSuccess   GetExportCheckinsXlsxParamsStatuses = "success"
 )
 
 // Defines values for GetGroupsParamsFilter.
@@ -303,7 +296,7 @@ type GroupMember struct {
 	Username string `json:"username,omitempty"`
 }
 
-// GroupMembershipStatus 用户在组中的状态：none(未关联)、pending(申请中)、member(普通成员)、rejected(申请被拒绝)
+// GroupMembershipStatus 用户在组中的状态：none(未关联)、pending(申请中)、member(普通成员)、admin(管理员)、rejected(申请被拒绝)
 type GroupMembershipStatus string
 
 // GroupRole defines model for GroupRole.
@@ -462,6 +455,15 @@ type PutAuditRequestsAuditRequestIdJSONBody struct {
 // PutAuditRequestsAuditRequestIdJSONBodyAction defines parameters for PutAuditRequestsAuditRequestId.
 type PutAuditRequestsAuditRequestIdJSONBodyAction string
 
+// PostAuthAdminLoginJSONBody defines parameters for PostAuthAdminLogin.
+type PostAuthAdminLoginJSONBody struct {
+	// Password 密码
+	Password string `binding:"required" json:"password,omitempty"`
+
+	// Username 用户名
+	Username string `binding:"required" json:"username"`
+}
+
 // PostAuthLoginJSONBody defines parameters for PostAuthLogin.
 type PostAuthLoginJSONBody struct {
 	// Password 密码
@@ -531,25 +533,23 @@ type PostCheckinTasksTaskIdVerifyJSONBody struct {
 // PostCheckinTasksTaskIdVerifyJSONBodyVerifyType defines parameters for PostCheckinTasksTaskIdVerify.
 type PostCheckinTasksTaskIdVerifyJSONBodyVerifyType string
 
-// PostExportTasksJSONBody defines parameters for PostExportTasks.
-type PostExportTasksJSONBody struct {
-	DateRange struct {
-		// End 结束日期（Unix时间戳，单位：秒）
-		End int `binding:"required,gtefield=start" json:"end"`
+// GetExportCheckinsXlsxParams defines parameters for GetExportCheckinsXlsx.
+type GetExportCheckinsXlsxParams struct {
+	// GroupIds 需要导出的用户组ID列表。例如：`groupIds=1&groupIds=2` 或 `groupIds=1,2,3`。
+	GroupIds []int `form:"groupIds" json:"groupIds"`
 
-		// Start 开始日期（Unix时间戳，单位：秒）
-		Start int `binding:"required" json:"start"`
-	} `binding:"required" json:"dateRange"`
+	// DateStart 开始日期（Unix时间戳，单位：秒）
+	DateStart int `form:"dateStart" json:"dateStart"`
 
-	// GroupIds 需要导出的用户组ID列表
-	GroupIds []int `binding:"required,min=1,dive,gt=0" json:"groupIds"`
+	// DateEnd 结束日期（Unix时间戳，单位：秒）。必须大于或等于开始日期。
+	DateEnd int `form:"dateEnd" json:"dateEnd"`
 
-	// Statuses 需要导出的签到状态列表
-	Statuses *[]PostExportTasksJSONBodyStatuses `binding:"omitempty" json:"statuses,omitempty"`
+	// Statuses 需要导出的签到状态列表。例如：`statuses=success&statuses=absent` 或 `statuses=success,absent`。如果未提供，则使用默认状态列表。
+	Statuses *[]GetExportCheckinsXlsxParamsStatuses `form:"statuses,omitempty" json:"statuses,omitempty"`
 }
 
-// PostExportTasksJSONBodyStatuses defines parameters for PostExportTasks.
-type PostExportTasksJSONBodyStatuses string
+// GetExportCheckinsXlsxParamsStatuses defines parameters for GetExportCheckinsXlsx.
+type GetExportCheckinsXlsxParamsStatuses string
 
 // GetGroupsParams defines parameters for GetGroups.
 type GetGroupsParams struct {
@@ -626,18 +626,6 @@ type PutGroupsGroupIdJoinRequestsRequestIdJSONBody struct {
 // PutGroupsGroupIdJoinRequestsRequestIdJSONBodyAction defines parameters for PutGroupsGroupIdJoinRequestsRequestId.
 type PutGroupsGroupIdJoinRequestsRequestIdJSONBodyAction string
 
-// GetStatisticsDailyParams defines parameters for GetStatisticsDaily.
-type GetStatisticsDailyParams struct {
-	// GroupId 用户组ID（可选，筛选特定用户组的统计数据）
-	GroupId *int `form:"groupId,omitempty" json:"groupId,omitempty"`
-
-	// StartDate 开始日期（Unix时间戳，单位：秒）
-	StartDate *int `form:"startDate,omitempty" json:"startDate,omitempty"`
-
-	// EndDate 结束日期（Unix时间戳，单位：秒）
-	EndDate *int `form:"endDate,omitempty" json:"endDate,omitempty"`
-}
-
 // GetStatisticsGroupsParams defines parameters for GetStatisticsGroups.
 type GetStatisticsGroupsParams struct {
 	// StartDate 开始日期（Unix时间戳，单位：秒）
@@ -686,6 +674,9 @@ type PostUsersMeFaceVerifyJSONBody struct {
 // PutAuditRequestsAuditRequestIdJSONRequestBody defines body for PutAuditRequestsAuditRequestId for application/json ContentType.
 type PutAuditRequestsAuditRequestIdJSONRequestBody PutAuditRequestsAuditRequestIdJSONBody
 
+// PostAuthAdminLoginJSONRequestBody defines body for PostAuthAdminLogin for application/json ContentType.
+type PostAuthAdminLoginJSONRequestBody PostAuthAdminLoginJSONBody
+
 // PostAuthLoginJSONRequestBody defines body for PostAuthLogin for application/json ContentType.
 type PostAuthLoginJSONRequestBody PostAuthLoginJSONBody
 
@@ -703,9 +694,6 @@ type PostCheckinTasksTaskIdCheckinJSONRequestBody PostCheckinTasksTaskIdCheckinJ
 
 // PostCheckinTasksTaskIdVerifyJSONRequestBody defines body for PostCheckinTasksTaskIdVerify for application/json ContentType.
 type PostCheckinTasksTaskIdVerifyJSONRequestBody PostCheckinTasksTaskIdVerifyJSONBody
-
-// PostExportTasksJSONRequestBody defines body for PostExportTasks for application/json ContentType.
-type PostExportTasksJSONRequestBody PostExportTasksJSONBody
 
 // PostGroupsJSONRequestBody defines body for PostGroups for application/json ContentType.
 type PostGroupsJSONRequestBody PostGroupsJSONBody
