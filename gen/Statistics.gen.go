@@ -175,6 +175,18 @@ func (response GetStatisticsGroups200JSONResponse) VisitGetStatisticsGroupsRespo
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetStatisticsGroups400JSONResponse struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+func (response GetStatisticsGroups400JSONResponse) VisitGetStatisticsGroupsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type GetStatisticsGroups401JSONResponse struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`
@@ -245,6 +257,18 @@ type GetStatisticsUsers200JSONResponse struct {
 func (response GetStatisticsUsers200JSONResponse) VisitGetStatisticsUsersResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetStatisticsUsers400JSONResponse struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+func (response GetStatisticsUsers400JSONResponse) VisitGetStatisticsUsersResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
 
 	return json.NewEncoder(w).Encode(response)
 }
