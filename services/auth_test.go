@@ -53,21 +53,7 @@ func (m *mockUserDAO) GetByID(ctx context.Context, id int, tx ...*gorm.DB) (*mod
 	return userArg.(*models.User), args.Error(1)
 }
 
-// Mock TransactionManager
-type mockTransactionManager struct {
-	mock.Mock
-}
 
-func (m *mockTransactionManager) WithTransaction(ctx context.Context, fn func(tx *gorm.DB) error) error {
-	args := m.Called(ctx, fn)
-	// 执行回调函数，传入nil作为tx参数
-	err := fn(nil)
-	// 返回回调错误或配置的mock错误
-	if args.Error(0) != nil {
-		return args.Error(0)
-	}
-	return err
-}
 
 // Mock JwtHandler
 type mockJwtHandler struct {

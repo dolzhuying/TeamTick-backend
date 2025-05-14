@@ -17,10 +17,6 @@ import (
 
 // --- Mock 实现 ---
 
-// Mock GroupDAO
-type mockGroupDAO struct {
-	mock.Mock
-}
 
 func (m *mockGroupDAO) Create(ctx context.Context, group *models.Group, tx ...*gorm.DB) error {
 	args := m.Called(ctx, group, tx)
@@ -33,14 +29,6 @@ func (m *mockGroupDAO) Create(ctx context.Context, group *models.Group, tx ...*g
 	return args.Error(0)
 }
 
-func (m *mockGroupDAO) GetByGroupID(ctx context.Context, groupID int, tx ...*gorm.DB) (*models.Group, error) {
-	args := m.Called(ctx, groupID, tx)
-	groupArg := args.Get(0)
-	if groupArg == nil {
-		return nil, args.Error(1)
-	}
-	return groupArg.(*models.Group), args.Error(1)
-}
 
 func (m *mockGroupDAO) GetGroupsByUserID(ctx context.Context, userID int, tx ...*gorm.DB) ([]*models.Group, error) {
 	args := m.Called(ctx, userID, tx)
@@ -76,10 +64,6 @@ func (m *mockGroupDAO) Delete(ctx context.Context, groupID int, tx ...*gorm.DB) 
 	return args.Error(0)
 }
 
-// Mock GroupMemberDAO
-type mockGroupMemberDAO struct {
-	mock.Mock
-}
 
 func (m *mockGroupMemberDAO) Create(ctx context.Context, member *models.GroupMember, tx ...*gorm.DB) error {
 	args := m.Called(ctx, member, tx)
@@ -98,14 +82,7 @@ func (m *mockGroupMemberDAO) GetMemberByGroupIDAndUserID(ctx context.Context, gr
 	return memberArg.(*models.GroupMember), args.Error(1)
 }
 
-func (m *mockGroupMemberDAO) GetMembersByGroupID(ctx context.Context, groupID int, tx ...*gorm.DB) ([]*models.GroupMember, error) {
-	args := m.Called(ctx, groupID, tx)
-	membersArg := args.Get(0)
-	if membersArg == nil {
-		return nil, args.Error(1)
-	}
-	return membersArg.([]*models.GroupMember), args.Error(1)
-}
+
 
 func (m *mockGroupMemberDAO) Delete(ctx context.Context, groupID, userID int, tx ...*gorm.DB) error {
 	args := m.Called(ctx, groupID, userID, tx)

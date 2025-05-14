@@ -8,6 +8,9 @@ import (
 	"errors"
 	"time"
 
+	"TeamTickBackend/pkg/logger"
+
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -43,14 +46,34 @@ func (s *AuditRequestService) GetAuditRequestListByUserID(ctx context.Context, u
 		auditRequests, err := s.checkApplicationDAO.GetByUserID(ctx, userID, tx)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
+				logger.Error("获取用户签到申请失败：未找到记录",
+					zap.Int("userID", userID),
+					zap.String("operation", "GetByUserID"),
+					zap.Error(err),
+				)
 				return appErrors.ErrAuditRequestNotFound
 			}
+			logger.Error("获取用户签到申请失败：数据库操作错误",
+				zap.Int("userID", userID),
+				zap.String("operation", "GetByUserID"),
+				zap.Error(err),
+			)
 			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
 		requests = auditRequests
+		logger.Info("成功获取用户签到申请列表",
+			zap.Int("userID", userID),
+			zap.Int("requestCount", len(requests)),
+			zap.String("operation", "GetAuditRequestListByUserID"),
+		)
 		return nil
 	})
 	if err != nil {
+		logger.Error("获取用户签到申请事务失败",
+			zap.Int("userID", userID),
+			zap.String("operation", "GetAuditRequestListByUserIDTransaction"),
+			zap.Error(err),
+		)
 		return nil, err
 	}
 	return requests, nil
@@ -63,14 +86,34 @@ func (s *AuditRequestService) GetAuditRequestByGroupID(ctx context.Context, grou
 		auditRequests, err := s.checkApplicationDAO.GetByGroupID(ctx, groupID, tx)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
+				logger.Error("获取组签到申请失败：未找到记录",
+					zap.Int("groupID", groupID),
+					zap.String("operation", "GetByGroupID"),
+					zap.Error(err),
+				)
 				return appErrors.ErrAuditRequestNotFound
 			}
+			logger.Error("获取组签到申请失败：数据库操作错误",
+				zap.Int("groupID", groupID),
+				zap.String("operation", "GetByGroupID"),
+				zap.Error(err),
+			)
 			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
 		requests = auditRequests
+		logger.Info("成功获取组签到申请列表",
+			zap.Int("groupID", groupID),
+			zap.Int("requestCount", len(requests)),
+			zap.String("operation", "GetAuditRequestByGroupID"),
+		)
 		return nil
 	})
 	if err != nil {
+		logger.Error("获取组签到申请事务失败",
+			zap.Int("groupID", groupID),
+			zap.String("operation", "GetAuditRequestByGroupIDTransaction"),
+			zap.Error(err),
+		)
 		return nil, err
 	}
 	return requests, nil
@@ -83,11 +126,22 @@ func (s *AuditRequestService) GetAuditRequestByGroupIDWithStatus(ctx context.Con
 		auditRequests, err := s.checkApplicationDAO.GetByGroupID(ctx, groupID, tx)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
+				logger.Error("获取组签到申请失败：未找到记录",
+					zap.Int("groupID", groupID),
+					zap.String("status", status),
+					zap.String("operation", "GetByGroupIDWithStatus"),
+					zap.Error(err),
+				)
 				return appErrors.ErrAuditRequestNotFound
 			}
+			logger.Error("获取组签到申请失败：数据库操作错误",
+				zap.Int("groupID", groupID),
+				zap.String("status", status),
+				zap.String("operation", "GetByGroupIDWithStatus"),
+				zap.Error(err),
+			)
 			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
-
 		// 根据状态筛选
 		if status == "all" {
 			requests = auditRequests
@@ -104,9 +158,21 @@ func (s *AuditRequestService) GetAuditRequestByGroupIDWithStatus(ctx context.Con
 				}
 			}
 		}
+		logger.Info("成功获取组签到申请列表（带状态）",
+			zap.Int("groupID", groupID),
+			zap.String("status", status),
+			zap.Int("requestCount", len(requests)),
+			zap.String("operation", "GetAuditRequestByGroupIDWithStatus"),
+		)
 		return nil
 	})
 	if err != nil {
+		logger.Error("获取组签到申请（带状态）事务失败",
+			zap.Int("groupID", groupID),
+			zap.String("status", status),
+			zap.String("operation", "GetAuditRequestByGroupIDWithStatusTransaction"),
+			zap.Error(err),
+		)
 		return nil, err
 	}
 	return requests, nil
@@ -125,21 +191,57 @@ func (s *AuditRequestService) CreateAuditRequest(
 		task, err := s.taskDAO.GetByTaskID(ctx, taskID, tx)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
+				logger.Error("创建签到申请失败：任务不存在",
+					zap.Int("taskID", taskID),
+					zap.Int("userID", userID),
+					zap.String("username", username),
+					zap.String("operation", "GetByTaskID"),
+					zap.Error(err),
+				)
 				return appErrors.ErrTaskNotFound
 			}
+			logger.Error("创建签到申请失败：数据库操作错误",
+				zap.Int("taskID", taskID),
+				zap.Int("userID", userID),
+				zap.String("username", username),
+				zap.String("operation", "GetByTaskID"),
+				zap.Error(err),
+			)
 			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
 		// 查询是否存在未审批申请
 		existingRequest, err := s.checkApplicationDAO.GetByTaskIDAndUserID(ctx, taskID, userID, tx)
 		if err == nil && existingRequest != nil && existingRequest.Status == "pending" {
+			logger.Error("创建签到申请失败：已存在未审批申请",
+				zap.Int("taskID", taskID),
+				zap.Int("userID", userID),
+				zap.String("username", username),
+				zap.String("operation", "GetByTaskIDAndUserID"),
+			)
 			return appErrors.ErrAuditRequestAlreadyExists
 		}
 		// 查询组
 		group, err := s.groupDAO.GetByGroupID(ctx, task.GroupID, tx)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
+				logger.Error("创建签到申请失败：群组不存在",
+					zap.Int("taskID", taskID),
+					zap.Int("userID", userID),
+					zap.String("username", username),
+					zap.Int("groupID", task.GroupID),
+					zap.String("operation", "GetByGroupID"),
+					zap.Error(err),
+				)
 				return appErrors.ErrGroupNotFound
 			}
+			logger.Error("创建签到申请失败：数据库操作错误",
+				zap.Int("taskID", taskID),
+				zap.Int("userID", userID),
+				zap.String("username", username),
+				zap.Int("groupID", task.GroupID),
+				zap.String("operation", "GetByGroupID"),
+				zap.Error(err),
+			)
 			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
 		newRequest := models.CheckApplication{
@@ -157,13 +259,36 @@ func (s *AuditRequestService) CreateAuditRequest(
 		}
 		// 创建申请
 		if err := s.checkApplicationDAO.Create(ctx, &newRequest, tx); err != nil {
+			logger.Error("创建签到申请失败：数据库操作错误",
+				zap.Int("taskID", taskID),
+				zap.Int("userID", userID),
+				zap.String("username", username),
+				zap.String("operation", "Create"),
+				zap.Error(err),
+			)
 			return appErrors.ErrAuditRequestCreateFailed.WithError(err)
 		}
 		request = newRequest
+		logger.Info("成功创建签到申请",
+			zap.Int("taskID", taskID),
+			zap.Int("userID", userID),
+			zap.String("username", username),
+			zap.Int("groupID", task.GroupID),
+			zap.String("groupName", group.GroupName),
+			zap.String("reason", reason),
+			zap.String("operation", "CreateAuditRequest"),
+		)
 		return nil
 
 	})
 	if err != nil {
+		logger.Error("创建签到申请事务失败",
+			zap.Int("taskID", taskID),
+			zap.Int("userID", userID),
+			zap.String("username", username),
+			zap.String("operation", "CreateAuditRequestTransaction"),
+			zap.Error(err),
+		)
 		return nil, err
 	}
 	return &request, nil
@@ -176,13 +301,31 @@ func (s *AuditRequestService) UpdateAuditRequest(ctx context.Context, requestID 
 		request, err := s.checkApplicationDAO.GetByID(ctx, requestID, tx)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
+				logger.Error("更新签到申请失败：申请不存在",
+					zap.Int("requestID", requestID),
+					zap.String("action", action),
+					zap.String("operation", "GetByID"),
+					zap.Error(err),
+				)
 				return appErrors.ErrAuditRequestNotFound
 			}
+			logger.Error("更新签到申请失败：数据库操作错误",
+				zap.Int("requestID", requestID),
+				zap.String("action", action),
+				zap.String("operation", "GetByID"),
+				zap.Error(err),
+			)
 			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
 		switch action {
 		case "approve":
 			if err := s.checkApplicationDAO.Update(ctx, "approved", requestID, tx); err != nil {
+				logger.Error("审批签到申请失败：更新状态失败",
+					zap.Int("requestID", requestID),
+					zap.String("action", action),
+					zap.String("operation", "UpdateApprove"),
+					zap.Error(err),
+				)
 				return appErrors.ErrAuditRequestUpdateFailed.WithError(err)
 			}
 			// 创建签到记录
@@ -195,17 +338,45 @@ func (s *AuditRequestService) UpdateAuditRequest(ctx context.Context, requestID 
 				CreatedAt:  time.Now(),
 			}
 			if err := s.taskRecordDAO.Create(ctx, &record, tx); err != nil {
+				logger.Error("审批签到申请失败：创建签到记录失败",
+					zap.Int("requestID", requestID),
+					zap.String("action", action),
+					zap.String("operation", "CreateTaskRecord"),
+					zap.Error(err),
+				)
 				return appErrors.ErrTaskRecordCreationFailed.WithError(err)
 			}
+			logger.Info("成功审批签到申请（通过）",
+				zap.Int("requestID", requestID),
+				zap.String("action", action),
+				zap.String("operation", "UpdateAuditRequestApprove"),
+			)
 			return nil
 		case "reject":
 			if err := s.checkApplicationDAO.Update(ctx, "rejected", requestID, tx); err != nil {
+				logger.Error("审批签到申请失败：更新状态失败",
+					zap.Int("requestID", requestID),
+					zap.String("action", action),
+					zap.String("operation", "UpdateReject"),
+					zap.Error(err),
+				)
 				return appErrors.ErrAuditRequestUpdateFailed.WithError(err)
 			}
+			logger.Info("成功审批签到申请（拒绝）",
+				zap.Int("requestID", requestID),
+				zap.String("action", action),
+				zap.String("operation", "UpdateAuditRequestReject"),
+			)
 		}
 		return nil
 	})
 	if err != nil {
+		logger.Error("更新签到申请事务失败",
+			zap.Int("requestID", requestID),
+			zap.String("action", action),
+			zap.String("operation", "UpdateAuditRequestTransaction"),
+			zap.Error(err),
+		)
 		return err
 	}
 	return nil
@@ -218,14 +389,34 @@ func (s *AuditRequestService) GetGroupIDByAuditRequestID(ctx context.Context, re
 		request, err := s.checkApplicationDAO.GetByID(ctx, requestID, tx)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
+				logger.Error("获取签到申请组ID失败：申请不存在",
+					zap.Int("requestID", requestID),
+					zap.String("operation", "GetByID"),
+					zap.Error(err),
+				)
 				return appErrors.ErrAuditRequestNotFound
 			}
+			logger.Error("获取签到申请组ID失败：数据库操作错误",
+				zap.Int("requestID", requestID),
+				zap.String("operation", "GetByID"),
+				zap.Error(err),
+			)
 			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
 		groupID = request.GroupID
+		logger.Info("成功获取签到申请组ID",
+			zap.Int("requestID", requestID),
+			zap.Int("groupID", groupID),
+			zap.String("operation", "GetGroupIDByAuditRequestID"),
+		)
 		return nil
 	})
 	if err != nil {
+		logger.Error("获取签到申请组ID事务失败",
+			zap.Int("requestID", requestID),
+			zap.String("operation", "GetGroupIDByAuditRequestIDTransaction"),
+			zap.Error(err),
+		)
 		return 0, err
 	}
 	return groupID, nil

@@ -10,8 +10,9 @@ import (
 
 	appErrors "TeamTickBackend/pkg/errors"
 
-	"log"
+	"TeamTickBackend/pkg/logger"
 
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -78,18 +79,49 @@ func (s *TaskService) CreateTask(ctx context.Context,
 		//n:=len(wifiAndNFCInfo)
 
 		if err := s.taskDao.Create(ctx, &task, tx); err != nil {
+			logger.Error("创建任务失败：数据库操作错误",
+				zap.String("taskName", taskName),
+				zap.Int("groupID", groupID),
+				zap.String("operation", "Create"),
+				zap.Error(err),
+			)
 			return appErrors.ErrTaskCreationFailed.WithError(err)
 		}
 		createdTask = task
+		logger.Info("成功创建任务",
+			zap.String("taskName", taskName),
+			zap.Int("taskID", createdTask.TaskID),
+			zap.Int("groupID", groupID),
+			zap.Time("startTime", startTime),
+			zap.Time("endTime", endTime),
+			zap.Float64("latitude", latitude),
+			zap.Float64("longitude", longitude),
+			zap.Int("radius", radius),
+			zap.Bool("gps", gps),
+			zap.Bool("face", face),
+			zap.Bool("wifi", wifi),
+			zap.Bool("nfc", nfc),
+			zap.String("operation", "CreateTask"),
+		)
 		return nil
 	})
 	if err != nil {
+		logger.Error("创建任务事务失败",
+			zap.String("taskName", taskName),
+			zap.Int("groupID", groupID),
+			zap.String("operation", "CreateTaskTransaction"),
+			zap.Error(err),
+		)
 		return nil, err
 	}
 
 	// 将任务写入缓存
 	if err := s.taskRedisDao.SetByTaskID(ctx, createdTask.TaskID, &createdTask); err != nil {
-		log.Printf("Failed to set task by taskID to Redis: %v", err)
+		logger.Error("任务缓存失败：Redis操作错误",
+			zap.Int("taskID", createdTask.TaskID),
+			zap.String("operation", "SetByTaskID"),
+			zap.Error(err),
+		)
 	}
 
 	// 写入用户组任务缓存
@@ -99,7 +131,11 @@ func (s *TaskService) CreateTask(ctx context.Context,
 	}
 	taskList = append(taskList, &createdTask)
 	if err := s.taskRedisDao.SetByGroupID(ctx, createdTask.GroupID, taskList); err != nil {
-		log.Printf("Failed to set task by groupID to Redis: %v", err)
+		logger.Error("用户组任务缓存失败：Redis操作错误",
+			zap.Int("groupID", createdTask.GroupID),
+			zap.String("operation", "SetByGroupID"),
+			zap.Error(err),
+		)
 	}
 
 	return &createdTask, nil
@@ -122,21 +158,45 @@ func (s *TaskService) GetTasksByGroupID(ctx context.Context, groupID int) ([]*mo
 		groupsTasks, err = s.taskDao.GetByGroupID(ctx, groupID, tx)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
+				logger.Error("获取群组任务失败：任务不存在",
+					zap.Int("groupID", groupID),
+					zap.String("operation", "GetByGroupID"),
+					zap.Error(err),
+				)
 				return appErrors.ErrTaskNotFound
 			}
+			logger.Error("获取群组任务失败：数据库操作错误",
+				zap.Int("groupID", groupID),
+				zap.String("operation", "GetByGroupID"),
+				zap.Error(err),
+			)
 			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
 
 		tasks = groupsTasks
+		logger.Info("成功获取群组任务列表",
+			zap.Int("groupID", groupID),
+			zap.Int("taskCount", len(tasks)),
+			zap.String("operation", "GetTasksByGroupID"),
+		)
 		return nil
 	})
 	if err != nil {
+		logger.Error("获取群组任务事务失败",
+			zap.Int("groupID", groupID),
+			zap.String("operation", "GetTasksByGroupIDTransaction"),
+			zap.Error(err),
+		)
 		return nil, err
 	}
 
 	// 将任务写入缓存
 	if err := s.taskRedisDao.SetByGroupID(ctx, groupID, tasks); err != nil {
-		log.Printf("Failed to set task by groupID to Redis: %v", err)
+		logger.Error("群组任务缓存失败：Redis操作错误",
+			zap.Int("groupID", groupID),
+			zap.String("operation", "SetByGroupID"),
+			zap.Error(err),
+		)
 	}
 
 	return tasks, nil
@@ -154,14 +214,34 @@ func (s *TaskService) GetTasksByUserID(ctx context.Context, userID int) ([]*mode
 		userTasks, err = s.taskDao.GetByUserID(ctx, userID, tx)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
+				logger.Error("获取用户任务失败：任务不存在",
+					zap.Int("userID", userID),
+					zap.String("operation", "GetByUserID"),
+					zap.Error(err),
+				)
 				return appErrors.ErrTaskNotFound
 			}
+			logger.Error("获取用户任务失败：数据库操作错误",
+				zap.Int("userID", userID),
+				zap.String("operation", "GetByUserID"),
+				zap.Error(err),
+			)
 			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
 		tasks = userTasks
+		logger.Info("成功获取用户任务列表",
+			zap.Int("userID", userID),
+			zap.Int("taskCount", len(tasks)),
+			zap.String("operation", "GetTasksByUserID"),
+		)
 		return nil
 	})
 	if err != nil {
+		logger.Error("获取用户任务事务失败",
+			zap.Int("userID", userID),
+			zap.String("operation", "GetTasksByUserIDTransaction"),
+			zap.Error(err),
+		)
 		return nil, err
 	}
 
@@ -184,19 +264,53 @@ func (s *TaskService) GetTaskByTaskID(ctx context.Context, taskID int) (*models.
 		task, err = s.taskDao.GetByTaskID(ctx, taskID, tx)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
+				logger.Error("获取任务失败：任务不存在",
+					zap.Int("taskID", taskID),
+					zap.String("operation", "GetByTaskID"),
+					zap.Error(err),
+				)
 				return appErrors.ErrTaskNotFound
 			}
+			logger.Error("获取任务失败：数据库操作错误",
+				zap.Int("taskID", taskID),
+				zap.String("operation", "GetByTaskID"),
+				zap.Error(err),
+			)
 			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
+		logger.Info("成功获取任务信息",
+			zap.Int("taskID", taskID),
+			zap.String("taskName", task.TaskName),
+			zap.Int("groupID", task.GroupID),
+			zap.Time("startTime", task.StartTime),
+			zap.Time("endTime", task.EndTime),
+			zap.Float64("latitude", task.Latitude),
+			zap.Float64("longitude", task.Longitude),
+			zap.Int("radius", task.Radius),
+			zap.Bool("gps", task.GPS),
+			zap.Bool("face", task.Face),
+			zap.Bool("wifi", task.WiFi),
+			zap.Bool("nfc", task.NFC),
+			zap.String("operation", "GetTaskByTaskID"),
+		)
 		return nil
 	})
 	if err != nil {
+		logger.Error("获取任务事务失败",
+			zap.Int("taskID", taskID),
+			zap.String("operation", "GetTaskByTaskIDTransaction"),
+			zap.Error(err),
+		)
 		return nil, err
 	}
 
 	// 将任务写入缓存
 	if err := s.taskRedisDao.SetByTaskID(ctx, taskID, task); err != nil {
-		log.Printf("Failed to set task by taskID to Redis: %v", err)
+		logger.Error("任务缓存失败：Redis操作错误",
+			zap.Int("taskID", taskID),
+			zap.String("operation", "SetByTaskID"),
+			zap.Error(err),
+		)
 	}
 
 	return task, nil
@@ -210,8 +324,18 @@ func (s *TaskService) VerifyLocation(ctx context.Context, latitude, longitude fl
 		task, err := s.taskDao.GetByTaskID(ctx, taskID, tx)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
+				logger.Error("位置验证失败：任务不存在",
+					zap.Int("taskID", taskID),
+					zap.String("operation", "GetByTaskID"),
+					zap.Error(err),
+				)
 				return appErrors.ErrTaskNotFound
 			}
+			logger.Error("位置验证失败：数据库操作错误",
+				zap.Int("taskID", taskID),
+				zap.String("operation", "GetByTaskID"),
+				zap.Error(err),
+			)
 			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
 
@@ -234,13 +358,28 @@ func (s *TaskService) VerifyLocation(ctx context.Context, latitude, longitude fl
 		distance := earthRadius * c
 
 		isValid = distance <= float64(radius)
+		logger.Info("位置验证完成",
+			zap.Int("taskID", taskID),
+			zap.Float64("distance", distance),
+			zap.Int("radius", radius),
+			zap.Bool("isValid", isValid),
+			zap.Float64("userLatitude", latitude),
+			zap.Float64("userLongitude", longitude),
+			zap.Float64("taskLatitude", taskLatitude),
+			zap.Float64("taskLongitude", taskLongitude),
+			zap.String("operation", "VerifyLocation"),
+		)
 		return nil
 	})
 	if err != nil {
+		logger.Error("位置验证事务失败",
+			zap.Int("taskID", taskID),
+			zap.String("operation", "VerifyLocationTransaction"),
+			zap.Error(err),
+		)
 		return false
 	}
 	return isValid
-
 }
 
 // 验证NFC
@@ -251,15 +390,39 @@ func (s *TaskService) VerifyNFC(ctx context.Context, tagID, tagName string, task
 		task, err := s.taskDao.GetByTaskID(ctx, taskID, tx)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
+				logger.Error("NFC验证失败：任务不存在",
+					zap.Int("taskID", taskID),
+					zap.String("operation", "GetByTaskID"),
+					zap.Error(err),
+				)
 				return appErrors.ErrTaskNotFound
 			}
+			logger.Error("NFC验证失败：数据库操作错误",
+				zap.Int("taskID", taskID),
+				zap.String("operation", "GetByTaskID"),
+				zap.Error(err),
+			)
 			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
 		taskTagName, taskTagID := task.TagName, task.TagID
 		isValid = tagID == taskTagID && tagName == taskTagName
+		logger.Info("NFC验证完成",
+			zap.Int("taskID", taskID),
+			zap.String("inputTagID", tagID),
+			zap.String("inputTagName", tagName),
+			zap.String("taskTagID", taskTagID),
+			zap.String("taskTagName", taskTagName),
+			zap.Bool("isValid", isValid),
+			zap.String("operation", "VerifyNFC"),
+		)
 		return nil
 	})
 	if err != nil {
+		logger.Error("NFC验证事务失败",
+			zap.Int("taskID", taskID),
+			zap.String("operation", "VerifyNFCTransaction"),
+			zap.Error(err),
+		)
 		return false
 	}
 	return isValid
@@ -273,15 +436,39 @@ func (s *TaskService) VerifyWiFi(ctx context.Context, ssid, bssid string, taskID
 		task, err := s.taskDao.GetByTaskID(ctx, taskID, tx)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
+				logger.Error("WiFi验证失败：任务不存在",
+					zap.Int("taskID", taskID),
+					zap.String("operation", "GetByTaskID"),
+					zap.Error(err),
+				)
 				return appErrors.ErrTaskNotFound
 			}
+			logger.Error("WiFi验证失败：数据库操作错误",
+				zap.Int("taskID", taskID),
+				zap.String("operation", "GetByTaskID"),
+				zap.Error(err),
+			)
 			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
 		taskSSID, taskBSSID := task.SSID, task.BSSID
 		isValid = ssid == taskSSID && bssid == taskBSSID
+		logger.Info("WiFi验证完成",
+			zap.Int("taskID", taskID),
+			zap.String("inputSSID", ssid),
+			zap.String("inputBSSID", bssid),
+			zap.String("taskSSID", taskSSID),
+			zap.String("taskBSSID", taskBSSID),
+			zap.Bool("isValid", isValid),
+			zap.String("operation", "VerifyWiFi"),
+		)
 		return nil
 	})
 	if err != nil {
+		logger.Error("WiFi验证事务失败",
+			zap.Int("taskID", taskID),
+			zap.String("operation", "VerifyWiFiTransaction"),
+			zap.Error(err),
+		)
 		return false
 	}
 	return isValid
@@ -301,8 +488,20 @@ func (s *TaskService) CheckInTask(
 		task, err := s.taskDao.GetByTaskID(ctx, taskID, tx)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
+				logger.Error("签到失败：任务不存在",
+					zap.Int("taskID", taskID),
+					zap.Int("userID", userID),
+					zap.String("operation", "GetByTaskID"),
+					zap.Error(err),
+				)
 				return appErrors.ErrTaskNotFound
 			}
+			logger.Error("签到失败：数据库操作错误",
+				zap.Int("taskID", taskID),
+				zap.Int("userID", userID),
+				zap.String("operation", "GetByTaskID"),
+				zap.Error(err),
+			)
 			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
 
@@ -317,14 +516,35 @@ func (s *TaskService) CheckInTask(
 		//检查用户是否已签到
 		record, err := s.taskRecordDao.GetByTaskIDAndUserID(ctx, taskID, userID, tx)
 		if err == nil && record != nil {
+			logger.Error("签到失败：用户已签到",
+				zap.Int("taskID", taskID),
+				zap.Int("userID", userID),
+				zap.Time("signedTime", record.SignedTime),
+				zap.String("operation", "GetByTaskIDAndUserID"),
+				zap.Error(err),
+			)
 			return appErrors.ErrTaskRecordAlreadyExists
 		}
 
 		group, err := s.groupDao.GetByGroupID(ctx, task.GroupID, tx)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
+				logger.Error("签到失败：群组不存在",
+					zap.Int("taskID", taskID),
+					zap.Int("userID", userID),
+					zap.Int("groupID", task.GroupID),
+					zap.String("operation", "GetByGroupID"),
+					zap.Error(err),
+				)
 				return appErrors.ErrGroupNotFound
 			}
+			logger.Error("签到失败：数据库操作错误",
+				zap.Int("taskID", taskID),
+				zap.Int("userID", userID),
+				zap.Int("groupID", task.GroupID),
+				zap.String("operation", "GetByGroupID"),
+				zap.Error(err),
+			)
 			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
 		createdTaskRecord := models.TaskRecord{
@@ -338,16 +558,37 @@ func (s *TaskService) CheckInTask(
 			CreatedAt:  time.Now(),
 		}
 
-		//根据otherInfo选择字段
 		if err := s.taskRecordDao.Create(ctx, &createdTaskRecord, tx); err != nil {
+			logger.Error("签到失败：创建签到记录失败",
+				zap.Int("taskID", taskID),
+				zap.Int("userID", userID),
+				zap.String("operation", "Create"),
+				zap.Error(err),
+			)
 			return appErrors.ErrTaskRecordCreationFailed.WithError(err)
 		}
 		taskRecord = createdTaskRecord
 
+		logger.Info("成功创建签到记录",
+			zap.Int("taskID", taskID),
+			zap.Int("userID", userID),
+			zap.Int("groupID", task.GroupID),
+			zap.String("groupName", group.GroupName),
+			zap.Float64("latitude", latitude),
+			zap.Float64("longitude", longitude),
+			zap.Time("signedTime", signedInTime),
+			zap.String("operation", "CheckInTask"),
+		)
 		return nil
 	})
 
 	if err != nil {
+		logger.Error("签到事务失败",
+			zap.Int("taskID", taskID),
+			zap.Int("userID", userID),
+			zap.String("operation", "CheckInTaskTransaction"),
+			zap.Error(err),
+		)
 		return nil, err
 	}
 
@@ -355,7 +596,12 @@ func (s *TaskService) CheckInTask(
 
 	// 缓存单个新创建的记录
 	if err := s.taskRecordRedisDao.SetTaskIDAndUserID(ctx, &taskRecord); err != nil {
-		log.Printf("Failed to set user task record by taskID and userID to Redis: %v", err)
+		logger.Error("签到记录缓存失败：Redis操作错误",
+			zap.Int("taskID", taskID),
+			zap.Int("userID", userID),
+			zap.String("operation", "SetTaskIDAndUserID"),
+			zap.Error(err),
+		)
 	}
 
 	// 更新任务的签到记录列表缓存
@@ -365,7 +611,11 @@ func (s *TaskService) CheckInTask(
 	}
 	taskRecordsList = append(taskRecordsList, &taskRecord)
 	if err := s.taskRecordRedisDao.SetByTaskID(ctx, taskID, taskRecordsList); err != nil {
-		log.Printf("Failed to set task records by taskID to Redis: %v", err)
+		logger.Error("任务签到记录列表缓存失败：Redis操作错误",
+			zap.Int("taskID", taskID),
+			zap.String("operation", "SetByTaskID"),
+			zap.Error(err),
+		)
 	}
 
 	// 更新用户的签到记录列表缓存
@@ -375,7 +625,11 @@ func (s *TaskService) CheckInTask(
 	}
 	userRecordsList = append(userRecordsList, &taskRecord)
 	if err := s.taskRecordRedisDao.SetByUserID(ctx, userID, userRecordsList); err != nil {
-		log.Printf("Failed to set user task records by userID to Redis: %v", err)
+		logger.Error("用户签到记录列表缓存失败：Redis操作错误",
+			zap.Int("userID", userID),
+			zap.String("operation", "SetByUserID"),
+			zap.Error(err),
+		)
 	}
 
 	return &taskRecord, nil
@@ -396,19 +650,43 @@ func (s *TaskService) GetTaskRecordsByTaskID(ctx context.Context, taskID int) ([
 		taskRecords, err = s.taskRecordDao.GetByTaskID(ctx, taskID, tx)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
+				logger.Error("获取任务签到记录失败：任务不存在",
+					zap.Int("taskID", taskID),
+					zap.String("operation", "GetByTaskID"),
+					zap.Error(err),
+				)
 				return appErrors.ErrTaskNotFound
 			}
+			logger.Error("获取任务签到记录失败：数据库操作错误",
+				zap.Int("taskID", taskID),
+				zap.String("operation", "GetByTaskID"),
+				zap.Error(err),
+			)
 			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
+		logger.Info("成功获取任务签到记录",
+			zap.Int("taskID", taskID),
+			zap.Int("recordCount", len(taskRecords)),
+			zap.String("operation", "GetTaskRecordsByTaskID"),
+		)
 		return nil
 	})
 	if err != nil {
+		logger.Error("获取任务签到记录事务失败",
+			zap.Int("taskID", taskID),
+			zap.String("operation", "GetTaskRecordsByTaskIDTransaction"),
+			zap.Error(err),
+		)
 		return nil, err
 	}
 
 	// 将结果写入缓存
 	if err := s.taskRecordRedisDao.SetByTaskID(ctx, taskID, taskRecords); err != nil {
-		log.Printf("Failed to set task records by taskID to Redis: %v", err)
+		logger.Error("任务签到记录缓存失败：Redis操作错误",
+			zap.Int("taskID", taskID),
+			zap.String("operation", "SetByTaskID"),
+			zap.Error(err),
+		)
 	}
 
 	return taskRecords, nil
@@ -429,19 +707,43 @@ func (s *TaskService) GetTaskRecordsByUserID(ctx context.Context, userID int) ([
 		taskRecords, err = s.taskRecordDao.GetByUserID(ctx, userID, tx)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
+				logger.Error("获取用户签到记录失败：未找到记录",
+					zap.Int("userID", userID),
+					zap.String("operation", "GetByUserID"),
+					zap.Error(err),
+				)
 				return appErrors.ErrTaskNotFound
 			}
+			logger.Error("获取用户签到记录失败：数据库操作错误",
+				zap.Int("userID", userID),
+				zap.String("operation", "GetByUserID"),
+				zap.Error(err),
+			)
 			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
+		logger.Info("成功获取用户签到记录",
+			zap.Int("userID", userID),
+			zap.Int("recordCount", len(taskRecords)),
+			zap.String("operation", "GetTaskRecordsByUserID"),
+		)
 		return nil
 	})
 	if err != nil {
+		logger.Error("获取用户签到记录事务失败",
+			zap.Int("userID", userID),
+			zap.String("operation", "GetTaskRecordsByUserIDTransaction"),
+			zap.Error(err),
+		)
 		return nil, err
 	}
 
 	// 将结果写入缓存
 	if err := s.taskRecordRedisDao.SetByUserID(ctx, userID, taskRecords); err != nil {
-		log.Printf("Failed to set user task records by userID to Redis: %v", err)
+		logger.Error("用户签到记录缓存失败：Redis操作错误",
+			zap.Int("userID", userID),
+			zap.String("operation", "SetByUserID"),
+			zap.Error(err),
+		)
 	}
 
 	return taskRecords, nil
@@ -463,19 +765,51 @@ func (s *TaskService) GetTaskRecordByTaskIDAndUserID(ctx context.Context, taskID
 		taskRecord, err = s.taskRecordDao.GetByTaskIDAndUserID(ctx, taskID, userID, tx)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
+				logger.Error("获取任务签到记录失败：记录不存在",
+					zap.Int("taskID", taskID),
+					zap.Int("userID", userID),
+					zap.String("operation", "GetByTaskIDAndUserID"),
+					zap.Error(err),
+				)
 				return appErrors.ErrTaskNotFound
 			}
+			logger.Error("获取任务签到记录失败：数据库操作错误",
+				zap.Int("taskID", taskID),
+				zap.Int("userID", userID),
+				zap.String("operation", "GetByTaskIDAndUserID"),
+				zap.Error(err),
+			)
 			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
+		logger.Info("成功获取任务签到记录",
+			zap.Int("taskID", taskID),
+			zap.Int("userID", userID),
+			zap.Time("signedTime", taskRecord.SignedTime),
+			zap.Float64("latitude", taskRecord.Latitude),
+			zap.Float64("longitude", taskRecord.Longitude),
+			zap.String("groupName", taskRecord.GroupName),
+			zap.String("operation", "GetTaskRecordByTaskIDAndUserID"),
+		)
 		return nil
 	})
 	if err != nil {
+		logger.Error("获取任务签到记录事务失败",
+			zap.Int("taskID", taskID),
+			zap.Int("userID", userID),
+			zap.String("operation", "GetTaskRecordByTaskIDAndUserIDTransaction"),
+			zap.Error(err),
+		)
 		return nil, err
 	}
 
 	// 将结果写入缓存
 	if err = s.taskRecordRedisDao.SetTaskIDAndUserID(ctx, taskRecord); err != nil {
-		log.Printf("Failed to set user task record by taskID and userID to Redis: %v", err)
+		logger.Error("任务签到记录缓存失败：Redis操作错误",
+			zap.Int("taskID", taskID),
+			zap.Int("userID", userID),
+			zap.String("operation", "SetTaskIDAndUserID"),
+			zap.Error(err),
+		)
 	}
 
 	return taskRecord, nil
@@ -500,8 +834,18 @@ func (s *TaskService) UpdateTask(
 		_, err := s.taskDao.GetByTaskID(ctx, taskID, tx)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
+				logger.Error("更新任务失败：任务不存在",
+					zap.Int("taskID", taskID),
+					zap.String("operation", "GetByTaskID"),
+					zap.Error(err),
+				)
 				return appErrors.ErrTaskNotFound
 			}
+			logger.Error("更新任务失败：数据库操作错误",
+				zap.Int("taskID", taskID),
+				zap.String("operation", "GetByTaskID"),
+				zap.Error(err),
+			)
 			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
 		newTask := &models.Task{
@@ -523,29 +867,71 @@ func (s *TaskService) UpdateTask(
 		}
 		//更新签到任务
 		if err := s.taskDao.UpdateTask(ctx, taskID, newTask, tx); err != nil {
+			logger.Error("更新任务失败：更新数据库失败",
+				zap.Int("taskID", taskID),
+				zap.String("operation", "UpdateTask"),
+				zap.Error(err),
+			)
 			return appErrors.ErrTaskUpdateFailed.WithError(err)
 		}
 		//获取更新后的任务
 		nowTask, err := s.taskDao.GetByTaskID(ctx, taskID, tx)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
+				logger.Error("更新任务失败：获取更新后的任务失败",
+					zap.Int("taskID", taskID),
+					zap.String("operation", "GetByTaskIDAfterUpdate"),
+					zap.Error(err),
+				)
 				return appErrors.ErrTaskNotFound
 			}
+			logger.Error("更新任务失败：数据库操作错误",
+				zap.Int("taskID", taskID),
+				zap.String("operation", "GetByTaskIDAfterUpdate"),
+				zap.Error(err),
+			)
 			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
 		task = *nowTask
+		logger.Info("成功更新任务",
+			zap.Int("taskID", taskID),
+			zap.String("taskName", taskName),
+			zap.Time("startTime", startTime),
+			zap.Time("endTime", endTime),
+			zap.Float64("latitude", latitude),
+			zap.Float64("longitude", longitude),
+			zap.Int("radius", radius),
+			zap.Bool("gps", gps),
+			zap.Bool("face", face),
+			zap.Bool("wifi", wifi),
+			zap.Bool("nfc", nfc),
+			zap.String("operation", "UpdateTask"),
+		)
 		return nil
 	})
 	if err != nil {
+		logger.Error("更新任务事务失败",
+			zap.Int("taskID", taskID),
+			zap.String("operation", "UpdateTaskTransaction"),
+			zap.Error(err),
+		)
 		return nil, err
 	}
 
 	//将任务从缓存中删除
 	if err := s.taskRedisDao.DeleteCacheByTaskID(ctx, taskID); err != nil {
-		log.Printf("Failed to delete task by taskID from Redis: %v", err)
+		logger.Error("删除任务缓存失败：Redis操作错误",
+			zap.Int("taskID", taskID),
+			zap.String("operation", "DeleteCacheByTaskID"),
+			zap.Error(err),
+		)
 	}
 	if err := s.taskRedisDao.DeleteCacheByGroupID(ctx, task.GroupID); err != nil {
-		log.Printf("Failed to delete task by groupID from Redis: %v", err)
+		logger.Error("删除群组任务缓存失败：Redis操作错误",
+			zap.Int("groupID", task.GroupID),
+			zap.String("operation", "DeleteCacheByGroupID"),
+			zap.Error(err),
+		)
 	}
 
 	return &task, nil
@@ -559,26 +945,59 @@ func (s *TaskService) DeleteTask(ctx context.Context, taskID int) error {
 		task, err := s.taskDao.GetByTaskID(ctx, taskID, tx)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
+				logger.Error("删除任务失败：任务不存在",
+					zap.Int("taskID", taskID),
+					zap.String("operation", "GetByTaskID"),
+					zap.Error(err),
+				)
 				return appErrors.ErrTaskNotFound
 			}
+			logger.Error("删除任务失败：数据库操作错误",
+				zap.Int("taskID", taskID),
+				zap.String("operation", "GetByTaskID"),
+				zap.Error(err),
+			)
 			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
 		groupID = task.GroupID
 		if err := s.taskDao.Delete(ctx, taskID, tx); err != nil {
+			logger.Error("删除任务失败：数据库操作错误",
+				zap.Int("taskID", taskID),
+				zap.String("operation", "Delete"),
+				zap.Error(err),
+			)
 			return appErrors.ErrTaskDeleteFailed.WithError(err)
 		}
+		logger.Info("成功删除任务",
+			zap.Int("taskID", taskID),
+			zap.Int("groupID", groupID),
+			zap.String("operation", "DeleteTask"),
+		)
 		return nil
 	})
 	if err != nil {
+		logger.Error("删除任务事务失败",
+			zap.Int("taskID", taskID),
+			zap.String("operation", "DeleteTaskTransaction"),
+			zap.Error(err),
+		)
 		return err
 	}
 
 	//将任务从缓存中删除
 	if err := s.taskRedisDao.DeleteCacheByTaskID(ctx, taskID); err != nil {
-		log.Printf("Failed to delete task by taskID from Redis: %v", err)
+		logger.Error("删除任务缓存失败：Redis操作错误",
+			zap.Int("taskID", taskID),
+			zap.String("operation", "DeleteCacheByTaskID"),
+			zap.Error(err),
+		)
 	}
 	if err := s.taskRedisDao.DeleteCacheByGroupID(ctx, groupID); err != nil {
-		log.Printf("Failed to delete task by groupID from Redis: %v", err)
+		logger.Error("删除群组任务缓存失败：Redis操作错误",
+			zap.Int("groupID", groupID),
+			zap.String("operation", "DeleteCacheByGroupID"),
+			zap.Error(err),
+		)
 	}
 
 	return nil

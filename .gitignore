@@ -23,3 +23,18 @@ go.work.sum
 
 # env file
 .env
+
+# 日志文件
+*.log
+logs/
+services/logs/
+cmd/test_excel/logs/
+
+# 导出文件
+*.xlsx
+services/export_files/
+cmd/test_excel/export_files/
+
+# 其他常见忽略
+*.tmp
+*.swp
