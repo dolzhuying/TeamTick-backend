@@ -33,6 +33,7 @@ func NewStatisticsHandler(container *app.AppContainer) gen.StatisticsServerInter
 		container.DaoFactory.GroupRedisDAO,
 		container.DaoFactory.GroupMemberRedisDAO,
 		container.DaoFactory.JoinApplicationRedisDAO,
+		container.DaoFactory.TaskRedisDAO,
 	)
 
 	handler := &StatisticsHandler{

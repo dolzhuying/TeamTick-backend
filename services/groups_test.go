@@ -304,6 +304,7 @@ func setupGroupServiceTest() (*GroupsService, *mockGroupDAO, *mockGroupMemberDAO
 	mockGroupRedisDao := new(mockGroupRedisDAO)
 	mockGroupMemberRedisDao := new(mockGroupMemberRedisDAO)
 	mockJoinApplicationRedisDao := new(mockJoinApplicationRedisDAO)
+	mockTaskRedisDao := new(mockTaskRedisDAO)
 
 	groupsService := NewGroupsService(
 		mockGroupDao,
@@ -313,6 +314,7 @@ func setupGroupServiceTest() (*GroupsService, *mockGroupDAO, *mockGroupMemberDAO
 		mockGroupRedisDao,
 		mockGroupMemberRedisDao,
 		mockJoinApplicationRedisDao,
+		mockTaskRedisDao,
 	)
 
 	return groupsService, mockGroupDao, mockGroupMemberDao, mockJoinApplicationDao, mockTxManager, mockGroupRedisDao, mockGroupMemberRedisDao, mockJoinApplicationRedisDao

@@ -23,6 +23,7 @@ func NewGroupsHandler(container *app.AppContainer) gen.GroupsServerInterface {
 		container.DaoFactory.GroupRedisDAO,
 		container.DaoFactory.GroupMemberRedisDAO,
 		container.DaoFactory.JoinApplicationRedisDAO,
+		container.DaoFactory.TaskRedisDAO,
 	)
 	handler := &GroupsHandler{
 		groupsService: *GroupsService,

@@ -30,6 +30,7 @@ func NewAuditRequestHandler(container *app.AppContainer) gen.AuditRequestsServer
 		container.DaoFactory.GroupRedisDAO,
 		container.DaoFactory.GroupMemberRedisDAO,
 		container.DaoFactory.JoinApplicationRedisDAO,
+		container.DaoFactory.TaskRedisDAO,
 	)
 	handler := &AuditRequestHandler{
 		auditRequestService: auditRequestService,
