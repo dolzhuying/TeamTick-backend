@@ -7,6 +7,10 @@ import (
 	"TeamTickBackend/router"
 	"time"
 
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
+
 	"go.uber.org/zap"
 )
 

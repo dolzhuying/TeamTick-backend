@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"image"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,6 +15,11 @@ import (
 
 	appErrors "TeamTickBackend/pkg/errors"
 
+	"bytes"
+
+	"image/color"
+
+	"github.com/disintegration/imaging"
 	"github.com/xuri/excelize/v2"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -188,6 +194,12 @@ func (s *StatisticsService) GetGroupMemberSignInStatistics(ctx context.Context, 
 
 // 生成用户组签到统计Excel文件
 func (s *StatisticsService) GenerateGroupSignInStatisticsExcel(ctx context.Context, groupIDs []int, startTime, endTime time.Time, statuses []string) (string, error) {
+	defer func() {
+		if r := recover(); r != nil {
+			logger.Error("导出Excel时panic", zap.Any("recover", r))
+		}
+	}()
+
 	if startTime.After(endTime) {
 		logger.Error("生成统计Excel失败：时间范围无效",
 			zap.Time("startTime", startTime),
@@ -227,7 +239,7 @@ func (s *StatisticsService) GenerateGroupSignInStatisticsExcel(ctx context.Conte
 					zap.Int("groupID", groupID),
 					zap.Error(err),
 				)
-				return "", appErrors.ErrStatisticsGroupNotFound.WithError(err)
+				continue
 			}
 			logger.Error("获取用户组信息失败",
 				zap.Int("groupID", groupID),
@@ -246,6 +258,153 @@ func (s *StatisticsService) GenerateGroupSignInStatisticsExcel(ctx context.Conte
 			f.NewSheet(sheetName)
 		}
 
+		// 合并A1:A2，logo区域
+		logger.Info("[导出统计] 开始合并A1:A2单元格",
+			zap.String("sheet", sheetName),
+		)
+		if err := f.MergeCell(sheetName, "A1", "A2"); err != nil {
+			logger.Error("[导出统计] 合并单元格失败：Excel操作错误",
+				zap.String("sheet", sheetName),
+				zap.Error(err),
+			)
+		} else {
+			logger.Info("[导出统计] 合并单元格成功",
+				zap.String("sheet", sheetName),
+			)
+		}
+		// 设置A列宽和A1/A2行高，使区域与图片canvasSize接近
+		logger.Info("[导出统计] 设置A列宽和A1/A2行高",
+			zap.String("sheet", sheetName),
+		)
+		f.SetColWidth(sheetName, "A", "A", 12)
+		f.SetRowHeight(sheetName, 1, 40)
+		f.SetRowHeight(sheetName, 2, 40)
+		// 设置A1:A2单元格内容居中且无边框
+		logger.Info("[导出统计] 设置A1:A2单元格样式",
+			zap.String("sheet", sheetName),
+		)
+		centerStyle, _ := f.NewStyle(&excelize.Style{
+			Alignment: &excelize.Alignment{
+				Horizontal: "center",
+				Vertical:   "center",
+			},
+			Border: []excelize.Border{
+				{Type: "top", Color: "#FFFFFF", Style: 2},
+				{Type: "bottom", Color: "#FFFFFF", Style: 2},
+				{Type: "left", Color: "#FFFFFF", Style: 2},
+				{Type: "right", Color: "#FFFFFF", Style: 2},
+			},
+		})
+		f.SetCellStyle(sheetName, "A1", "A2", centerStyle)
+		// 1. 导出时间移到B1
+		exportTime := time.Now().Format("2006-01-02 15:04:05")
+		logger.Info("[导出统计] 写入导出时间",
+			zap.String("exportTime", exportTime),
+			zap.String("sheet", sheetName),
+		)
+		f.SetCellValue(sheetName, "B1", "导出时间："+exportTime)
+		logger.Info("已写入导出时间", zap.String("exportTime", exportTime), zap.String("sheet", sheetName))
+		// 设置B1单元格样式，去掉右边框和底部边框
+		timeStyle, _ := f.NewStyle(&excelize.Style{
+			Font:      &excelize.Font{Bold: true, Size: 11, Color: "#1976D2"},
+			Alignment: &excelize.Alignment{Horizontal: "left", Vertical: "center"},
+			Border: []excelize.Border{
+				{Type: "left", Color: "#000000", Style: 1},
+				{Type: "top", Color: "#000000", Style: 1},
+				// 去掉底部边框
+			},
+		})
+		f.SetCellStyle(sheetName, "B1", "B1", timeStyle)
+		// 设置C1单元格样式，去掉左边框和底部边框
+		c1Style, _ := f.NewStyle(&excelize.Style{
+			Font:      &excelize.Font{Bold: true, Size: 11, Color: "#1976D2"},
+			Alignment: &excelize.Alignment{Horizontal: "left", Vertical: "center"},
+			Border: []excelize.Border{
+				// 去掉左边框
+				{Type: "top", Color: "#000000", Style: 1},
+				{Type: "right", Color: "#000000", Style: 1},
+				// 去掉底部边框
+			},
+		})
+		f.SetCellStyle(sheetName, "C1", "C1", c1Style)
+		// canvasSize为正方形
+		canvasSize := 80
+		logoPath := "src/image.png" // 请确保logo已放在此路径
+		logger.Info("[导出统计] 读取logo图片",
+			zap.String("logoPath", logoPath),
+			zap.String("sheet", sheetName),
+		)
+		if fileBytes, err := os.ReadFile(logoPath); err == nil {
+			logger.Info("[导出统计] logo图片读取成功",
+				zap.Int("fileSize", len(fileBytes)),
+				zap.String("sheet", sheetName),
+			)
+			img, err := imaging.Decode(bytes.NewReader(fileBytes))
+			if err != nil {
+				logger.Error("[导出统计] 解码logo图片失败",
+					zap.Error(err),
+					zap.String("sheet", sheetName),
+				)
+			} else {
+				logger.Info("[导出统计] logo图片解码成功",
+					zap.String("sheet", sheetName),
+				)
+				bounds := img.Bounds()
+				w, h := bounds.Dx(), bounds.Dy()
+				var logoImg image.Image
+				if w > canvasSize || h > canvasSize {
+					scale := float64(canvasSize) / float64(w)
+					if h > w {
+						scale = float64(canvasSize) / float64(h)
+					}
+					logger.Info("[导出统计] logo图片缩放",
+						zap.Float64("scale", scale),
+						zap.String("sheet", sheetName),
+					)
+					logoImg = imaging.Resize(img, int(float64(w)*scale), int(float64(h)*scale), imaging.Lanczos)
+				} else {
+					logoImg = img
+				}
+				canvas := imaging.New(canvasSize, canvasSize, color.NRGBA{255, 255, 255, 255})
+				canvas = imaging.PasteCenter(canvas, logoImg)
+				buf := new(bytes.Buffer)
+				if err := imaging.Encode(buf, canvas, imaging.PNG); err != nil {
+					logger.Error("[导出统计] 编码图片失败：图片处理错误",
+						zap.Error(err),
+						zap.String("sheet", sheetName),
+					)
+				} else {
+					logger.Info("[导出统计] 图片编码成功",
+						zap.Int("fileSize", buf.Len()),
+						zap.String("sheet", sheetName),
+					)
+					fileBytes = buf.Bytes()
+				}
+			}
+			pic := &excelize.Picture{
+				File:      fileBytes,
+				Extension: ".png",
+			}
+			logger.Info("[导出统计] 准备插入Logo图片",
+				zap.String("sheet", sheetName),
+			)
+			if err := f.AddPictureFromBytes(sheetName, "A1", pic); err != nil {
+				logger.Error("[导出统计] 插入Logo失败：Excel操作错误",
+					zap.Error(err),
+					zap.String("sheet", sheetName),
+				)
+			} else {
+				logger.Info("[导出统计] Logo插入成功",
+					zap.String("sheet", sheetName),
+				)
+			}
+		} else {
+			logger.Warn("[导出统计] Logo文件不存在或读取失败，跳过插入",
+				zap.String("logoPath", logoPath),
+				zap.Error(err),
+			)
+		}
+
 		// 设置表头
 		headers := []string{"用户ID", "用户名", "总任务数"}
 		for _, status := range statuses {
@@ -258,13 +417,62 @@ func (s *StatisticsService) GenerateGroupSignInStatisticsExcel(ctx context.Conte
 				headers = append(headers, "异常次数", "异常任务ID")
 			}
 		}
+		logger.Info("[导出统计] 准备写入表头",
+			zap.Strings("headers", headers),
+			zap.String("sheet", sheetName),
+		)
+		headerRow := 3
+		dataStartRow := 4
+		headerStyle, _ := f.NewStyle(&excelize.Style{
+			Font:      &excelize.Font{Bold: true, Size: 14, Color: "#FFFFFF"},
+			Fill:      excelize.Fill{Type: "pattern", Color: []string{"#466A9E"}, Pattern: 1},
+			Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"},
+			Border: []excelize.Border{
+				{Type: "left", Color: "#466A9E", Style: 1},
+				{Type: "top", Color: "#466A9E", Style: 1},
+				{Type: "bottom", Color: "#466A9E", Style: 1},
+				{Type: "right", Color: "#466A9E", Style: 1},
+			},
+		})
+		oddStyle, _ := f.NewStyle(&excelize.Style{
+			Font:      &excelize.Font{Color: "#222222"},
+			Fill:      excelize.Fill{Type: "pattern", Color: []string{"#E3EFFC"}, Pattern: 1},
+			Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"},
+			Border: []excelize.Border{
+				{Type: "left", Color: "#B7CAE3", Style: 1},
+				{Type: "top", Color: "#B7CAE3", Style: 1},
+				{Type: "bottom", Color: "#B7CAE3", Style: 1},
+				{Type: "right", Color: "#B7CAE3", Style: 1},
+			},
+		})
+		evenStyle, _ := f.NewStyle(&excelize.Style{
+			Font:      &excelize.Font{Color: "#222222"},
+			Fill:      excelize.Fill{Type: "pattern", Color: []string{"#FFFFFF"}, Pattern: 1},
+			Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"},
+			Border: []excelize.Border{
+				{Type: "left", Color: "#B7CAE3", Style: 1},
+				{Type: "top", Color: "#B7CAE3", Style: 1},
+				{Type: "bottom", Color: "#B7CAE3", Style: 1},
+				{Type: "right", Color: "#B7CAE3", Style: 1},
+			},
+		})
 
+		// 表头
 		for i, header := range headers {
-			cell := fmt.Sprintf("%c1", 'A'+i)
+			cell := fmt.Sprintf("%c%d", 'A'+i, headerRow)
 			f.SetCellValue(sheetName, cell, header)
+			f.SetCellStyle(sheetName, cell, cell, headerStyle)
 		}
+		f.SetRowHeight(sheetName, headerRow, 25)
+		logger.Info("[导出统计] 表头写入完成",
+			zap.String("sheet", sheetName),
+		)
 
 		// 获取组内所有成员
+		logger.Info("准备获取组成员",
+			zap.Int("groupID", groupID),
+			zap.String("sheet", sheetName),
+		)
 		members, err := s.groupMemberDao.GetMembersByGroupID(ctx, groupID, nil)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -280,18 +488,34 @@ func (s *StatisticsService) GenerateGroupSignInStatisticsExcel(ctx context.Conte
 			)
 			return "", appErrors.ErrStatisticsQueryFailed.WithError(err)
 		}
+		logger.Info("获取组成员成功", zap.Int("groupID", groupID), zap.Int("memberCount", len(members)), zap.String("sheet", sheetName))
 
-		row := 2 // 从第2行开始写入数据
-		for _, member := range members {
+		row := dataStartRow
+		for idx, member := range members {
+			logger.Info("[导出统计] 开始处理成员",
+				zap.Int("index", idx),
+				zap.Int("groupID", groupID),
+				zap.Int("userID", member.UserID),
+				zap.String("sheet", sheetName),
+			)
 			statistics, err := s.GetGroupMemberSignInStatistics(ctx, groupID, member.UserID, startTime, endTime)
 			if err != nil {
-				logger.Error("获取成员统计数据失败：数据库操作错误",
+				logger.Error("[导出统计] 获取成员统计数据失败",
+					zap.Int("index", idx),
 					zap.Int("groupID", groupID),
 					zap.Int("userID", member.UserID),
+					zap.String("sheet", sheetName),
 					zap.Error(err),
 				)
 				return "", appErrors.ErrStatisticsQueryFailed.WithError(err)
 			}
+			logger.Info("[导出统计] 成员统计数据获取成功",
+				zap.Int("index", idx),
+				zap.Int("groupID", groupID),
+				zap.Int("userID", member.UserID),
+				zap.String("sheet", sheetName),
+				zap.Any("statistics", statistics),
+			)
 
 			// 计算总任务数
 			totalTasks := statistics.SuccessNum + statistics.AbsentNum + statistics.ExceptionNum
@@ -357,80 +581,86 @@ func (s *StatisticsService) GenerateGroupSignInStatisticsExcel(ctx context.Conte
 				}
 			}
 
+			logger.Info("[导出统计] 成员数据写入完成",
+				zap.Int("index", idx),
+				zap.Int("groupID", groupID),
+				zap.Int("userID", member.UserID),
+				zap.String("sheet", sheetName),
+			)
+			// 写入每个单元格并设置样式
 			for i, value := range data {
 				cell := fmt.Sprintf("%c%d", 'A'+i, row)
+				rowIdx := row - dataStartRow
+				var styleID int
+				if rowIdx%2 == 0 {
+					styleID = oddStyle
+				} else {
+					styleID = evenStyle
+				}
+				f.SetCellStyle(sheetName, cell, cell, styleID)
 				f.SetCellValue(sheetName, cell, value)
 			}
+			f.SetRowHeight(sheetName, row, 20)
 			row++
 		}
+		logger.Info("成员数据写入完成", zap.String("sheet", sheetName))
 
 		// 设置列宽
-		f.SetColWidth(sheetName, "A", fmt.Sprintf("%c", 'A'+len(headers)-1), 15)
+		colWidths := map[string]float64{
+			"A": 10, // 用户ID
+			"B": 20, // 用户名
+			"C": 12, // 总任务数
+		}
+		// 动态设置状态相关列的宽度
+		for i := 0; i < len(statuses); i++ {
+			colWidths[string(rune('D'+i*2))] = 12 // 次数列
+			colWidths[string(rune('E'+i*2))] = 30 // 任务ID列
+		}
+		logger.Info("[导出统计] 设置列宽",
+			zap.Any("colWidths", colWidths),
+			zap.String("sheet", sheetName),
+		)
+		for col, width := range colWidths {
+			f.SetColWidth(sheetName, col, col, width)
+		}
 
 		// 写总计行
+		logger.Info("[导出统计] 准备写入总计行",
+			zap.String("sheet", sheetName),
+		)
 		sumRow := row + 1
-		f.SetCellValue(sheetName, fmt.Sprintf("A%d", sumRow), "总计")
-		f.SetCellValue(sheetName, fmt.Sprintf("B%d", sumRow), "") // B列空
-		f.SetCellValue(sheetName, fmt.Sprintf("C%d", sumRow), "") // C列空
-		colIdx := 3                                               // 从D列开始（因为C列是总任务数）
-		for range statuses {
-			if row == 2 {
-				f.SetCellValue(sheetName, fmt.Sprintf("%c%d", 'A'+colIdx, sumRow), 0)
-				f.SetCellValue(sheetName, fmt.Sprintf("%c%d", 'A'+colIdx+1, sumRow), "")
+		for i := 0; i < len(headers); i++ {
+			cell := fmt.Sprintf("%c%d", 'A'+i, sumRow)
+			if i == 0 {
+				f.SetCellValue(sheetName, cell, "总计")
+			} else if i == 1 {
+				f.SetCellValue(sheetName, cell, "")
+			} else if i == 2 {
+				formula := fmt.Sprintf("SUM(%c%d:%c%d)", 'A'+i, dataStartRow, 'A'+i, row-1)
+				f.SetCellFormula(sheetName, cell, formula)
+			} else if (i-3)%2 == 0 {
+				formula := fmt.Sprintf("SUM(%c%d:%c%d)", 'A'+i, dataStartRow, 'A'+i, row-1)
+				f.SetCellFormula(sheetName, cell, formula)
 			} else {
-				formula := fmt.Sprintf("SUM(%c2:%c%d)", 'A'+colIdx, 'A'+colIdx, row-1)
-				f.SetCellFormula(sheetName, fmt.Sprintf("%c%d", 'A'+colIdx, sumRow), formula)
-				f.SetCellValue(sheetName, fmt.Sprintf("%c%d", 'A'+colIdx+1, sumRow), "")
+				f.SetCellValue(sheetName, cell, "")
 			}
-			colIdx += 2
+			// 总计行只加粗字体
+			f.SetCellStyle(sheetName, cell, cell, headerStyle)
 		}
+		f.SetRowHeight(sheetName, sumRow, 25)
+		logger.Info("[导出统计] 总计行写入完成",
+			zap.String("sheet", sheetName),
+		)
 
-		// 调试输出
-		fmt.Printf("sheetName=%s, row=%d, sumRow=%d\n", sheetName, row, sumRow)
-
-		// 显式设置当前 sheet 为活动 sheet
-		idx, _ := f.GetSheetIndex(sheetName)
-		f.SetActiveSheet(idx)
-
-		// 柱状图：每种状态一条线，显示所有用户的数据
+		// 饼图
+		logger.Info("[导出统计] 准备生成饼图",
+			zap.String("sheet", sheetName),
+		)
+		pieStartCol := 3 // "成功签到次数"列
+		pieEndCol := pieStartCol + len(statuses)*2 - 2
 		quotedSheet := fmt.Sprintf("'%s'", sheetName)
-		series := []excelize.ChartSeries{}
-		for i := range statuses {
-			col := 'D' + i // 从D列开始，因为C列是总任务数
-			var catRange, valRange string
-			if row-2 == 1 {
-				catRange = fmt.Sprintf("%s!$B$2", quotedSheet)
-				valRange = fmt.Sprintf("%s!$%c$2", quotedSheet, col)
-			} else {
-				catRange = fmt.Sprintf("%s!$B$2:$B$%d", quotedSheet, row-1)
-				valRange = fmt.Sprintf("%s!$%c$2:$%c$%d", quotedSheet, col, col, row-1)
-			}
-			series = append(series, excelize.ChartSeries{
-				Name:       fmt.Sprintf("%s!$%c$1", quotedSheet, col),
-				Categories: catRange,
-				Values:     valRange,
-			})
-		}
-		barChart := &excelize.Chart{
-			Type:   excelize.Col,
-			Series: series,
-			PlotArea: excelize.ChartPlotArea{
-				ShowPercent: true,
-			},
-			GapWidth: func() *uint { v := uint(500); return &v }(),
-		}
-		f.AddChart(sheetName, "J2", barChart)
-		f.SetCellValue(sheetName, "J18", "用户签到统计")
-
-		// 饼图：用总计行，显示所有用户的总计数据
-		var pieCatRange, pieValRange string
-		if len(statuses) == 1 {
-			pieCatRange = fmt.Sprintf("%s!$D$%d", quotedSheet, sumRow)
-			pieValRange = fmt.Sprintf("%s!$D$%d", quotedSheet, sumRow)
-		} else {
-			pieCatRange = fmt.Sprintf("%s!$D$%d:$%c$%d", quotedSheet, sumRow, 'D'+len(statuses)-1, sumRow)
-			pieValRange = fmt.Sprintf("%s!$D$%d:$%c$%d", quotedSheet, sumRow, 'D'+len(statuses)-1, sumRow)
-		}
+		pieCatRange := fmt.Sprintf("%s!$%c$1:$%c$1", quotedSheet, 'A'+pieStartCol, 'A'+pieEndCol)
+		pieValRange := fmt.Sprintf("%s!$%c$%d:$%c$%d", quotedSheet, 'A'+pieStartCol, sumRow, 'A'+pieEndCol, sumRow)
 		pieChart := &excelize.Chart{
 			Type: excelize.Pie,
 			Series: []excelize.ChartSeries{
@@ -443,9 +673,71 @@ func (s *StatisticsService) GenerateGroupSignInStatisticsExcel(ctx context.Conte
 			PlotArea: excelize.ChartPlotArea{
 				ShowPercent: true,
 			},
+			Title: []excelize.RichTextRun{
+				{
+					Text: "签到分布饼图",
+				},
+			},
 		}
-		f.AddChart(sheetName, "J20", pieChart)
-		f.SetCellValue(sheetName, "J36", "签到状态分布")
+		_ = f.AddChart(sheetName, "J21", pieChart)
+		logger.Info("[导出统计] 饼图添加完成",
+			zap.String("sheet", sheetName),
+		)
+
+		// 柱状图
+		series := []excelize.ChartSeries{}
+		for i := range statuses {
+			col := 'D' + i // 从D列开始，因为C列是总任务数
+			var catRange, valRange string
+			if row-2 == 1 {
+				catRange = fmt.Sprintf("%s!$B$%d", quotedSheet, dataStartRow)
+				valRange = fmt.Sprintf("%s!$%c$%d", quotedSheet, col, dataStartRow)
+			} else {
+				catRange = fmt.Sprintf("%s!$B$%d:$B$%d", quotedSheet, dataStartRow, row-1)
+				valRange = fmt.Sprintf("%s!$%c$%d:$%c$%d", quotedSheet, col, dataStartRow, col, row-1)
+			}
+			series = append(series, excelize.ChartSeries{
+				Name:       fmt.Sprintf("%s!$%c$%d", quotedSheet, col, headerRow),
+				Categories: catRange,
+				Values:     valRange,
+			})
+		}
+		barChart := &excelize.Chart{
+			Type:   excelize.Col,
+			Series: series,
+			PlotArea: excelize.ChartPlotArea{
+				ShowPercent: true,
+			},
+			GapWidth: func() *uint { v := uint(300); return &v }(),
+			Title: []excelize.RichTextRun{
+				{
+					Text: "各成员签到统计柱状图",
+				},
+			},
+		}
+		_ = f.AddChart(sheetName, "J3", barChart)
+		logger.Info("[导出统计] 柱状图添加完成",
+			zap.String("sheet", sheetName),
+		)
+
+		// 冻结表头
+		logger.Info("设置冻结窗格", zap.String("sheet", sheetName))
+		f.SetPanes(sheetName, &excelize.Panes{
+			Freeze:      true,
+			Split:       false,
+			XSplit:      0,
+			YSplit:      1,
+			TopLeftCell: "A2",
+			ActivePane:  "bottomLeft",
+		})
+
+		// 调试输出
+		fmt.Printf("sheetName=%s, row=%d, sumRow=%d\n", sheetName, row, sumRow)
+		logger.Info("sheet生成完成", zap.String("sheet", sheetName), zap.Int("row", row), zap.Int("sumRow", sumRow))
+
+		// 显式设置当前 sheet 为活动 sheet
+		idx, _ := f.GetSheetIndex(sheetName)
+		f.SetActiveSheet(idx)
 	}
 
 	// 生成文件名
@@ -464,6 +756,9 @@ func (s *StatisticsService) GenerateGroupSignInStatisticsExcel(ctx context.Conte
 	}
 
 	// 保存文件
+	logger.Info("[导出统计] 准备保存Excel文件",
+		zap.String("filePath", filePath),
+	)
 	if err := f.SaveAs(filePath); err != nil {
 		logger.Error("保存Excel文件失败",
 			zap.String("filePath", filePath),
@@ -472,7 +767,7 @@ func (s *StatisticsService) GenerateGroupSignInStatisticsExcel(ctx context.Conte
 		return "", appErrors.ErrStatisticsFileSaveFailed.WithError(err)
 	}
 
-	logger.Info("成功生成用户组签到统计Excel",
+	logger.Info("[导出统计] 成功生成用户组签到统计Excel",
 		zap.String("filePath", filePath),
 	)
 	return filePath, nil

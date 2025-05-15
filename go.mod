@@ -4,6 +4,7 @@ go 1.23.5
 
 require (
 	github.com/bytedance/gopkg v0.1.2
+	github.com/disintegration/imaging v1.6.2
 	github.com/gin-gonic/gin v1.10.0
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/oapi-codegen/runtime v1.1.1
@@ -28,6 +29,7 @@ require (
 	github.com/xuri/efp v0.0.1 // indirect
 	github.com/xuri/nfp v0.0.1 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
+	golang.org/x/image v0.25.0 // indirect
 )
 
 require (

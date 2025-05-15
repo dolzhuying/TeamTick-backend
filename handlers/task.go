@@ -964,7 +964,7 @@ func (h *TaskHandler) PostCheckinTasksTaskIdCheckin(ctx context.Context, request
 				}{
 					RecordId:   record.RecordID,
 					SignedTime: int(record.SignedTime.Unix()),
-					Success:    true,
+					Success:    false,
 				},
 			}, nil
 		}

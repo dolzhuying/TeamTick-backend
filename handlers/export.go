@@ -10,6 +10,7 @@ import (
 	"errors"
 	"os"
 	"time"
+
 )
 
 // ExportHandler 处理导出相关的请求
@@ -121,6 +122,11 @@ func (h *ExportHandler) GetExportCheckinsXlsx(ctx context.Context, request gen.G
 			return &gen.GetExportCheckinsXlsx500JSONResponse{
 				Code:    "1",
 				Message: "文件保存失败",
+			}, nil
+		case errors.Is(err, appErrors.ErrStatisticsInvalidGroupID):
+			return &gen.GetExportCheckinsXlsx400JSONResponse{
+				Code:    "1",
+				Message: "用户组ID无效",
 			}, nil
 		default:
 			return &gen.GetExportCheckinsXlsx500JSONResponse{
