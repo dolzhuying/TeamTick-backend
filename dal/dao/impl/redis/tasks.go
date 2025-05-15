@@ -116,3 +116,43 @@ func (dao *TaskRedisDAOImpl) DeleteCacheByGroupID(ctx context.Context,groupID in
 	return client.Del(ctx, key).Err()
 }
 
+// GetByUserID 通过userID获取任务列表
+func (dao *TaskRedisDAOImpl) GetByUserID(ctx context.Context,userID int,tx ...*redis.Client) ([]*models.Task,error) {
+	client := dao.Client
+	if len(tx) > 0 && tx[0] != nil {
+		client = tx[0]
+	}
+	key := buildTaskUserIDKey(userID)
+	data, err := client.Get(ctx, key).Bytes()
+	if err != nil {
+		if err == redis.Nil {
+			return nil, nil // 缓存未命中
+		}
+		return nil, err
+	}
+	var tasks []*models.Task
+	err = json.Unmarshal(data, &tasks)
+	if err != nil {
+		return nil, err
+	}
+	return tasks, nil
+}
+
+// SetByUserID 通过userID设置任务列表缓存
+func (dao *TaskRedisDAOImpl) SetByUserID(ctx context.Context,userID int,tasks []*models.Task) error {
+	client := dao.Client
+	data,err:=json.Marshal(tasks)
+	if err != nil {
+		return err
+	}
+	key := buildTaskUserIDKey(userID)
+	return client.Set(ctx, key, data, DefaultExpireTime).Err()
+}
+
+// DeleteCacheByUserID 通过userID删除任务列表缓存
+func (dao *TaskRedisDAOImpl) DeleteCacheByUserID(ctx context.Context,userID int) error {
+	client := dao.Client
+	key := buildTaskUserIDKey(userID)
+	return client.Del(ctx, key).Err()
+}
+

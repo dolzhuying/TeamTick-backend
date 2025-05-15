@@ -21,6 +21,7 @@ type GroupsService struct {
 	groupRedisDAO           dao.GroupRedisDAO
 	groupMemberRedisDAO     dao.GroupMemberRedisDAO
 	joinApplicationRedisDAO dao.JoinApplicationRedisDAO
+	taskRedisDAO            dao.TaskRedisDAO
 }
 
 func NewGroupsService(
@@ -31,6 +32,7 @@ func NewGroupsService(
 	groupRedisDAO dao.GroupRedisDAO,
 	groupMemberRedisDAO dao.GroupMemberRedisDAO,
 	joinApplicationRedisDAO dao.JoinApplicationRedisDAO,
+	taskRedisDAO dao.TaskRedisDAO,
 ) *GroupsService {
 
 	return &GroupsService{
@@ -41,6 +43,7 @@ func NewGroupsService(
 		groupRedisDAO:           groupRedisDAO,
 		groupMemberRedisDAO:     groupMemberRedisDAO,
 		joinApplicationRedisDAO: joinApplicationRedisDAO,
+		taskRedisDAO:            taskRedisDAO,
 	}
 }
 
@@ -454,6 +457,14 @@ func (s *GroupsService) RemoveMemberFromGroup(ctx context.Context, groupID, user
 			zap.Int("groupID", groupID),
 			zap.Int("userID", userID),
 			zap.Int("operatorID", operatorID),
+			zap.Error(err),
+		)
+	}
+
+	// 删除用户组任务缓存
+	if err := s.taskRedisDAO.DeleteCacheByUserID(ctx, userID); err != nil {
+		logger.Error("删除用户组任务缓存失败：Redis操作错误",
+			zap.Int("userID", userID),
 			zap.Error(err),
 		)
 	}
@@ -1316,6 +1327,26 @@ func (s *GroupsService) DeleteGroup(ctx context.Context, groupID, operatorID int
 		)
 	}
 
+	// 删除用户组任务缓存
+	if err := s.taskRedisDAO.DeleteCacheByGroupID(ctx, groupID); err != nil {
+		logger.Error("删除用户组任务缓存失败：Redis操作错误",
+			zap.Int("groupID", groupID),
+			zap.Int("operatorID", operatorID),
+			zap.Error(err),
+		)
+	}
+
+	// 删除用户组成员任务缓存
+	for _, member := range members {
+		if err:=s.taskRedisDAO.DeleteCacheByUserID(ctx,member.UserID);err!=nil{
+			logger.Error("删除用户组成员任务缓存失败：Redis操作错误",
+				zap.Int("groupID", groupID),
+				zap.Int("userID", member.UserID),
+				zap.String("username", member.Username),
+				zap.Error(err),
+			)
+		}
+	}
 	return nil
 }
 

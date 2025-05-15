@@ -35,6 +35,7 @@ func NewExportHandler(container *app.AppContainer) gen.ExportServerInterface {
 		container.DaoFactory.GroupRedisDAO,
 		container.DaoFactory.GroupMemberRedisDAO,
 		container.DaoFactory.JoinApplicationRedisDAO,
+		container.DaoFactory.TaskRedisDAO,
 	)
 	handler := &ExportHandler{
 		exportService: *exportService,

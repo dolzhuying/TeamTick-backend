@@ -230,6 +230,19 @@ func (m *mockTaskRedisDAO) SetByTaskID(ctx context.Context, taskID int, task *mo
 	return args.Error(0)
 }
 
+func (m *mockTaskRedisDAO) GetByUserID(ctx context.Context, userID int, tx ...*redis.Client) ([]*models.Task, error) {
+	args := m.Called(ctx, userID, tx)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*models.Task), args.Error(1)
+}
+
+func (m *mockTaskRedisDAO) SetByUserID(ctx context.Context, userID int, tasks []*models.Task) error {
+	args := m.Called(ctx, userID, tasks)
+	return args.Error(0)
+}
+
 func (m *mockTaskRedisDAO) DeleteCacheByTaskID(ctx context.Context, taskID int) error {
 	args := m.Called(ctx, taskID)
 	return args.Error(0)
@@ -237,6 +250,11 @@ func (m *mockTaskRedisDAO) DeleteCacheByTaskID(ctx context.Context, taskID int) 
 
 func (m *mockTaskRedisDAO) DeleteCacheByGroupID(ctx context.Context, groupID int) error {
 	args := m.Called(ctx, groupID)
+	return args.Error(0)
+}
+
+func (m *mockTaskRedisDAO) DeleteCacheByUserID(ctx context.Context, userID int) error {
+	args := m.Called(ctx, userID)
 	return args.Error(0)
 }
 
@@ -248,6 +266,7 @@ func setupTaskServiceTest() (*TaskService, *mockTaskDAO, *mockTaskRecordDAO, *mo
 	mockTaskRedisDao := new(mockTaskRedisDAO)
 	mockTxManager := new(mockTransactionManager)
 	mockGroupDao := new(mockGroupDAO)
+	mockGroupMemberDao := new(mockGroupMemberDAO)
 
 	taskService := NewTaskService(
 		mockTaskDao,
@@ -256,6 +275,7 @@ func setupTaskServiceTest() (*TaskService, *mockTaskDAO, *mockTaskRecordDAO, *mo
 		mockTaskRedisDao,
 		mockTxManager,
 		mockGroupDao,
+		mockGroupMemberDao,
 	)
 
 	return taskService, mockTaskDao, mockTaskRecordDao, mockTaskRecordRedisDao, mockTaskRedisDao, mockTxManager, mockGroupDao

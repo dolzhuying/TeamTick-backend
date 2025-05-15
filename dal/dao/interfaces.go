@@ -99,6 +99,9 @@ type TaskRedisDAO interface {
 	SetByTaskID(ctx context.Context,taskID int,task *models.Task) error
 	DeleteCacheByTaskID(ctx context.Context,taskID int) error
 	DeleteCacheByGroupID(ctx context.Context,groupID int) error
+	GetByUserID(ctx context.Context,userID int,tx ...*redis.Client) ([]*models.Task,error)
+	SetByUserID(ctx context.Context,userID int,tasks []*models.Task) error
+	DeleteCacheByUserID(ctx context.Context,userID int) error
 }
 
 // GroupRedisDAO Redis缓存实现的组访问接口

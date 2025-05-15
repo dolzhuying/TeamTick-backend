@@ -28,6 +28,7 @@ func NewAuthHandler(container *app.AppContainer) gen.AuthServerInterface {
 		container.DaoFactory.GroupRedisDAO,
 		container.DaoFactory.GroupMemberRedisDAO,
 		container.DaoFactory.JoinApplicationRedisDAO,
+		container.DaoFactory.TaskRedisDAO,
 	)
 	handler := &AuthHandler{
 		authService:   *authService,
