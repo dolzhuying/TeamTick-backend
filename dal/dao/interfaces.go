@@ -145,3 +145,15 @@ type StatisticsDAO interface {
 	GetMemberSignInAbsentNum(ctx context.Context,groupID,userID int,startTime, endTime time.Time,tx ...*gorm.DB) (int,error)
 }
 
+type CheckApplicationRedisDAO interface{
+	GetByGroupID(ctx context.Context,groupID int,tx ...*redis.Client) ([]*models.CheckApplication,error)
+	SetByGroupID(ctx context.Context,groupID int,applications []*models.CheckApplication) error
+	DeleteCacheByGroupID(ctx context.Context,groupID int) error
+	GetByUserID(ctx context.Context,userID int,tx ...*redis.Client) ([]*models.CheckApplication,error)
+	SetByUserID(ctx context.Context,userID int,applications []*models.CheckApplication) error
+	DeleteCacheByUserID(ctx context.Context,userID int) error
+	GetByGroupIDAndStatus(ctx context.Context,groupID int,status string,tx ...*redis.Client) ([]*models.CheckApplication,error)
+	SetByGroupIDAndStatus(ctx context.Context,groupID int,status string,applications []*models.CheckApplication) error
+	DeleteCacheByGroupIDAndStatus(ctx context.Context,groupID int,status string) error
+}
+
