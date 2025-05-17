@@ -1,4 +1,4 @@
- package service
+package service
 
 import (
 	"TeamTickBackend/dal/models"
@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"gorm.io/gorm"
@@ -71,13 +72,76 @@ func (m *mockCheckApplicationDAO) GetByID(ctx context.Context, id int, tx ...*go
 	return applicationArg.(*models.CheckApplication), args.Error(1)
 }
 
+// Mock CheckApplicationRedisDAO
+type mockCheckApplicationRedisDAO struct {
+	mock.Mock
+}
+
+func (m *mockCheckApplicationRedisDAO) GetByUserID(ctx context.Context, userID int, redis ...*redis.Client) ([]*models.CheckApplication, error) {
+	args := m.Called(ctx, userID)
+	applicationsArg := args.Get(0)
+	if applicationsArg == nil {
+		return nil, args.Error(1)
+	}
+	return applicationsArg.([]*models.CheckApplication), args.Error(1)
+}
+
+func (m *mockCheckApplicationRedisDAO) SetByUserID(ctx context.Context, userID int, applications []*models.CheckApplication) error {
+	args := m.Called(ctx, userID, applications)
+	return args.Error(0)
+}
+
+func (m *mockCheckApplicationRedisDAO) GetByGroupID(ctx context.Context, groupID int, redis ...*redis.Client) ([]*models.CheckApplication, error) {
+	args := m.Called(ctx, groupID)
+	applicationsArg := args.Get(0)
+	if applicationsArg == nil {
+		return nil, args.Error(1)
+	}
+	return applicationsArg.([]*models.CheckApplication), args.Error(1)
+}
+
+func (m *mockCheckApplicationRedisDAO) SetByGroupID(ctx context.Context, groupID int, applications []*models.CheckApplication) error {
+	args := m.Called(ctx, groupID, applications)
+	return args.Error(0)
+}
+
+func (m *mockCheckApplicationRedisDAO) GetByGroupIDAndStatus(ctx context.Context, groupID int, status string, redis ...*redis.Client) ([]*models.CheckApplication, error) {
+	args := m.Called(ctx, groupID, status)
+	applicationsArg := args.Get(0)
+	if applicationsArg == nil {
+		return nil, args.Error(1)
+	}
+	return applicationsArg.([]*models.CheckApplication), args.Error(1)
+}
+
+func (m *mockCheckApplicationRedisDAO) SetByGroupIDAndStatus(ctx context.Context, groupID int, status string, applications []*models.CheckApplication) error {
+	args := m.Called(ctx, groupID, status, applications)
+	return args.Error(0)
+}
+
+func (m *mockCheckApplicationRedisDAO) DeleteCacheByGroupID(ctx context.Context, groupID int) error {
+	args := m.Called(ctx, groupID)
+	return args.Error(0)
+}
+
+func (m *mockCheckApplicationRedisDAO) DeleteCacheByGroupIDAndStatus(ctx context.Context, groupID int, status string) error {
+	args := m.Called(ctx, groupID, status)
+	return args.Error(0)
+}
+
+func (m *mockCheckApplicationRedisDAO) DeleteCacheByUserID(ctx context.Context, userID int) error {
+	args := m.Called(ctx, userID)
+	return args.Error(0)
+}
+
 // 测试准备
-func setupAuditRequestServiceTest() (*AuditRequestService, *mockCheckApplicationDAO, *mockTaskDAO, *mockTaskRecordDAO, *mockGroupDAO, *mockTransactionManager) {
+func setupAuditRequestServiceTest() (*AuditRequestService, *mockCheckApplicationDAO, *mockTaskDAO, *mockTaskRecordDAO, *mockGroupDAO, *mockTransactionManager, *mockCheckApplicationRedisDAO) {
 	mockCheckApplicationDao := new(mockCheckApplicationDAO)
 	mockTaskDao := new(mockTaskDAO)
 	mockTaskRecordDao := new(mockTaskRecordDAO)
 	mockGroupDao := new(mockGroupDAO)
 	mockTxManager := new(mockTransactionManager)
+	mockCheckApplicationRedisDao := new(mockCheckApplicationRedisDAO)
 
 	auditRequestService := NewAuditRequestService(
 		mockTxManager,
@@ -85,15 +149,16 @@ func setupAuditRequestServiceTest() (*AuditRequestService, *mockCheckApplication
 		mockTaskRecordDao,
 		mockTaskDao,
 		mockGroupDao,
+		mockCheckApplicationRedisDao,
 	)
 
-	return auditRequestService, mockCheckApplicationDao, mockTaskDao, mockTaskRecordDao, mockGroupDao, mockTxManager
+	return auditRequestService, mockCheckApplicationDao, mockTaskDao, mockTaskRecordDao, mockGroupDao, mockTxManager, mockCheckApplicationRedisDao
 }
 
 // --- GetAuditRequestListByUserID 测试 ---
 
 func TestGetAuditRequestListByUserID_Success(t *testing.T) {
-	auditRequestService, mockCheckApplicationDao, _, _, _, mockTxManager := setupAuditRequestServiceTest()
+	auditRequestService, mockCheckApplicationDao, _, _, _, mockTxManager, mockCheckApplicationRedisDao := setupAuditRequestServiceTest()
 	ctx := context.Background()
 	userID := 1
 
@@ -126,7 +191,9 @@ func TestGetAuditRequestListByUserID_Success(t *testing.T) {
 
 	// Mock期望
 	mockTxManager.On("WithTransaction", ctx, mock.AnythingOfType("func(*gorm.DB) error")).Return(nil)
+	mockCheckApplicationRedisDao.On("GetByUserID", ctx, userID).Return(nil, nil)
 	mockCheckApplicationDao.On("GetByUserID", ctx, userID, mock.AnythingOfType("[]*gorm.DB")).Return(expectedRequests, nil)
+	mockCheckApplicationRedisDao.On("SetByUserID", ctx, userID, expectedRequests).Return(nil)
 
 	// 调用函数
 	requests, err := auditRequestService.GetAuditRequestListByUserID(ctx, userID)
@@ -140,15 +207,17 @@ func TestGetAuditRequestListByUserID_Success(t *testing.T) {
 	// 验证mock调用
 	mockTxManager.AssertExpectations(t)
 	mockCheckApplicationDao.AssertExpectations(t)
+	mockCheckApplicationRedisDao.AssertExpectations(t)
 }
 
 func TestGetAuditRequestListByUserID_NotFound(t *testing.T) {
-	auditRequestService, mockCheckApplicationDao, _, _, _, mockTxManager := setupAuditRequestServiceTest()
+	auditRequestService, mockCheckApplicationDao, _, _, _, mockTxManager, mockCheckApplicationRedisDao := setupAuditRequestServiceTest()
 	ctx := context.Background()
 	userID := 999 // 不存在的用户ID
 
 	// Mock期望
 	mockTxManager.On("WithTransaction", ctx, mock.AnythingOfType("func(*gorm.DB) error")).Return(nil)
+	mockCheckApplicationRedisDao.On("GetByUserID", ctx, userID).Return(nil, nil)
 	mockCheckApplicationDao.On("GetByUserID", ctx, userID, mock.AnythingOfType("[]*gorm.DB")).Return(nil, gorm.ErrRecordNotFound)
 
 	// 调用函数
@@ -162,12 +231,13 @@ func TestGetAuditRequestListByUserID_NotFound(t *testing.T) {
 	// 验证mock调用
 	mockTxManager.AssertExpectations(t)
 	mockCheckApplicationDao.AssertExpectations(t)
+	mockCheckApplicationRedisDao.AssertExpectations(t)
 }
 
 // --- GetAuditRequestByGroupID 测试 ---
 
 func TestGetAuditRequestByGroupID_Success(t *testing.T) {
-	auditRequestService, mockCheckApplicationDao, _, _, _, mockTxManager := setupAuditRequestServiceTest()
+	auditRequestService, mockCheckApplicationDao, _, _, _, mockTxManager, mockCheckApplicationRedisDao := setupAuditRequestServiceTest()
 	ctx := context.Background()
 	groupID := 1
 
@@ -200,7 +270,9 @@ func TestGetAuditRequestByGroupID_Success(t *testing.T) {
 
 	// Mock期望
 	mockTxManager.On("WithTransaction", ctx, mock.AnythingOfType("func(*gorm.DB) error")).Return(nil)
+	mockCheckApplicationRedisDao.On("GetByGroupID", ctx, groupID).Return(nil, nil)
 	mockCheckApplicationDao.On("GetByGroupID", ctx, groupID, mock.AnythingOfType("[]*gorm.DB")).Return(expectedRequests, nil)
+	mockCheckApplicationRedisDao.On("SetByGroupID", ctx, groupID, expectedRequests).Return(nil)
 
 	// 调用函数
 	requests, err := auditRequestService.GetAuditRequestByGroupID(ctx, groupID)
@@ -214,15 +286,17 @@ func TestGetAuditRequestByGroupID_Success(t *testing.T) {
 	// 验证mock调用
 	mockTxManager.AssertExpectations(t)
 	mockCheckApplicationDao.AssertExpectations(t)
+	mockCheckApplicationRedisDao.AssertExpectations(t)
 }
 
 func TestGetAuditRequestByGroupID_NotFound(t *testing.T) {
-	auditRequestService, mockCheckApplicationDao, _, _, _, mockTxManager := setupAuditRequestServiceTest()
+	auditRequestService, mockCheckApplicationDao, _, _, _, mockTxManager, mockCheckApplicationRedisDao := setupAuditRequestServiceTest()
 	ctx := context.Background()
 	groupID := 999 // 不存在的组ID
 
 	// Mock期望
 	mockTxManager.On("WithTransaction", ctx, mock.AnythingOfType("func(*gorm.DB) error")).Return(nil)
+	mockCheckApplicationRedisDao.On("GetByGroupID", ctx, groupID).Return(nil, nil)
 	mockCheckApplicationDao.On("GetByGroupID", ctx, groupID, mock.AnythingOfType("[]*gorm.DB")).Return(nil, gorm.ErrRecordNotFound)
 
 	// 调用函数
@@ -236,12 +310,13 @@ func TestGetAuditRequestByGroupID_NotFound(t *testing.T) {
 	// 验证mock调用
 	mockTxManager.AssertExpectations(t)
 	mockCheckApplicationDao.AssertExpectations(t)
+	mockCheckApplicationRedisDao.AssertExpectations(t)
 }
 
 // --- GetAuditRequestByGroupIDWithStatus 测试 ---
 
 func TestGetAuditRequestByGroupIDWithStatus_All_Success(t *testing.T) {
-	auditRequestService, mockCheckApplicationDao, _, _, _, mockTxManager := setupAuditRequestServiceTest()
+	auditRequestService, mockCheckApplicationDao, _, _, _, mockTxManager, mockCheckApplicationRedisDao := setupAuditRequestServiceTest()
 	ctx := context.Background()
 	groupID := 1
 	status := "all"
@@ -287,7 +362,9 @@ func TestGetAuditRequestByGroupIDWithStatus_All_Success(t *testing.T) {
 
 	// Mock期望
 	mockTxManager.On("WithTransaction", ctx, mock.AnythingOfType("func(*gorm.DB) error")).Return(nil)
+	mockCheckApplicationRedisDao.On("GetByGroupIDAndStatus", ctx, groupID, status).Return(nil, nil)
 	mockCheckApplicationDao.On("GetByGroupID", ctx, groupID, mock.AnythingOfType("[]*gorm.DB")).Return(expectedRequests, nil)
+	mockCheckApplicationRedisDao.On("SetByGroupIDAndStatus", ctx, groupID, status, expectedRequests).Return(nil)
 
 	// 调用函数
 	requests, err := auditRequestService.GetAuditRequestByGroupIDWithStatus(ctx, groupID, status)
@@ -301,10 +378,11 @@ func TestGetAuditRequestByGroupIDWithStatus_All_Success(t *testing.T) {
 	// 验证mock调用
 	mockTxManager.AssertExpectations(t)
 	mockCheckApplicationDao.AssertExpectations(t)
+	mockCheckApplicationRedisDao.AssertExpectations(t)
 }
 
 func TestGetAuditRequestByGroupIDWithStatus_Pending_Success(t *testing.T) {
-	auditRequestService, mockCheckApplicationDao, _, _, _, mockTxManager := setupAuditRequestServiceTest()
+	auditRequestService, mockCheckApplicationDao, _, _, _, mockTxManager, mockCheckApplicationRedisDao := setupAuditRequestServiceTest()
 	ctx := context.Background()
 	groupID := 1
 	status := "pending"
@@ -350,7 +428,9 @@ func TestGetAuditRequestByGroupIDWithStatus_Pending_Success(t *testing.T) {
 
 	// Mock期望
 	mockTxManager.On("WithTransaction", ctx, mock.AnythingOfType("func(*gorm.DB) error")).Return(nil)
+	mockCheckApplicationRedisDao.On("GetByGroupIDAndStatus", ctx, groupID, status).Return(nil, nil)
 	mockCheckApplicationDao.On("GetByGroupID", ctx, groupID, mock.AnythingOfType("[]*gorm.DB")).Return(allRequests, nil)
+	mockCheckApplicationRedisDao.On("SetByGroupIDAndStatus", ctx, groupID, status, mock.AnythingOfType("[]*models.CheckApplication")).Return(nil)
 
 	// 调用函数
 	requests, err := auditRequestService.GetAuditRequestByGroupIDWithStatus(ctx, groupID, status)
@@ -364,10 +444,11 @@ func TestGetAuditRequestByGroupIDWithStatus_Pending_Success(t *testing.T) {
 	// 验证mock调用
 	mockTxManager.AssertExpectations(t)
 	mockCheckApplicationDao.AssertExpectations(t)
+	mockCheckApplicationRedisDao.AssertExpectations(t)
 }
 
 func TestGetAuditRequestByGroupIDWithStatus_Approved_Success(t *testing.T) {
-	auditRequestService, mockCheckApplicationDao, _, _, _, mockTxManager := setupAuditRequestServiceTest()
+	auditRequestService, mockCheckApplicationDao, _, _, _, mockTxManager, mockCheckApplicationRedisDao := setupAuditRequestServiceTest()
 	ctx := context.Background()
 	groupID := 1
 	status := "approved"
@@ -413,7 +494,9 @@ func TestGetAuditRequestByGroupIDWithStatus_Approved_Success(t *testing.T) {
 
 	// Mock期望
 	mockTxManager.On("WithTransaction", ctx, mock.AnythingOfType("func(*gorm.DB) error")).Return(nil)
+	mockCheckApplicationRedisDao.On("GetByGroupIDAndStatus", ctx, groupID, status).Return(nil, nil)
 	mockCheckApplicationDao.On("GetByGroupID", ctx, groupID, mock.AnythingOfType("[]*gorm.DB")).Return(allRequests, nil)
+	mockCheckApplicationRedisDao.On("SetByGroupIDAndStatus", ctx, groupID, status, mock.AnythingOfType("[]*models.CheckApplication")).Return(nil)
 
 	// 调用函数
 	requests, err := auditRequestService.GetAuditRequestByGroupIDWithStatus(ctx, groupID, status)
@@ -427,10 +510,11 @@ func TestGetAuditRequestByGroupIDWithStatus_Approved_Success(t *testing.T) {
 	// 验证mock调用
 	mockTxManager.AssertExpectations(t)
 	mockCheckApplicationDao.AssertExpectations(t)
+	mockCheckApplicationRedisDao.AssertExpectations(t)
 }
 
 func TestGetAuditRequestByGroupIDWithStatus_Rejected_Success(t *testing.T) {
-	auditRequestService, mockCheckApplicationDao, _, _, _, mockTxManager := setupAuditRequestServiceTest()
+	auditRequestService, mockCheckApplicationDao, _, _, _, mockTxManager, mockCheckApplicationRedisDao := setupAuditRequestServiceTest()
 	ctx := context.Background()
 	groupID := 1
 	status := "rejected"
@@ -476,7 +560,9 @@ func TestGetAuditRequestByGroupIDWithStatus_Rejected_Success(t *testing.T) {
 
 	// Mock期望
 	mockTxManager.On("WithTransaction", ctx, mock.AnythingOfType("func(*gorm.DB) error")).Return(nil)
+	mockCheckApplicationRedisDao.On("GetByGroupIDAndStatus", ctx, groupID, status).Return(nil, nil)
 	mockCheckApplicationDao.On("GetByGroupID", ctx, groupID, mock.AnythingOfType("[]*gorm.DB")).Return(allRequests, nil)
+	mockCheckApplicationRedisDao.On("SetByGroupIDAndStatus", ctx, groupID, status, mock.AnythingOfType("[]*models.CheckApplication")).Return(nil)
 
 	// 调用函数
 	requests, err := auditRequestService.GetAuditRequestByGroupIDWithStatus(ctx, groupID, status)
@@ -490,16 +576,18 @@ func TestGetAuditRequestByGroupIDWithStatus_Rejected_Success(t *testing.T) {
 	// 验证mock调用
 	mockTxManager.AssertExpectations(t)
 	mockCheckApplicationDao.AssertExpectations(t)
+	mockCheckApplicationRedisDao.AssertExpectations(t)
 }
 
 func TestGetAuditRequestByGroupIDWithStatus_NotFound(t *testing.T) {
-	auditRequestService, mockCheckApplicationDao, _, _, _, mockTxManager := setupAuditRequestServiceTest()
+	auditRequestService, mockCheckApplicationDao, _, _, _, mockTxManager, mockCheckApplicationRedisDao := setupAuditRequestServiceTest()
 	ctx := context.Background()
 	groupID := 999 // 不存在的组ID
 	status := "all"
 
 	// Mock期望
 	mockTxManager.On("WithTransaction", ctx, mock.AnythingOfType("func(*gorm.DB) error")).Return(nil)
+	mockCheckApplicationRedisDao.On("GetByGroupIDAndStatus", ctx, groupID, status).Return(nil, nil)
 	mockCheckApplicationDao.On("GetByGroupID", ctx, groupID, mock.AnythingOfType("[]*gorm.DB")).Return(nil, gorm.ErrRecordNotFound)
 
 	// 调用函数
@@ -513,12 +601,13 @@ func TestGetAuditRequestByGroupIDWithStatus_NotFound(t *testing.T) {
 	// 验证mock调用
 	mockTxManager.AssertExpectations(t)
 	mockCheckApplicationDao.AssertExpectations(t)
+	mockCheckApplicationRedisDao.AssertExpectations(t)
 }
 
 // --- CreateAuditRequest 测试 ---
 
 func TestCreateAuditRequest_Success(t *testing.T) {
-	auditRequestService, mockCheckApplicationDao, mockTaskDao, _, mockGroupDao, mockTxManager := setupAuditRequestServiceTest()
+	auditRequestService, mockCheckApplicationDao, mockTaskDao, _, mockGroupDao, mockTxManager, mockCheckApplicationRedisDao := setupAuditRequestServiceTest()
 	ctx := context.Background()
 
 	// 测试数据
@@ -554,7 +643,14 @@ func TestCreateAuditRequest_Success(t *testing.T) {
 		application.Status = "pending"
 		application.CreatedAt = time.Now()
 		application.UpdatedAt = time.Now()
+		application.GroupID = task.GroupID
 	})
+	mockCheckApplicationRedisDao.On("GetByUserID", ctx, userID).Return(nil, nil)
+	mockCheckApplicationRedisDao.On("SetByUserID", ctx, userID, mock.AnythingOfType("[]*models.CheckApplication")).Return(nil)
+	mockCheckApplicationRedisDao.On("GetByGroupID", ctx, task.GroupID).Return(nil, nil)
+	mockCheckApplicationRedisDao.On("SetByGroupID", ctx, task.GroupID, mock.AnythingOfType("[]*models.CheckApplication")).Return(nil)
+	mockCheckApplicationRedisDao.On("GetByGroupIDAndStatus", ctx, task.GroupID, "pending").Return(nil, nil)
+	mockCheckApplicationRedisDao.On("SetByGroupIDAndStatus", ctx, task.GroupID, "pending", mock.AnythingOfType("[]*models.CheckApplication")).Return(nil)
 
 	// 调用函数
 	createdRequest, err := auditRequestService.CreateAuditRequest(ctx, taskID, userID, username, reason, image)
@@ -577,10 +673,11 @@ func TestCreateAuditRequest_Success(t *testing.T) {
 	mockTaskDao.AssertExpectations(t)
 	mockCheckApplicationDao.AssertExpectations(t)
 	mockGroupDao.AssertExpectations(t)
+	mockCheckApplicationRedisDao.AssertExpectations(t)
 }
 
 func TestCreateAuditRequest_TaskNotFound(t *testing.T) {
-	auditRequestService, _, mockTaskDao, _, _, mockTxManager := setupAuditRequestServiceTest()
+	auditRequestService, _, mockTaskDao, _, _, mockTxManager, _ := setupAuditRequestServiceTest()
 	ctx := context.Background()
 
 	// 测试数据
@@ -608,7 +705,7 @@ func TestCreateAuditRequest_TaskNotFound(t *testing.T) {
 }
 
 func TestCreateAuditRequest_RequestAlreadyExists(t *testing.T) {
-	auditRequestService, mockCheckApplicationDao, mockTaskDao, _, _, mockTxManager := setupAuditRequestServiceTest()
+	auditRequestService, mockCheckApplicationDao, mockTaskDao, _, _, mockTxManager, _ := setupAuditRequestServiceTest()
 	ctx := context.Background()
 
 	// 测试数据
@@ -654,7 +751,7 @@ func TestCreateAuditRequest_RequestAlreadyExists(t *testing.T) {
 }
 
 func TestCreateAuditRequest_GroupNotFound(t *testing.T) {
-	auditRequestService, mockCheckApplicationDao, mockTaskDao, _, mockGroupDao, mockTxManager := setupAuditRequestServiceTest()
+	auditRequestService, mockCheckApplicationDao, mockTaskDao, _, mockGroupDao, mockTxManager, _ := setupAuditRequestServiceTest()
 	ctx := context.Background()
 
 	// 测试数据
@@ -696,7 +793,7 @@ func TestCreateAuditRequest_GroupNotFound(t *testing.T) {
 // --- UpdateAuditRequest 测试 ---
 
 func TestUpdateAuditRequest_Approve_Success(t *testing.T) {
-	auditRequestService, mockCheckApplicationDao, _, mockTaskRecordDao, _, mockTxManager := setupAuditRequestServiceTest()
+	auditRequestService, mockCheckApplicationDao, _, mockTaskRecordDao, _, mockTxManager, mockCheckApplicationRedisDao := setupAuditRequestServiceTest()
 	ctx := context.Background()
 	requestID := 1
 
@@ -712,6 +809,7 @@ func TestUpdateAuditRequest_Approve_Success(t *testing.T) {
 		AdminID:       2,
 		AdminUsername: "admin1",
 		RequestAt:     time.Now(),
+		GroupID:       1,
 	}
 
 	// Mock期望
@@ -719,6 +817,12 @@ func TestUpdateAuditRequest_Approve_Success(t *testing.T) {
 	mockCheckApplicationDao.On("GetByID", ctx, requestID, mock.AnythingOfType("[]*gorm.DB")).Return(request, nil)
 	mockCheckApplicationDao.On("Update", ctx, "approved", requestID, mock.AnythingOfType("[]*gorm.DB")).Return(nil)
 	mockTaskRecordDao.On("Create", ctx, mock.AnythingOfType("*models.TaskRecord"), mock.AnythingOfType("[]*gorm.DB")).Return(nil)
+	mockCheckApplicationRedisDao.On("GetByUserID", ctx, request.UserID).Return([]*models.CheckApplication{request}, nil)
+	mockCheckApplicationRedisDao.On("SetByUserID", ctx, request.UserID, mock.AnythingOfType("[]*models.CheckApplication")).Return(nil)
+	mockCheckApplicationRedisDao.On("GetByGroupID", ctx, request.GroupID).Return([]*models.CheckApplication{request}, nil)
+	mockCheckApplicationRedisDao.On("SetByGroupID", ctx, request.GroupID, mock.AnythingOfType("[]*models.CheckApplication")).Return(nil)
+	mockCheckApplicationRedisDao.On("GetByGroupIDAndStatus", ctx, request.GroupID, "pending").Return([]*models.CheckApplication{request}, nil)
+	mockCheckApplicationRedisDao.On("SetByGroupIDAndStatus", ctx, request.GroupID, "pending", mock.AnythingOfType("[]*models.CheckApplication")).Return(nil)
 
 	// 调用函数
 	err := auditRequestService.UpdateAuditRequest(ctx, requestID, "approve")
@@ -730,10 +834,11 @@ func TestUpdateAuditRequest_Approve_Success(t *testing.T) {
 	mockTxManager.AssertExpectations(t)
 	mockCheckApplicationDao.AssertExpectations(t)
 	mockTaskRecordDao.AssertExpectations(t)
+	mockCheckApplicationRedisDao.AssertExpectations(t)
 }
 
 func TestUpdateAuditRequest_Reject_Success(t *testing.T) {
-	auditRequestService, mockCheckApplicationDao, _, _, _, mockTxManager := setupAuditRequestServiceTest()
+	auditRequestService, mockCheckApplicationDao, _, _, _, mockTxManager, mockCheckApplicationRedisDao := setupAuditRequestServiceTest()
 	ctx := context.Background()
 	requestID := 1
 
@@ -749,12 +854,19 @@ func TestUpdateAuditRequest_Reject_Success(t *testing.T) {
 		AdminID:       2,
 		AdminUsername: "admin1",
 		RequestAt:     time.Now(),
+		GroupID:       1,
 	}
 
 	// Mock期望
 	mockTxManager.On("WithTransaction", ctx, mock.AnythingOfType("func(*gorm.DB) error")).Return(nil)
 	mockCheckApplicationDao.On("GetByID", ctx, requestID, mock.AnythingOfType("[]*gorm.DB")).Return(request, nil)
 	mockCheckApplicationDao.On("Update", ctx, "rejected", requestID, mock.AnythingOfType("[]*gorm.DB")).Return(nil)
+	mockCheckApplicationRedisDao.On("GetByUserID", ctx, request.UserID).Return([]*models.CheckApplication{request}, nil)
+	mockCheckApplicationRedisDao.On("SetByUserID", ctx, request.UserID, mock.AnythingOfType("[]*models.CheckApplication")).Return(nil)
+	mockCheckApplicationRedisDao.On("GetByGroupID", ctx, request.GroupID).Return([]*models.CheckApplication{request}, nil)
+	mockCheckApplicationRedisDao.On("SetByGroupID", ctx, request.GroupID, mock.AnythingOfType("[]*models.CheckApplication")).Return(nil)
+	mockCheckApplicationRedisDao.On("GetByGroupIDAndStatus", ctx, request.GroupID, "pending").Return([]*models.CheckApplication{request}, nil)
+	mockCheckApplicationRedisDao.On("SetByGroupIDAndStatus", ctx, request.GroupID, "pending", mock.AnythingOfType("[]*models.CheckApplication")).Return(nil)
 
 	// 调用函数
 	err := auditRequestService.UpdateAuditRequest(ctx, requestID, "reject")
@@ -765,10 +877,11 @@ func TestUpdateAuditRequest_Reject_Success(t *testing.T) {
 	// 验证mock调用
 	mockTxManager.AssertExpectations(t)
 	mockCheckApplicationDao.AssertExpectations(t)
+	mockCheckApplicationRedisDao.AssertExpectations(t)
 }
 
 func TestUpdateAuditRequest_NotFound(t *testing.T) {
-	auditRequestService, mockCheckApplicationDao, _, _, _, mockTxManager := setupAuditRequestServiceTest()
+	auditRequestService, mockCheckApplicationDao, _, _, _, mockTxManager, _ := setupAuditRequestServiceTest()
 	ctx := context.Background()
 	requestID := 999 // 不存在的申请ID
 

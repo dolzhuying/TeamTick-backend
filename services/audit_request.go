@@ -15,11 +15,12 @@ import (
 )
 
 type AuditRequestService struct {
-	transactionManager  dao.TransactionManager
-	checkApplicationDAO dao.CheckApplicationDAO
-	taskRecordDAO       dao.TaskRecordDAO
-	taskDAO             dao.TaskDAO
-	groupDAO            dao.GroupDAO
+	transactionManager       dao.TransactionManager
+	checkApplicationDAO      dao.CheckApplicationDAO
+	taskRecordDAO            dao.TaskRecordDAO
+	taskDAO                  dao.TaskDAO
+	groupDAO                 dao.GroupDAO
+	checkApplicationRedisDAO dao.CheckApplicationRedisDAO
 }
 
 func NewAuditRequestService(
@@ -28,6 +29,7 @@ func NewAuditRequestService(
 	taskRecordDAO dao.TaskRecordDAO,
 	taskDAO dao.TaskDAO,
 	groupDAO dao.GroupDAO,
+	checkApplicationRedisDAO dao.CheckApplicationRedisDAO,
 ) *AuditRequestService {
 	return &AuditRequestService{
 		transactionManager,
@@ -35,14 +37,22 @@ func NewAuditRequestService(
 		taskRecordDAO,
 		taskDAO,
 		groupDAO,
+		checkApplicationRedisDAO,
 	}
 }
 
 // GetAuditRequestListByUserID 获取用户签到申请列表
 func (s *AuditRequestService) GetAuditRequestListByUserID(ctx context.Context, userID int) ([]*models.CheckApplication, error) {
+	// 先从缓存中获取
+	existRequests, err := s.checkApplicationRedisDAO.GetByUserID(ctx, userID)
+	if existRequests != nil && len(existRequests) > 0 {
+		return existRequests, nil
+	}
+
+	// 从数据库中查询
 	var requests []*models.CheckApplication
 
-	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
+	err = s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
 		auditRequests, err := s.checkApplicationDAO.GetByUserID(ctx, userID, tx)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -76,13 +86,30 @@ func (s *AuditRequestService) GetAuditRequestListByUserID(ctx context.Context, u
 		)
 		return nil, err
 	}
+
+	// 将结果缓存
+	err = s.checkApplicationRedisDAO.SetByUserID(ctx, userID, requests)
+	if err != nil {
+		logger.Error("缓存用户签到申请失败",
+			zap.Int("userID", userID),
+			zap.String("operation", "SetByUserID"),
+			zap.Error(err),
+		)
+	}
 	return requests, nil
 }
 
 // GetAuditRequestByGroupID 获取组签到申请列表
 func (s *AuditRequestService) GetAuditRequestByGroupID(ctx context.Context, groupID int) ([]*models.CheckApplication, error) {
+	// 先从缓存中获取
+	existRequests, err := s.checkApplicationRedisDAO.GetByGroupID(ctx, groupID)
+	if existRequests != nil && len(existRequests) > 0 {
+		return existRequests, nil
+	}
+
+	// 从数据库中查询
 	var requests []*models.CheckApplication
-	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
+	err = s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
 		auditRequests, err := s.checkApplicationDAO.GetByGroupID(ctx, groupID, tx)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -116,13 +143,30 @@ func (s *AuditRequestService) GetAuditRequestByGroupID(ctx context.Context, grou
 		)
 		return nil, err
 	}
+
+	// 缓存结果
+	err = s.checkApplicationRedisDAO.SetByGroupID(ctx, groupID, requests)
+	if err != nil {
+		logger.Error("缓存组签到申请失败",
+			zap.Int("groupID", groupID),
+			zap.String("operation", "SetByGroupID"),
+			zap.Error(err),
+		)
+	}
 	return requests, nil
 }
 
 // GetAuditRequestByGroupIDWithStatus 获取组签到申请列表，支持状态筛选
 func (s *AuditRequestService) GetAuditRequestByGroupIDWithStatus(ctx context.Context, groupID int, status string) ([]*models.CheckApplication, error) {
+	// 先从缓存中获取
+	existRequests, err := s.checkApplicationRedisDAO.GetByGroupIDAndStatus(ctx, groupID, status)
+	if existRequests != nil && len(existRequests) > 0 {
+		return existRequests, nil
+	}
+
+	// 从数据库中查询
 	var requests []*models.CheckApplication
-	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
+	err = s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
 		auditRequests, err := s.checkApplicationDAO.GetByGroupID(ctx, groupID, tx)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -174,6 +218,17 @@ func (s *AuditRequestService) GetAuditRequestByGroupIDWithStatus(ctx context.Con
 			zap.Error(err),
 		)
 		return nil, err
+	}
+
+	// 将结果缓存
+	err = s.checkApplicationRedisDAO.SetByGroupIDAndStatus(ctx, groupID, status, requests)
+	if err != nil {
+		logger.Error("缓存组签到申请（带状态）失败",
+			zap.Int("groupID", groupID),
+			zap.String("status", status),
+			zap.String("operation", "SetByGroupIDAndStatus"),
+			zap.Error(err),
+		)
 	}
 	return requests, nil
 }
@@ -291,11 +346,58 @@ func (s *AuditRequestService) CreateAuditRequest(
 		)
 		return nil, err
 	}
+
+	// 将记录缓存
+
+	// 缓存用户签到申请
+	records, err := s.checkApplicationRedisDAO.GetByUserID(ctx, userID)
+	if records == nil {
+		records = []*models.CheckApplication{}
+	}
+	records = append(records, &request)
+	if err := s.checkApplicationRedisDAO.SetByUserID(ctx, userID, records); err != nil {
+		logger.Error("缓存签到申请失败",
+			zap.Int("userID", userID),
+			zap.String("operation", "SetByUserID"),
+			zap.Error(err),
+		)
+	}
+
+	// 缓存组签到申请
+	records, err = s.checkApplicationRedisDAO.GetByGroupID(ctx, request.GroupID)
+	if records == nil {
+		records = []*models.CheckApplication{}
+	}
+	records = append(records, &request)
+	if err := s.checkApplicationRedisDAO.SetByGroupID(ctx, request.GroupID, records); err != nil {
+		logger.Error("缓存组签到申请失败",
+			zap.Int("groupID", request.GroupID),
+			zap.String("operation", "SetByGroupID"),
+			zap.Error(err),
+		)
+	}
+
+	// 缓存组签到申请（审核中）
+	records, err = s.checkApplicationRedisDAO.GetByGroupIDAndStatus(ctx, request.GroupID, "pending")
+	if records == nil {
+		records = []*models.CheckApplication{}
+	}
+	records = append(records, &request)
+	if err := s.checkApplicationRedisDAO.SetByGroupIDAndStatus(ctx, request.GroupID, "pending", records); err != nil {
+		logger.Error("缓存组签到申请（审核中）失败",
+			zap.Int("groupID", request.GroupID),
+			zap.String("operation", "SetByGroupIDAndStatus"),
+			zap.Error(err),
+		)
+	}
+
 	return &request, nil
+
 }
 
 // UpdateAuditRequest 更新签到申请
 func (s *AuditRequestService) UpdateAuditRequest(ctx context.Context, requestID int, action string) error {
+	var req *models.CheckApplication
 	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
 		// 查询申请
 		request, err := s.checkApplicationDAO.GetByID(ctx, requestID, tx)
@@ -317,6 +419,7 @@ func (s *AuditRequestService) UpdateAuditRequest(ctx context.Context, requestID 
 			)
 			return appErrors.ErrDatabaseOperation.WithError(err)
 		}
+		req = request
 		switch action {
 		case "approve":
 			if err := s.checkApplicationDAO.Update(ctx, "approved", requestID, tx); err != nil {
@@ -378,6 +481,62 @@ func (s *AuditRequestService) UpdateAuditRequest(ctx context.Context, requestID 
 			zap.Error(err),
 		)
 		return err
+	}
+
+	// 删除缓存
+
+	// 更新用户签到申请缓存
+	records,err:=s.checkApplicationRedisDAO.GetByUserID(ctx,req.UserID)
+	if records !=nil && err == nil{
+		for i,record:=range records{
+			if record.ID == requestID{
+				records = append(records[:i],records[i+1:]...)
+				break
+			}
+		}
+		if err:=s.checkApplicationRedisDAO.SetByUserID(ctx,req.UserID,records);err!=nil{
+			logger.Error("更新用户签到申请缓存失败",
+				zap.Int("userID", req.UserID),
+				zap.String("operation", "SetByUserID"),
+				zap.Error(err),
+			)
+		}
+	}
+
+	// 更新组签到申请缓存
+	records,err=s.checkApplicationRedisDAO.GetByGroupID(ctx,req.GroupID)
+	if records !=nil && err == nil{
+		for i,record:=range records{
+			if record.ID == requestID{
+				records = append(records[:i],records[i+1:]...)
+				break
+			}
+		}
+		if err:=s.checkApplicationRedisDAO.SetByGroupID(ctx,req.GroupID,records);err!=nil{
+			logger.Error("更新组签到申请缓存失败",
+				zap.Int("groupID", req.GroupID),
+				zap.String("operation", "SetByGroupID"),
+				zap.Error(err),
+			)
+		}
+	}
+
+	// 更新组签到申请（审核中）缓存
+	records,err=s.checkApplicationRedisDAO.GetByGroupIDAndStatus(ctx,req.GroupID,"pending")
+	if records !=nil && err == nil{
+		for i,record:=range records{
+			if record.ID == requestID{
+				records = append(records[:i],records[i+1:]...)
+				break
+			}
+		}
+		if err:=s.checkApplicationRedisDAO.SetByGroupIDAndStatus(ctx,req.GroupID,"pending",records);err!=nil{
+			logger.Error("更新组签到申请（审核中）缓存失败",
+				zap.Int("groupID", req.GroupID),
+				zap.String("operation", "SetByGroupIDAndStatus"),
+				zap.Error(err),
+			)
+		}
 	}
 	return nil
 }
