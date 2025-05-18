@@ -196,14 +196,6 @@ func (h *StatisticsHandler) GetStatisticsUsers(ctx context.Context, request gen.
 		})
 	}
 
-	// 新增：如果 data 为空，返回 400
-	if len(data) == 0 {
-		return &gen.GetStatisticsUsers400JSONResponse{
-			Code:    "1",
-			Message: "未找到成员统计数据",
-		}, nil
-	}
-
 	return &gen.GetStatisticsUsers200JSONResponse{
 		Code: "0",
 		Data: data,
