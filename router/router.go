@@ -19,6 +19,7 @@ func SetupRouter(container *app.AppContainer) *gin.Engine {
 	router.Use(middlewares.LoggerMiddleware())
 	router.Use(middlewares.RecoverMiddleware())
 	router.Use(middlewares.ResponseMiddleware())
+	router.Use(middlewares.CorsMiddleware())
 
 	authHandler := handlers.NewAuthHandler(container)
 	gen.RegisterAuthHandlers(router, authHandler)
