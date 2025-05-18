@@ -133,7 +133,7 @@ func (h *StatisticsHandler) GetStatisticsUsers(ctx context.Context, request gen.
 	members, err := h.groupsService.GetMembersByGroupID(ctx, groupId)
 	if err != nil {
 		if errors.Is(err, appErrors.ErrGroupNotFound) {
-			return &gen.GetStatisticsUsers403JSONResponse{
+			return &gen.GetStatisticsUsers400JSONResponse{
 				Code:    "1",
 				Message: "未找到用户组",
 			}, nil
@@ -194,6 +194,14 @@ func (h *StatisticsHandler) GetStatisticsUsers(ctx context.Context, request gen.
 			UserId:    member.UserID,
 			Username:  member.Username,
 		})
+	}
+
+	// 新增：如果 data 为空，返回 400
+	if len(data) == 0 {
+		return &gen.GetStatisticsUsers400JSONResponse{
+			Code:    "1",
+			Message: "未找到成员统计数据",
+		}, nil
 	}
 
 	return &gen.GetStatisticsUsers200JSONResponse{
