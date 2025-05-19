@@ -45,20 +45,32 @@ func NewStatisticsHandler(container *app.AppContainer) gen.StatisticsServerInter
 
 // GetStatisticsGroups 获取用户组签到统计数据
 func (h *StatisticsHandler) GetStatisticsGroups(ctx context.Context, request gen.GetStatisticsGroupsRequestObject) (gen.GetStatisticsGroupsResponseObject, error) {
+	// 获取当前用户ID
+	userID, ok := ctx.Value("userID").(int)
+	if !ok {
+		return nil, appErrors.ErrJwtParseFailed
+	}
 
-	startDate := time.Unix(int64(*request.Params.StartDate), 0)
-	endDate := time.Unix(int64(*request.Params.EndDate), 0)
+	var startDate, endDate time.Time
+	// 如果没有提供时间参数，使用默认值（当前月份）
+	if request.Params.StartDate == nil || request.Params.EndDate == nil {
+		now := time.Now()
+		startDate = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+		endDate = startDate.AddDate(0, 1, 0).Add(-time.Second)
+	} else {
+		startDate = time.Unix(int64(*request.Params.StartDate), 0)
+		endDate = time.Unix(int64(*request.Params.EndDate), 0)
+	}
 
-	// 获取所有用户组
-	groups, err := h.statisticsService.GetAllGroups(ctx)
+	// 获取当前用户作为管理员的所有组
+	groups, err := h.groupsService.GetGroupsByUserID(ctx, userID)
 	if err != nil {
-		if errors.Is(err, appErrors.ErrStatisticsInvalidTimeRange) {
+		if errors.Is(err, appErrors.ErrGroupNotFound) {
 			return &gen.GetStatisticsGroups400JSONResponse{
 				Code:    "1",
-				Message: "时间参数错误",
+				Message: "未找到用户组",
 			}, nil
 		}
-
 		return nil, err
 	}
 
@@ -71,6 +83,14 @@ func (h *StatisticsHandler) GetStatisticsGroups(ctx context.Context, request gen
 	}, 0, len(groups))
 
 	for _, group := range groups {
+		// 检查用户是否有权限访问该组
+		if err := h.groupsService.CheckMemberPermission(ctx, group.GroupID, userID); err != nil {
+			if errors.Is(err, appErrors.ErrGroupMemberNotFound) || errors.Is(err, appErrors.ErrRolePermissionDenied) {
+				continue // 跳过无权限的组
+			}
+			return nil, err
+		}
+
 		statistics, err := h.statisticsService.GetGroupSignInStatistics(ctx, group.GroupID, startDate, endDate)
 		if err != nil {
 			if errors.Is(err, appErrors.ErrStatisticsGroupNotFound) {
@@ -101,9 +121,26 @@ func (h *StatisticsHandler) GetStatisticsGroups(ctx context.Context, request gen
 
 // GetStatisticsUsers 获取用户签到统计数据
 func (h *StatisticsHandler) GetStatisticsUsers(ctx context.Context, request gen.GetStatisticsUsersRequestObject) (gen.GetStatisticsUsersResponseObject, error) {
+	// 验证必要参数
+	if request.Params.GroupId == nil {
+		return &gen.GetStatisticsUsers400JSONResponse{
+			Code:    "1",
+			Message: "缺少必要的组ID参数",
+		}, nil
+	}
+
+	var startDate, endDate time.Time
+	// 如果没有提供时间参数，使用默认值（当前月份）
+	if request.Params.StartDate == nil || request.Params.EndDate == nil {
+		now := time.Now()
+		startDate = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+		endDate = startDate.AddDate(0, 1, 0).Add(-time.Second)
+	} else {
+		startDate = time.Unix(int64(*request.Params.StartDate), 0)
+		endDate = time.Unix(int64(*request.Params.EndDate), 0)
+	}
+
 	groupId := *request.Params.GroupId
-	startDate := time.Unix(int64(*request.Params.StartDate), 0)
-	endDate := time.Unix(int64(*request.Params.EndDate), 0)
 	userID, ok := ctx.Value("userID").(int)
 	if !ok {
 		return nil, appErrors.ErrJwtParseFailed
