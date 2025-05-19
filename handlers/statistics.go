@@ -12,8 +12,8 @@ import (
 
 // StatisticsHandler 处理统计相关的请求
 type StatisticsHandler struct {
-	statisticsService service.StatisticsService
-	groupsService     service.GroupsService
+	statisticsService *service.StatisticsService
+	groupsService     *service.GroupsService
 }
 
 // NewStatisticsHandler 创建StatisticsHandler实例
@@ -37,8 +37,8 @@ func NewStatisticsHandler(container *app.AppContainer) gen.StatisticsServerInter
 	)
 
 	handler := &StatisticsHandler{
-		statisticsService: *statisticsService,
-		groupsService:     *groupsService,
+		statisticsService: statisticsService,
+		groupsService:     groupsService,
 	}
 	return gen.NewStatisticsStrictHandler(handler, nil)
 }

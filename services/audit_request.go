@@ -45,6 +45,13 @@ func NewAuditRequestService(
 func (s *AuditRequestService) GetAuditRequestListByUserID(ctx context.Context, userID int) ([]*models.CheckApplication, error) {
 	// 先从缓存中获取
 	existRequests, err := s.checkApplicationRedisDAO.GetByUserID(ctx, userID)
+	if err != nil {
+		logger.Error("获取用户签到申请缓存失败",
+			zap.Int("userID", userID),
+			zap.String("operation", "GetByUserID"),
+			zap.Error(err),
+		)
+	}
 	if existRequests != nil && len(existRequests) > 0 {
 		return existRequests, nil
 	}
@@ -103,6 +110,13 @@ func (s *AuditRequestService) GetAuditRequestListByUserID(ctx context.Context, u
 func (s *AuditRequestService) GetAuditRequestByGroupID(ctx context.Context, groupID int) ([]*models.CheckApplication, error) {
 	// 先从缓存中获取
 	existRequests, err := s.checkApplicationRedisDAO.GetByGroupID(ctx, groupID)
+	if err != nil {
+		logger.Error("获取组签到申请缓存失败",
+			zap.Int("groupID", groupID),
+			zap.String("operation", "GetByGroupID"),
+			zap.Error(err),
+		)
+	}
 	if existRequests != nil && len(existRequests) > 0 {
 		return existRequests, nil
 	}
@@ -160,6 +174,14 @@ func (s *AuditRequestService) GetAuditRequestByGroupID(ctx context.Context, grou
 func (s *AuditRequestService) GetAuditRequestByGroupIDWithStatus(ctx context.Context, groupID int, status string) ([]*models.CheckApplication, error) {
 	// 先从缓存中获取
 	existRequests, err := s.checkApplicationRedisDAO.GetByGroupIDAndStatus(ctx, groupID, status)
+	if err != nil {
+		logger.Error("获取组签到申请缓存失败",
+			zap.Int("groupID", groupID),
+			zap.String("status", status),
+			zap.String("operation", "GetByGroupIDAndStatus"),
+			zap.Error(err),
+		)
+	}
 	if existRequests != nil && len(existRequests) > 0 {
 		return existRequests, nil
 	}
@@ -351,6 +373,13 @@ func (s *AuditRequestService) CreateAuditRequest(
 
 	// 缓存用户签到申请
 	records, err := s.checkApplicationRedisDAO.GetByUserID(ctx, userID)
+	if err != nil {
+		logger.Error("获取用户签到申请缓存失败",
+			zap.Int("userID", userID),
+			zap.String("operation", "GetByUserID"),
+			zap.Error(err),
+		)
+	}
 	if records == nil {
 		records = []*models.CheckApplication{}
 	}
@@ -365,6 +394,13 @@ func (s *AuditRequestService) CreateAuditRequest(
 
 	// 缓存组签到申请
 	records, err = s.checkApplicationRedisDAO.GetByGroupID(ctx, request.GroupID)
+	if err != nil {
+		logger.Error("获取组签到申请缓存失败",
+			zap.Int("groupID", request.GroupID),
+			zap.String("operation", "GetByGroupID"),
+			zap.Error(err),
+		)
+	}
 	if records == nil {
 		records = []*models.CheckApplication{}
 	}
@@ -379,6 +415,13 @@ func (s *AuditRequestService) CreateAuditRequest(
 
 	// 缓存组签到申请（审核中）
 	records, err = s.checkApplicationRedisDAO.GetByGroupIDAndStatus(ctx, request.GroupID, "pending")
+	if err != nil {
+		logger.Error("获取审核中的组签到申请缓存失败",
+			zap.Int("groupID", request.GroupID),
+			zap.String("operation", "GetByGroupIDAndStatus"),
+			zap.Error(err),
+		)
+	}
 	if records == nil {
 		records = []*models.CheckApplication{}
 	}
@@ -486,15 +529,15 @@ func (s *AuditRequestService) UpdateAuditRequest(ctx context.Context, requestID 
 	// 删除缓存
 
 	// 更新用户签到申请缓存
-	records,err:=s.checkApplicationRedisDAO.GetByUserID(ctx,req.UserID)
-	if records !=nil && err == nil{
-		for i,record:=range records{
-			if record.ID == requestID{
-				records = append(records[:i],records[i+1:]...)
+	records, err := s.checkApplicationRedisDAO.GetByUserID(ctx, req.UserID)
+	if records != nil && err == nil {
+		for i, record := range records {
+			if record.ID == requestID {
+				records = append(records[:i], records[i+1:]...)
 				break
 			}
 		}
-		if err:=s.checkApplicationRedisDAO.SetByUserID(ctx,req.UserID,records);err!=nil{
+		if err := s.checkApplicationRedisDAO.SetByUserID(ctx, req.UserID, records); err != nil {
 			logger.Error("更新用户签到申请缓存失败",
 				zap.Int("userID", req.UserID),
 				zap.String("operation", "SetByUserID"),
@@ -504,15 +547,15 @@ func (s *AuditRequestService) UpdateAuditRequest(ctx context.Context, requestID 
 	}
 
 	// 更新组签到申请缓存
-	records,err=s.checkApplicationRedisDAO.GetByGroupID(ctx,req.GroupID)
-	if records !=nil && err == nil{
-		for i,record:=range records{
-			if record.ID == requestID{
-				records = append(records[:i],records[i+1:]...)
+	records, err = s.checkApplicationRedisDAO.GetByGroupID(ctx, req.GroupID)
+	if records != nil && err == nil {
+		for i, record := range records {
+			if record.ID == requestID {
+				records = append(records[:i], records[i+1:]...)
 				break
 			}
 		}
-		if err:=s.checkApplicationRedisDAO.SetByGroupID(ctx,req.GroupID,records);err!=nil{
+		if err := s.checkApplicationRedisDAO.SetByGroupID(ctx, req.GroupID, records); err != nil {
 			logger.Error("更新组签到申请缓存失败",
 				zap.Int("groupID", req.GroupID),
 				zap.String("operation", "SetByGroupID"),
@@ -522,15 +565,15 @@ func (s *AuditRequestService) UpdateAuditRequest(ctx context.Context, requestID 
 	}
 
 	// 更新组签到申请（审核中）缓存
-	records,err=s.checkApplicationRedisDAO.GetByGroupIDAndStatus(ctx,req.GroupID,"pending")
-	if records !=nil && err == nil{
-		for i,record:=range records{
-			if record.ID == requestID{
-				records = append(records[:i],records[i+1:]...)
+	records, err = s.checkApplicationRedisDAO.GetByGroupIDAndStatus(ctx, req.GroupID, "pending")
+	if records != nil && err == nil {
+		for i, record := range records {
+			if record.ID == requestID {
+				records = append(records[:i], records[i+1:]...)
 				break
 			}
 		}
-		if err:=s.checkApplicationRedisDAO.SetByGroupIDAndStatus(ctx,req.GroupID,"pending",records);err!=nil{
+		if err := s.checkApplicationRedisDAO.SetByGroupIDAndStatus(ctx, req.GroupID, "pending", records); err != nil {
 			logger.Error("更新组签到申请（审核中）缓存失败",
 				zap.Int("groupID", req.GroupID),
 				zap.String("operation", "SetByGroupIDAndStatus"),

@@ -11,7 +11,7 @@ import (
 )
 
 type GroupsHandler struct {
-	groupsService service.GroupsService
+	groupsService *service.GroupsService
 }
 
 func NewGroupsHandler(container *app.AppContainer) gen.GroupsServerInterface {
@@ -26,7 +26,7 @@ func NewGroupsHandler(container *app.AppContainer) gen.GroupsServerInterface {
 		container.DaoFactory.TaskRedisDAO,
 	)
 	handler := &GroupsHandler{
-		groupsService: *GroupsService,
+		groupsService: GroupsService,
 	}
 	return gen.NewGroupsStrictHandler(handler, nil)
 }

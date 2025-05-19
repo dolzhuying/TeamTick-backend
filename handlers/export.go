@@ -10,13 +10,12 @@ import (
 	"errors"
 	"os"
 	"time"
-
 )
 
 // ExportHandler 处理导出相关的请求
 type ExportHandler struct {
-	exportService service.StatisticsService
-	groupsService service.GroupsService
+	exportService *service.StatisticsService
+	groupsService *service.GroupsService
 }
 
 // NewExportHandler 创建ExportHandler实例
@@ -27,6 +26,7 @@ func NewExportHandler(container *app.AppContainer) gen.ExportServerInterface {
 		container.DaoFactory.TransactionManager,
 		container.DaoFactory.GroupMemberDAO,
 	)
+
 	groupsService := service.NewGroupsService(
 		container.DaoFactory.GroupDAO,
 		container.DaoFactory.GroupMemberDAO,
@@ -37,9 +37,10 @@ func NewExportHandler(container *app.AppContainer) gen.ExportServerInterface {
 		container.DaoFactory.JoinApplicationRedisDAO,
 		container.DaoFactory.TaskRedisDAO,
 	)
+
 	handler := &ExportHandler{
-		exportService: *exportService,
-		groupsService: *groupsService,
+		exportService: exportService,
+		groupsService: groupsService,
 	}
 	return gen.NewExportStrictHandler(handler, nil)
 }

@@ -3,14 +3,14 @@ package handlers
 import (
 	"TeamTickBackend/app"
 	"TeamTickBackend/gen"
-	"TeamTickBackend/services"
+	appErrors "TeamTickBackend/pkg/errors"
+	service "TeamTickBackend/services"
 	"context"
 	"errors"
-	appErrors "TeamTickBackend/pkg/errors"
 )
 
 type UserHandler struct {
-	userService service.UserService
+	userService *service.UserService
 }
 
 func NewUserHandler(container *app.AppContainer) gen.UsersServerInterface {
@@ -19,9 +19,9 @@ func NewUserHandler(container *app.AppContainer) gen.UsersServerInterface {
 		container.DaoFactory.TransactionManager,
 	)
 	handler := &UserHandler{
-		userService: *userService,
+		userService: userService,
 	}
-	return gen.NewUsersStrictHandler(handler,nil)
+	return gen.NewUsersStrictHandler(handler, nil)
 }
 
 func (h *UserHandler) GetUsersMe(ctx context.Context, request gen.GetUsersMeRequestObject) (gen.GetUsersMeResponseObject, error) {

@@ -10,8 +10,8 @@ import (
 )
 
 type AuthHandler struct {
-	authService   service.AuthService
-	groupsService service.GroupsService
+	authService   *service.AuthService
+	groupsService *service.GroupsService
 }
 
 func NewAuthHandler(container *app.AppContainer) gen.AuthServerInterface {
@@ -31,8 +31,8 @@ func NewAuthHandler(container *app.AppContainer) gen.AuthServerInterface {
 		container.DaoFactory.TaskRedisDAO,
 	)
 	handler := &AuthHandler{
-		authService:   *authService,
-		groupsService: *groupsService,
+		authService:   authService,
+		groupsService: groupsService,
 	}
 	return gen.NewAuthStrictHandler(handler, nil)
 }
