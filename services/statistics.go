@@ -329,7 +329,7 @@ func (s *StatisticsService) GenerateGroupSignInStatisticsExcel(ctx context.Conte
 		f.SetCellStyle(sheetName, "C1", "C1", c1Style)
 		// canvasSize为正方形
 		canvasSize := 80
-		logoPath := "src/image.png" // 请确保logo已放在此路径
+		logoPath := "src/imagecopy.png" // 请确保logo已放在此路径
 		logger.Info("[导出统计] 读取logo图片",
 			zap.String("logoPath", logoPath),
 			zap.String("sheet", sheetName),

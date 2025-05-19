@@ -40,6 +40,7 @@ func InitDB() *gorm.DB {
 		&models.TaskRecord{},
 		&models.CheckApplication{},
 		&models.JoinApplication{},
+		&models.TaskRecord{},
 	)
 	if err != nil {
 		log.Fatalf("Failed to migrate database: %v", err)
