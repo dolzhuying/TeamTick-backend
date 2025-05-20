@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 
 	"github.com/oapi-codegen/runtime"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
 // Defines values for AuditRequestStatus.
@@ -71,6 +72,12 @@ const (
 const (
 	PutAuditRequestsAuditRequestIdJSONBodyActionApprove PutAuditRequestsAuditRequestIdJSONBodyAction = "approve"
 	PutAuditRequestsAuditRequestIdJSONBodyActionReject  PutAuditRequestsAuditRequestIdJSONBodyAction = "reject"
+)
+
+// Defines values for PostAuthSendVerificationCodeJSONBodyScene.
+const (
+	Register      PostAuthSendVerificationCodeJSONBodyScene = "register"
+	ResetPassword PostAuthSendVerificationCodeJSONBodyScene = "reset_password"
 )
 
 // Defines values for PostCheckinTasksTaskIdVerifyJSONBodyVerifyType.
@@ -253,6 +260,12 @@ type Conflict struct {
 
 // Forbidden defines model for Forbidden.
 type Forbidden struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+// Gone defines model for Gone.
+type Gone struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`
 }
@@ -475,11 +488,47 @@ type PostAuthLoginJSONBody struct {
 
 // PostAuthRegisterJSONBody defines parameters for PostAuthRegister.
 type PostAuthRegisterJSONBody struct {
+	// Email 邮箱地址
+	Email openapi_types.Email `binding:"required,email" json:"email"`
+
 	// Password 密码
 	Password string `binding:"required,min=6,max=128" json:"password,omitempty"`
 
 	// Username 用户名
 	Username string `binding:"required,min=3,max=50" json:"username"`
+}
+
+// PostAuthResetPasswordJSONBody defines parameters for PostAuthResetPassword.
+type PostAuthResetPasswordJSONBody struct {
+	// Email 用户注册的邮箱地址
+	Email openapi_types.Email `binding:"required,email" json:"email"`
+
+	// NewPassword 新密码
+	NewPassword string `binding:"required,min=6,max=128" json:"newPassword,omitempty"`
+
+	// VerificationCode 邮箱验证码
+	VerificationCode string `binding:"required" json:"verificationCode"`
+}
+
+// PostAuthSendVerificationCodeJSONBody defines parameters for PostAuthSendVerificationCode.
+type PostAuthSendVerificationCodeJSONBody struct {
+	// Email 用户邮箱地址
+	Email openapi_types.Email `binding:"required,email" json:"email"`
+
+	// Scene 验证码使用场景
+	Scene PostAuthSendVerificationCodeJSONBodyScene `binding:"required,oneof=register reset_password" json:"scene"`
+}
+
+// PostAuthSendVerificationCodeJSONBodyScene defines parameters for PostAuthSendVerificationCode.
+type PostAuthSendVerificationCodeJSONBodyScene string
+
+// PostAuthVerifyEmailJSONBody defines parameters for PostAuthVerifyEmail.
+type PostAuthVerifyEmailJSONBody struct {
+	// Email 用户邮箱地址
+	Email openapi_types.Email `binding:"required,email" json:"email"`
+
+	// VerificationCode 邮箱验证码
+	VerificationCode string `binding:"required" json:"verificationCode"`
 }
 
 // PutCheckinTasksTaskIdJSONBody defines parameters for PutCheckinTasksTaskId.
@@ -682,6 +731,15 @@ type PostAuthLoginJSONRequestBody PostAuthLoginJSONBody
 
 // PostAuthRegisterJSONRequestBody defines body for PostAuthRegister for application/json ContentType.
 type PostAuthRegisterJSONRequestBody PostAuthRegisterJSONBody
+
+// PostAuthResetPasswordJSONRequestBody defines body for PostAuthResetPassword for application/json ContentType.
+type PostAuthResetPasswordJSONRequestBody PostAuthResetPasswordJSONBody
+
+// PostAuthSendVerificationCodeJSONRequestBody defines body for PostAuthSendVerificationCode for application/json ContentType.
+type PostAuthSendVerificationCodeJSONRequestBody PostAuthSendVerificationCodeJSONBody
+
+// PostAuthVerifyEmailJSONRequestBody defines body for PostAuthVerifyEmail for application/json ContentType.
+type PostAuthVerifyEmailJSONRequestBody PostAuthVerifyEmailJSONBody
 
 // PutCheckinTasksTaskIdJSONRequestBody defines body for PutCheckinTasksTaskId for application/json ContentType.
 type PutCheckinTasksTaskIdJSONRequestBody PutCheckinTasksTaskIdJSONBody
