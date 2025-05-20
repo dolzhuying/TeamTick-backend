@@ -21,7 +21,7 @@ type AuthServerInterface interface {
 	// 用户登录
 	// (POST /auth/login)
 	PostAuthLogin(c *gin.Context)
-	// 用户注册请求
+	// 验证邮箱并进行用户注册
 	// (POST /auth/register)
 	PostAuthRegister(c *gin.Context)
 	// 重置密码
@@ -30,9 +30,6 @@ type AuthServerInterface interface {
 	// 发送验证码
 	// (POST /auth/send-verification-code)
 	PostAuthSendVerificationCode(c *gin.Context)
-	// 验证邮箱
-	// (POST /auth/verify-email)
-	PostAuthVerifyEmail(c *gin.Context)
 }
 
 // AuthServerInterfaceWrapper 将上下文转换为参数。
@@ -109,19 +106,6 @@ func (siw *AuthServerInterfaceWrapper) PostAuthSendVerificationCode(c *gin.Conte
 	siw.Handler.PostAuthSendVerificationCode(c)
 }
 
-// PostAuthVerifyEmail 操作中间件
-func (siw *AuthServerInterfaceWrapper) PostAuthVerifyEmail(c *gin.Context) {
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		middleware(c)
-		if c.IsAborted() {
-			return
-		}
-	}
-
-	siw.Handler.PostAuthVerifyEmail(c)
-}
-
 // AuthGinServerOptions 提供 Gin 服务器的选项。
 type AuthGinServerOptions struct {
 	BaseURL      string
@@ -154,7 +138,6 @@ func RegisterAuthHandlersWithOptions(router gin.IRouter, si AuthServerInterface,
 	router.POST(options.BaseURL+"/auth/register", wrapper.PostAuthRegister)
 	router.POST(options.BaseURL+"/auth/reset-password", wrapper.PostAuthResetPassword)
 	router.POST(options.BaseURL+"/auth/send-verification-code", wrapper.PostAuthSendVerificationCode)
-	router.POST(options.BaseURL+"/auth/verify-email", wrapper.PostAuthVerifyEmail)
 }
 
 type PostAuthAdminLoginRequestObject struct {
@@ -295,23 +278,14 @@ type PostAuthRegisterResponseObject interface {
 	VisitPostAuthRegisterResponse(w http.ResponseWriter) error
 }
 
-type PostAuthRegister202JSONResponse struct {
+type PostAuthRegister201JSONResponse struct {
 	Code string `json:"code"`
-	Data struct {
-		// Email 注册邮箱
-		Email string `json:"email,omitempty"`
-
-		// ExpiresIn 验证链接有效期（秒）
-		ExpiresIn int `json:"expiresIn,omitempty"`
-
-		// Message 成功消息
-		Message *string `json:"message,omitempty"`
-	} `json:"data"`
+	Data User   `json:"data"`
 }
 
-func (response PostAuthRegister202JSONResponse) VisitPostAuthRegisterResponse(w http.ResponseWriter) error {
+func (response PostAuthRegister201JSONResponse) VisitPostAuthRegisterResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(202)
+	w.WriteHeader(201)
 
 	return json.NewEncoder(w).Encode(response)
 }
@@ -325,11 +299,29 @@ func (response PostAuthRegister400JSONResponse) VisitPostAuthRegisterResponse(w 
 	return json.NewEncoder(w).Encode(response)
 }
 
+type PostAuthRegister401JSONResponse Unauthorized
+
+func (response PostAuthRegister401JSONResponse) VisitPostAuthRegisterResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type PostAuthRegister409JSONResponse Conflict
 
 func (response PostAuthRegister409JSONResponse) VisitPostAuthRegisterResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PostAuthRegister410JSONResponse Gone
+
+func (response PostAuthRegister410JSONResponse) VisitPostAuthRegisterResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(410)
 
 	return json.NewEncoder(w).Encode(response)
 }
@@ -483,62 +475,6 @@ func (response PostAuthSendVerificationCode500JSONResponse) VisitPostAuthSendVer
 	return json.NewEncoder(w).Encode(response)
 }
 
-type PostAuthVerifyEmailRequestObject struct {
-	Body *PostAuthVerifyEmailJSONRequestBody
-}
-
-type PostAuthVerifyEmailResponseObject interface {
-	VisitPostAuthVerifyEmailResponse(w http.ResponseWriter) error
-}
-
-type PostAuthVerifyEmail201JSONResponse struct {
-	Code string `json:"code"`
-	Data User   `json:"data"`
-}
-
-func (response PostAuthVerifyEmail201JSONResponse) VisitPostAuthVerifyEmailResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(201)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type PostAuthVerifyEmail400JSONResponse BadRequest
-
-func (response PostAuthVerifyEmail400JSONResponse) VisitPostAuthVerifyEmailResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(400)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type PostAuthVerifyEmail401JSONResponse Unauthorized
-
-func (response PostAuthVerifyEmail401JSONResponse) VisitPostAuthVerifyEmailResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(401)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type PostAuthVerifyEmail410JSONResponse Gone
-
-func (response PostAuthVerifyEmail410JSONResponse) VisitPostAuthVerifyEmailResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(410)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type PostAuthVerifyEmail500JSONResponse InternalServerError
-
-func (response PostAuthVerifyEmail500JSONResponse) VisitPostAuthVerifyEmailResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(500)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
 // AuthStrictServerInterface represents all server handlers.
 type AuthStrictServerInterface interface {
 	// 管理员登录
@@ -547,7 +483,7 @@ type AuthStrictServerInterface interface {
 	// 用户登录
 	// (POST /auth/login)
 	PostAuthLogin(ctx context.Context, request PostAuthLoginRequestObject) (PostAuthLoginResponseObject, error)
-	// 用户注册请求
+	// 验证邮箱并进行用户注册
 	// (POST /auth/register)
 	PostAuthRegister(ctx context.Context, request PostAuthRegisterRequestObject) (PostAuthRegisterResponseObject, error)
 	// 重置密码
@@ -556,9 +492,6 @@ type AuthStrictServerInterface interface {
 	// 发送验证码
 	// (POST /auth/send-verification-code)
 	PostAuthSendVerificationCode(ctx context.Context, request PostAuthSendVerificationCodeRequestObject) (PostAuthSendVerificationCodeResponseObject, error)
-	// 验证邮箱
-	// (POST /auth/verify-email)
-	PostAuthVerifyEmail(ctx context.Context, request PostAuthVerifyEmailRequestObject) (PostAuthVerifyEmailResponseObject, error)
 }
 
 type AuthStrictHandlerFunc = strictgin.StrictGinHandlerFunc
@@ -731,39 +664,6 @@ func (sh *AuthstrictHandler) PostAuthSendVerificationCode(ctx *gin.Context) {
 		ctx.Status(http.StatusInternalServerError)
 	} else if validResponse, ok := response.(PostAuthSendVerificationCodeResponseObject); ok {
 		if err := validResponse.VisitPostAuthSendVerificationCodeResponse(ctx.Writer); err != nil {
-			ctx.Error(err)
-		}
-	} else if response != nil {
-		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
-	}
-}
-
-// PostAuthVerifyEmail 操作中间件
-func (sh *AuthstrictHandler) PostAuthVerifyEmail(ctx *gin.Context) {
-	var request PostAuthVerifyEmailRequestObject
-
-	var body PostAuthVerifyEmailJSONRequestBody
-	if err := ctx.ShouldBindJSON(&body); err != nil {
-		ctx.Status(http.StatusBadRequest)
-		ctx.Error(err)
-		return
-	}
-	request.Body = &body
-
-	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.PostAuthVerifyEmail(ctx, request.(PostAuthVerifyEmailRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "PostAuthVerifyEmail")
-	}
-
-	response, err := handler(ctx, request)
-
-	if err != nil {
-		ctx.Error(err)
-		ctx.Status(http.StatusInternalServerError)
-	} else if validResponse, ok := response.(PostAuthVerifyEmailResponseObject); ok {
-		if err := validResponse.VisitPostAuthVerifyEmailResponse(ctx.Writer); err != nil {
 			ctx.Error(err)
 		}
 	} else if response != nil {

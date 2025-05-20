@@ -488,7 +488,7 @@ type PostAuthLoginJSONBody struct {
 
 // PostAuthRegisterJSONBody defines parameters for PostAuthRegister.
 type PostAuthRegisterJSONBody struct {
-	// Email 邮箱地址
+	// Email 用户邮箱地址
 	Email openapi_types.Email `binding:"required,email" json:"email"`
 
 	// Password 密码
@@ -496,6 +496,9 @@ type PostAuthRegisterJSONBody struct {
 
 	// Username 用户名
 	Username string `binding:"required,min=3,max=50" json:"username"`
+
+	// VerificationCode 邮箱验证码
+	VerificationCode string `binding:"required" json:"verificationCode"`
 }
 
 // PostAuthResetPasswordJSONBody defines parameters for PostAuthResetPassword.
@@ -521,15 +524,6 @@ type PostAuthSendVerificationCodeJSONBody struct {
 
 // PostAuthSendVerificationCodeJSONBodyScene defines parameters for PostAuthSendVerificationCode.
 type PostAuthSendVerificationCodeJSONBodyScene string
-
-// PostAuthVerifyEmailJSONBody defines parameters for PostAuthVerifyEmail.
-type PostAuthVerifyEmailJSONBody struct {
-	// Email 用户邮箱地址
-	Email openapi_types.Email `binding:"required,email" json:"email"`
-
-	// VerificationCode 邮箱验证码
-	VerificationCode string `binding:"required" json:"verificationCode"`
-}
 
 // PutCheckinTasksTaskIdJSONBody defines parameters for PutCheckinTasksTaskId.
 type PutCheckinTasksTaskIdJSONBody struct {
@@ -737,9 +731,6 @@ type PostAuthResetPasswordJSONRequestBody PostAuthResetPasswordJSONBody
 
 // PostAuthSendVerificationCodeJSONRequestBody defines body for PostAuthSendVerificationCode for application/json ContentType.
 type PostAuthSendVerificationCodeJSONRequestBody PostAuthSendVerificationCodeJSONBody
-
-// PostAuthVerifyEmailJSONRequestBody defines body for PostAuthVerifyEmail for application/json ContentType.
-type PostAuthVerifyEmailJSONRequestBody PostAuthVerifyEmailJSONBody
 
 // PutCheckinTasksTaskIdJSONRequestBody defines body for PutCheckinTasksTaskId for application/json ContentType.
 type PutCheckinTasksTaskIdJSONRequestBody PutCheckinTasksTaskIdJSONBody
