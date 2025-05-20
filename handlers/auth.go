@@ -19,6 +19,7 @@ func NewAuthHandler(container *app.AppContainer) gen.AuthServerInterface {
 		container.DaoFactory.UserDAO,
 		container.DaoFactory.TransactionManager,
 		container.JwtHandler,
+		container.DaoFactory.EmailRedisDAO,
 	)
 	groupsService := service.NewGroupsService(
 		container.DaoFactory.GroupDAO,
@@ -81,8 +82,10 @@ func (h *AuthHandler) PostAuthLogin(ctx context.Context, request gen.PostAuthLog
 func (h *AuthHandler) PostAuthRegister(ctx context.Context, request gen.PostAuthRegisterRequestObject) (gen.PostAuthRegisterResponseObject, error) {
 	username := request.Body.Username
 	password := request.Body.Password
+	email := string(request.Body.Email)
+	verificationCode := request.Body.VerificationCode
 
-	user, err := h.authService.AuthRegister(ctx, username, password)
+	user, err := h.authService.AuthRegister(ctx, username, password, email, verificationCode)
 	if err != nil {
 		if errors.Is(err, appErrors.ErrUserAlreadyExists) {
 			return &gen.PostAuthRegister409JSONResponse{
@@ -179,4 +182,12 @@ func (h *AuthHandler) PostAuthAdminLogin(ctx context.Context, request gen.PostAu
 			Username:      user.Username,
 		},
 	}, nil
+}
+
+func (h *AuthHandler) PostAuthResetPassword(ctx context.Context, request gen.PostAuthResetPasswordRequestObject) (gen.PostAuthResetPasswordResponseObject, error) {
+
+}
+
+func (h *AuthHandler) PostAuthSendVerificationCode(ctx context.Context, request gen.PostAuthSendVerificationCodeRequestObject) (gen.PostAuthSendVerificationCodeResponseObject, error) {
+	
 }

@@ -14,6 +14,8 @@ type UserDAO interface {
 	Create(ctx context.Context, user *models.User, tx ...*gorm.DB) error
 	GetByUsername(ctx context.Context, username string, tx ...*gorm.DB) (*models.User, error)
 	GetByID(ctx context.Context, id int, tx ...*gorm.DB) (*models.User, error)
+	UpdatePassword(ctx context.Context, userID int, password string, tx ...*gorm.DB) error
+	GetByEmail(ctx context.Context, email string, tx ...*gorm.DB) (*models.User, error)
 }
 
 // TaskDAO 任务数据访问接口
@@ -155,5 +157,11 @@ type CheckApplicationRedisDAO interface{
 	GetByGroupIDAndStatus(ctx context.Context,groupID int,status string,tx ...*redis.Client) ([]*models.CheckApplication,error)
 	SetByGroupIDAndStatus(ctx context.Context,groupID int,status string,applications []*models.CheckApplication) error
 	DeleteCacheByGroupIDAndStatus(ctx context.Context,groupID int,status string) error
+}
+
+type EmailRedisDAO interface{
+	GetVerificationCodeByEmail(ctx context.Context,email string,tx ...*redis.Client) (string,error)
+	SetVerificationCodeByEmail(ctx context.Context,email string,code string) error
+	DeleteCacheByEmail(ctx context.Context,email string) error
 }
 
