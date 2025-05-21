@@ -300,6 +300,10 @@ func TestCreateTask_Success(t *testing.T) {
 	face := false
 	wifi := true
 	nfc := false
+	ssid := "test_ssid"
+	bssid := "test_bssid"
+	tagId := "test_tag_id"
+	tagName := "test_tag_name"
 
 	// Mock期望
 	mockTxManager.On("WithTransaction", ctx, mock.AnythingOfType("func(*gorm.DB) error")).Return(nil)
@@ -325,7 +329,7 @@ func TestCreateTask_Success(t *testing.T) {
 
 	// 调用函数
 	createdTask, err := taskService.CreateTask(ctx, taskName, description, groupID,
-		startTime, endTime, latitude, longitude, radius, gps, face, wifi, nfc)
+		startTime, endTime, latitude, longitude, radius, gps, face, wifi, nfc, ssid, bssid, tagId, tagName)
 
 	// 断言
 	assert.NoError(t, err)
