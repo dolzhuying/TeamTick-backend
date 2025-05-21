@@ -133,11 +133,11 @@ func RegisterAuthHandlersWithOptions(router gin.IRouter, si AuthServerInterface,
 		ErrorHandler:       errorHandler,
 	}
 
-	router.POST(options.BaseURL+"/auth/admin/login", wrapper.PostAuthAdminLogin)
-	router.POST(options.BaseURL+"/auth/login", wrapper.PostAuthLogin)
-	router.POST(options.BaseURL+"/auth/register", wrapper.PostAuthRegister)
-	router.POST(options.BaseURL+"/auth/reset-password", wrapper.PostAuthResetPassword)
-	router.POST(options.BaseURL+"/auth/send-verification-code", wrapper.PostAuthSendVerificationCode)
+	router.POST("/admin/login", wrapper.PostAuthAdminLogin)
+	router.POST("/login", wrapper.PostAuthLogin)
+	router.POST("/register", wrapper.PostAuthRegister)
+	router.POST("/reset-password", wrapper.PostAuthResetPassword)
+	router.POST("/send-verification-code", wrapper.PostAuthSendVerificationCode)
 }
 
 type PostAuthAdminLoginRequestObject struct {

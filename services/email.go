@@ -2,19 +2,24 @@ package service
 
 import (
 	"TeamTickBackend/dal/dao"
+	redisImpl "TeamTickBackend/dal/dao/impl/redis"
 	"context"
 	"crypto/rand"
 	"fmt"
 	"log"
 	"math/big"
 	"os"
+	"time"
 
+	appErrors "TeamTickBackend/pkg/errors"
+
+	"github.com/redis/go-redis/v9"
 	"gopkg.in/gomail.v2"
 )
 
 type EmailService struct {
 	EmailRedisDAO dao.EmailRedisDAO
-	
+
 	dialer *gomail.Dialer
 }
 
@@ -43,12 +48,22 @@ func (s *EmailService) GenerateVerificationCode(length int) (string, error) {
 
 // SendVerificationEmail 发送验证码邮件
 func (s *EmailService) SendVerificationEmail(ctx context.Context, email, code string) error {
+	// 检查发送频率
+	rateKey := fmt.Sprintf("email:rate:%s", email)
+	count, err := s.EmailRedisDAO.(*redisImpl.EmailRedisDAOImpl).Client.Get(ctx, rateKey).Int()
+	if err != nil && err != redis.Nil {
+		return fmt.Errorf("检查发送频率失败: %w", err)
+	}
+	if count >= 5 { // 5分钟内最多发送5次
+		return appErrors.ErrTooManyRequests
+	}
+
 	m := gomail.NewMessage()
 	m.SetHeader("From", s.dialer.Username) //  需要配置发件人邮箱
 	m.SetHeader("To", email)
 	m.SetHeader("Subject", "您的 TeamTick 验证码")
 
-	imagePath := "../../src/logo.png"
+	imagePath := "src/logo.png"
 	imageFilename := "logo.png" // 将用作 cid
 
 	m.Embed(imagePath)
@@ -149,9 +164,9 @@ func (s *EmailService) SendVerificationEmail(ctx context.Context, email, code st
 				log.Printf("回退邮件发送失败: %v\n", errFallback)
 				return fmt.Errorf("发送邮件失败（回退邮件也失败 Original Err: %v, Fallback Err: %v）", sendErr, errFallback)
 			}
-			
+
 			log.Println("已发送不含图片的回退邮件")
-			
+
 			return fmt.Errorf("原始邮件发送失败（图片问题），但已发送回退邮件: %w", sendErr)
 		} else {
 			// 其他类型的发送错误
@@ -159,6 +174,12 @@ func (s *EmailService) SendVerificationEmail(ctx context.Context, email, code st
 		}
 	} else {
 		fmt.Println("发送邮件成功")
+	}
+
+	// 更新发送频率计数
+	err = s.EmailRedisDAO.(*redisImpl.EmailRedisDAOImpl).Client.Set(ctx, rateKey, count+1, 5*time.Minute).Err()
+	if err != nil {
+		log.Printf("更新发送频率计数失败: %v", err)
 	}
 
 	// 将验证码存入 Redis
@@ -172,18 +193,16 @@ func (s *EmailService) SendVerificationEmail(ctx context.Context, email, code st
 func (s *EmailService) VerifyEmailCode(ctx context.Context, email, code string) (bool, error) {
 	cachedCode, err := s.EmailRedisDAO.GetVerificationCodeByEmail(ctx, email)
 	if err != nil {
+		if err == redis.Nil {
+			return false, appErrors.ErrVerificationCodeExpiredOrNotFound
+		}
 		return false, fmt.Errorf("从 Redis 获取验证码失败: %w", err)
 	}
 	if cachedCode == "" {
-		return false, fmt.Errorf("验证码不存在或已过期")
+		return false, appErrors.ErrVerificationCodeExpiredOrNotFound
 	}
 	if cachedCode != code {
-		return false, fmt.Errorf("验证码错误")
+		return false, appErrors.ErrInvalidVerificationCode
 	}
-	// 验证成功后可以考虑删除验证码，防止重复使用
-	// err = s.EmailRedisDAO.DeleteCacheByEmail(ctx, email)
-	// if err != nil {
-	// 	log.Printf("删除验证码 %s 失败: %v", email, err) //可以选择只记录日志
-	// }
 	return true, nil
 }

@@ -27,6 +27,20 @@ type mockEmailRedisDAO struct {
 	mock.Mock
 }
 
+type mockEmailService struct {
+	mock.Mock
+}
+
+func (m *mockEmailService) GenerateVerificationCode(length int) (string, error) {
+	args := m.Called(length)
+	return args.String(0), args.Error(1)
+}
+
+func (m *mockEmailService) SendVerificationEmail(ctx context.Context, email, code string) error {
+	args := m.Called(ctx, email, code)
+	return args.Error(0)
+}
+
 func (m *mockEmailRedisDAO) GetVerificationCodeByEmail(ctx context.Context, email string, tx ...*redis.Client) (string, error) {
 	args := m.Called(ctx, email, tx)
 	return args.String(0), args.Error(1)
@@ -110,7 +124,8 @@ func setupAuthServiceTest() (*AuthService, *mockUserDAO, *mockTransactionManager
 	mockTxManager := new(mockTransactionManager)
 	mockJwt := new(mockJwtHandler)
 	mockEmailRedisDAO := new(mockEmailRedisDAO)
-	authService := NewAuthService(mockUserDao, mockTxManager, mockJwt, mockEmailRedisDAO)
+	mockEmailService := new(mockEmailService)
+	authService := NewAuthService(mockUserDao, mockTxManager, mockJwt, mockEmailRedisDAO, mockEmailService)
 	return authService, mockUserDao, mockTxManager, mockJwt, mockEmailRedisDAO
 }
 
@@ -148,7 +163,7 @@ func TestAuthRegister_Success(t *testing.T) {
 }
 
 func TestAuthRegister_UserAlreadyExists(t *testing.T) {
-	authService, mockUserDao, mockTxManager, _,_ := setupAuthServiceTest()
+	authService, mockUserDao, mockTxManager, _, _ := setupAuthServiceTest()
 	ctx := context.Background()
 	username := "existinguser"
 	password := "password123"
@@ -159,7 +174,7 @@ func TestAuthRegister_UserAlreadyExists(t *testing.T) {
 	mockUserDao.On("GetByUsername", ctx, username, mock.AnythingOfType("[]*gorm.DB")).Return(existingUser, nil) // 用户已存在
 
 	// 调用函数
-	createdUser, err := authService.AuthRegister(ctx, username, password,"","")
+	createdUser, err := authService.AuthRegister(ctx, username, password, "", "")
 
 	// 断言
 	assert.Error(t, err)

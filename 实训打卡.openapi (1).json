@@ -1,0 +1,998 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "实训打卡",
+    "description": "",
+    "version": "1.0.0"
+  },
+  "tags": [
+    {
+      "name": "Auth"
+    }
+  ],
+  "paths": {
+    "/auth/register": {
+      "post": {
+        "summary": "验证邮箱并进行用户注册",
+        "deprecated": false,
+        "description": "用户验证邮箱并提供用户信息，完成注册流程",
+        "tags": [
+          "Auth"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": {
+                    "type": "string",
+                    "description": "用户名",
+                    "minLength": 3,
+                    "maxLength": 50,
+                    "x-go-type-skip-optional-pointer": true,
+                    "x-oapi-codegen-extra-tags": {
+                      "binding": "required,min=3,max=50"
+                    }
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "description": "用户邮箱地址",
+                    "x-go-type-skip-optional-pointer": true,
+                    "x-oapi-codegen-extra-tags": {
+                      "binding": "required,email"
+                    }
+                  },
+                  "password": {
+                    "type": "string",
+                    "description": "密码",
+                    "minLength": 6,
+                    "maxLength": 128,
+                    "writeOnly": true,
+                    "x-go-type-skip-optional-pointer": true,
+                    "x-oapi-codegen-extra-tags": {
+                      "binding": "required,min=6,max=128"
+                    }
+                  },
+                  "verificationCode": {
+                    "type": "string",
+                    "description": "邮箱验证码",
+                    "minLength": 4,
+                    "maxLength": 8,
+                    "x-go-type-skip-optional-pointer": true,
+                    "x-oapi-codegen-extra-tags": {
+                      "binding": "required"
+                    }
+                  }
+                },
+                "required": [
+                  "username",
+                  "email",
+                  "password",
+                  "verificationCode"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "邮箱验证成功，用户注册完成",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/SuccessWithData"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/User"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {}
+          },
+          "400": {
+            "description": "请求参数不符合要求",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequest"
+                }
+              }
+            },
+            "headers": {}
+          },
+          "401": {
+            "description": "验证码错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Unauthorized"
+                }
+              }
+            },
+            "headers": {}
+          },
+          "409": {
+            "description": "用户名或邮箱已被注册，无法使用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Conflict"
+                }
+              }
+            },
+            "headers": {}
+          },
+          "410": {
+            "description": "验证码已过期",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Gone"
+                }
+              }
+            },
+            "headers": {}
+          },
+          "500": {
+            "description": "服务器内部错误，处理验证请求时发生异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerError"
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": [
+          {
+            "JWT鉴权": []
+          }
+        ]
+      }
+    },
+    "/auth/send-verification-code": {
+      "post": {
+        "summary": "发送验证码",
+        "deprecated": false,
+        "description": "根据场景发送验证码到用户邮箱，可用于邮箱验证、密码重置等场景",
+        "tags": [
+          "Auth"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "description": "用户邮箱地址",
+                    "x-go-type-skip-optional-pointer": true,
+                    "x-oapi-codegen-extra-tags": {
+                      "binding": "required,email"
+                    }
+                  },
+                  "scene": {
+                    "type": "string",
+                    "description": "验证码使用场景",
+                    "enum": [
+                      "register",
+                      "reset_password"
+                    ],
+                    "x-go-type-skip-optional-pointer": true,
+                    "x-oapi-codegen-extra-tags": {
+                      "binding": "required,oneof=register reset_password"
+                    }
+                  }
+                },
+                "required": [
+                  "email",
+                  "scene"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "验证码已发送到邮箱",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Success"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "message": {
+                          "type": "string",
+                          "examples": [
+                            "验证码已发送到邮箱，有效期10分钟"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {}
+          },
+          "400": {
+            "description": "请求参数错误，例如邮箱格式不正确或场景值无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequest"
+                }
+              }
+            },
+            "headers": {}
+          },
+          "404": {
+            "description": "邮箱未注册（仅对reset_password场景）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFound"
+                }
+              }
+            },
+            "headers": {}
+          },
+          "409": {
+            "description": "邮箱已被注册（仅对register场景）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Conflict"
+                }
+              }
+            },
+            "headers": {}
+          },
+          "410": {
+            "description": "验证码已过期",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Gone"
+                }
+              }
+            },
+            "headers": {}
+          },
+          "429": {
+            "description": "请求过于频繁，请稍后再试",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/BaseResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "message"
+                      ]
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {}
+          },
+          "500": {
+            "description": "服务器内部错误，处理请求时发生异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerError"
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": [
+          {
+            "JWT鉴权": []
+          }
+        ]
+      }
+    },
+    "/auth/reset-password": {
+      "post": {
+        "summary": "重置密码",
+        "deprecated": false,
+        "description": "用户通过邮箱验证码重置密码",
+        "tags": [
+          "Auth"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "description": "用户注册的邮箱地址",
+                    "x-go-type-skip-optional-pointer": true,
+                    "x-oapi-codegen-extra-tags": {
+                      "binding": "required,email"
+                    }
+                  },
+                  "verificationCode": {
+                    "type": "string",
+                    "description": "邮箱验证码",
+                    "minLength": 4,
+                    "maxLength": 8,
+                    "x-go-type-skip-optional-pointer": true,
+                    "x-oapi-codegen-extra-tags": {
+                      "binding": "required"
+                    }
+                  },
+                  "newPassword": {
+                    "type": "string",
+                    "description": "新密码",
+                    "minLength": 6,
+                    "maxLength": 128,
+                    "writeOnly": true,
+                    "x-go-type-skip-optional-pointer": true,
+                    "x-oapi-codegen-extra-tags": {
+                      "binding": "required,min=6,max=128"
+                    }
+                  }
+                },
+                "required": [
+                  "email",
+                  "verificationCode",
+                  "newPassword"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "密码重置成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success"
+                }
+              }
+            },
+            "headers": {}
+          },
+          "400": {
+            "description": "请求参数错误，例如密码不符合要求",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequest"
+                }
+              }
+            },
+            "headers": {}
+          },
+          "401": {
+            "description": "验证码错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Unauthorized"
+                }
+              }
+            },
+            "headers": {}
+          },
+          "404": {
+            "description": "邮箱未注册",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFound"
+                }
+              }
+            },
+            "headers": {}
+          },
+          "410": {
+            "description": "验证码已过期",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Gone"
+                }
+              }
+            },
+            "headers": {}
+          },
+          "500": {
+            "description": "服务器内部错误，处理重置密码请求时发生异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerError"
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": [
+          {
+            "JWT鉴权": []
+          }
+        ]
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "summary": "用户登录",
+        "deprecated": false,
+        "description": "用户使用用户名和密码登录，获取 JWT。",
+        "tags": [
+          "Auth"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": {
+                    "type": "string",
+                    "description": "用户名",
+                    "x-go-type-skip-optional-pointer": true,
+                    "x-oapi-codegen-extra-tags": {
+                      "binding": "required"
+                    }
+                  },
+                  "password": {
+                    "type": "string",
+                    "description": "密码",
+                    "writeOnly": true,
+                    "x-go-type-skip-optional-pointer": true,
+                    "x-oapi-codegen-extra-tags": {
+                      "binding": "required"
+                    }
+                  }
+                },
+                "required": [
+                  "username",
+                  "password"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "用户登录成功，返回JWT令牌、用户ID和用户名",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/SuccessWithData"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "token": {
+                              "type": "string",
+                              "description": "JWT 令牌",
+                              "x-go-type-skip-optional-pointer": true
+                            },
+                            "userId": {
+                              "type": "integer",
+                              "format": "int",
+                              "description": "用户ID",
+                              "x-go-type-skip-optional-pointer": true
+                            },
+                            "username": {
+                              "type": "string",
+                              "description": "用户名",
+                              "x-go-type-skip-optional-pointer": true
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {}
+          },
+          "400": {
+            "description": "请求参数错误，例如缺少用户名或密码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequest"
+                }
+              }
+            },
+            "headers": {}
+          },
+          "401": {
+            "description": "认证失败，用户名或密码错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Unauthorized"
+                }
+              }
+            },
+            "headers": {}
+          },
+          "500": {
+            "description": "服务器内部错误，处理登录请求时发生异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerError"
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": [
+          {
+            "JWT鉴权": []
+          }
+        ]
+      }
+    },
+    "/auth/admin/login": {
+      "post": {
+        "summary": "管理员登录",
+        "deprecated": false,
+        "description": "拥有群组的管理员用户登录管理后台，获取管理员 JWT。",
+        "tags": [
+          "Auth"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": {
+                    "type": "string",
+                    "description": "用户名",
+                    "x-go-type-skip-optional-pointer": true,
+                    "x-oapi-codegen-extra-tags": {
+                      "binding": "required"
+                    }
+                  },
+                  "password": {
+                    "type": "string",
+                    "description": "密码",
+                    "writeOnly": true,
+                    "x-go-type-skip-optional-pointer": true,
+                    "x-oapi-codegen-extra-tags": {
+                      "binding": "required"
+                    }
+                  }
+                },
+                "required": [
+                  "username",
+                  "password"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "管理员登录成功，返回管理员JWT令牌及相关信息",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/SuccessWithData"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "token": {
+                              "type": "string",
+                              "description": "管理员 JWT 令牌",
+                              "x-go-type-skip-optional-pointer": true
+                            },
+                            "userId": {
+                              "type": "integer",
+                              "format": "int",
+                              "description": "用户ID",
+                              "x-go-type-skip-optional-pointer": true
+                            },
+                            "username": {
+                              "type": "string",
+                              "description": "用户名",
+                              "x-go-type-skip-optional-pointer": true
+                            },
+                            "managedGroups": {
+                              "type": "array",
+                              "description": "管理的群组列表",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "groupId": {
+                                    "type": "integer",
+                                    "format": "int",
+                                    "description": "群组ID",
+                                    "x-go-type-skip-optional-pointer": true
+                                  },
+                                  "groupName": {
+                                    "type": "string",
+                                    "description": "群组名称",
+                                    "x-go-type-skip-optional-pointer": true
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {}
+          },
+          "400": {
+            "description": "请求参数错误，例如缺少用户名或密码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequest"
+                }
+              }
+            },
+            "headers": {}
+          },
+          "401": {
+            "description": "认证失败，用户名或密码错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Unauthorized"
+                }
+              }
+            },
+            "headers": {}
+          },
+          "403": {
+            "description": "用户不是任何群组的管理员，无权访问管理后台",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Forbidden"
+                }
+              }
+            },
+            "headers": {}
+          },
+          "500": {
+            "description": "服务器内部错误，处理登录请求时发生异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerError"
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": [
+          {
+            "JWT鉴权": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "User": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "integer",
+            "format": "int",
+            "description": "用户ID",
+            "readOnly": true,
+            "x-go-type-skip-optional-pointer": true,
+            "examples": [
+              101
+            ]
+          },
+          "username": {
+            "type": "string",
+            "description": "用户名",
+            "x-go-type-skip-optional-pointer": true,
+            "examples": [
+              "zhangsan"
+            ]
+          }
+        }
+      },
+      "BaseResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "0",
+              "1"
+            ],
+            "description": "响应码，0表示成功，1表示失败",
+            "x-go-type-skip-optional-pointer": true
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "Success": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/BaseResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "data": {
+                "type": "object",
+                "default": {},
+                "properties": {}
+              }
+            }
+          }
+        ]
+      },
+      "SuccessWithData": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/BaseResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "data": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "description": "具体数据结构需在各API中定义",
+                    "properties": {}
+                  },
+                  {
+                    "type": "array",
+                    "description": "具体数据结构需在各API中定义",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                ]
+              }
+            },
+            "required": [
+              "data"
+            ]
+          }
+        ]
+      },
+      "Unauthorized": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/BaseResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "message"
+            ]
+          }
+        ]
+      },
+      "Forbidden": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/BaseResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "message"
+            ]
+          }
+        ]
+      },
+      "NotFound": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/BaseResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "message"
+            ]
+          }
+        ]
+      },
+      "Conflict": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/BaseResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "message"
+            ]
+          }
+        ]
+      },
+      "BadRequest": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/BaseResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "message"
+            ]
+          }
+        ]
+      },
+      "InternalServerError": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/BaseResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "message"
+            ]
+          }
+        ]
+      },
+      "Gone": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/BaseResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "message"
+            ]
+          }
+        ]
+      }
+    },
+    "securitySchemes": {
+      "JWT鉴权": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "servers": [],
+  "security": [
+    {
+      "JWT鉴权": []
+    }
+  ]
+}

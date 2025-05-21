@@ -1,3 +1,26 @@
+-- 删除所有表
+DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS `groups`;
+DROP TABLE IF EXISTS group_member;
+DROP TABLE IF EXISTS tasks;
+DROP TABLE IF EXISTS tasks_record;
+DROP TABLE IF EXISTS sign_in_records;
+DROP TABLE IF EXISTS check_application;
+DROP TABLE IF EXISTS join_application;
+
+-- 创建 users 表
+CREATE TABLE users (
+    user_id INT NOT NULL AUTO_INCREMENT,
+    username VARCHAR(50) NOT NULL,
+    password VARCHAR(128) NOT NULL,
+    mail VARCHAR(128) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id),
+    UNIQUE INDEX idx_username (username),
+    UNIQUE INDEX idx_mail (mail)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- 清空所有表数据
 SET FOREIGN_KEY_CHECKS = 0;
 TRUNCATE TABLE users;
@@ -11,13 +34,13 @@ TRUNCATE TABLE join_application;
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- 插入用户数据 (密码: 12345678 的MD5值)
-INSERT INTO users (username, password) VALUES
-('游辰昊', '25d55ad283aa400af464c76d713c07ad'),
-('曹航语', '25d55ad283aa400af464c76d713c07ad'),
-('刘胜杰', '25d55ad283aa400af464c76d713c07ad'),
-('张明', '25d55ad283aa400af464c76d713c07ad'),
-('李华', '25d55ad283aa400af464c76d713c07ad'),
-('王芳', '25d55ad283aa400af464c76d713c07ad');
+INSERT INTO users (username, password, mail) VALUES
+('游辰昊', '25d55ad283aa400af464c76d713c07ad', 'youchenhao@example.com'),
+('曹航语', '25d55ad283aa400af464c76d713c07ad', 'caohangyu@example.com'),
+('刘胜杰', '25d55ad283aa400af464c76d713c07ad', 'liushengjie@example.com'),
+('张明', '25d55ad283aa400af464c76d713c07ad', 'zhangming@example.com'),
+('李华', '25d55ad283aa400af464c76d713c07ad', 'lihua@example.com'),
+('王芳', '25d55ad283aa400af464c76d713c07ad', 'wangfang@example.com');
 
 -- 插入小组数据
 INSERT INTO `groups` (group_name, description, creator_id, creator_name, member_num) VALUES

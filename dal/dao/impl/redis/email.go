@@ -3,6 +3,7 @@ package redisImpl
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -12,7 +13,8 @@ type EmailRedisDAOImpl struct {
 }
 
 const (
-	EmailVerificationCodeKey = "email:%s"
+	EmailVerificationCodeKey    = "email:%s"
+	EmailVerificationExpireTime = 30 * time.Minute // 邮箱验证码过期时间
 )
 
 func buildKeyByEmail(email string) string {
@@ -38,7 +40,7 @@ func (dao *EmailRedisDAOImpl) GetVerificationCodeByEmail(ctx context.Context, em
 func (dao *EmailRedisDAOImpl) SetVerificationCodeByEmail(ctx context.Context, email string, code string) error {
 	client := dao.Client
 	key := buildKeyByEmail(email)
-	return client.Set(ctx, key, code, DefaultExpireTime).Err()
+	return client.Set(ctx, key, code, EmailVerificationExpireTime).Err()
 }
 
 func (dao *EmailRedisDAOImpl) DeleteCacheByEmail(ctx context.Context, email string) error {
