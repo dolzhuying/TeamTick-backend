@@ -27,4 +27,15 @@ var (
 		Message: "用户创建失败",
 		Status:  http.StatusInternalServerError,
 	}
+
+	ErrPasswordUpdateFailed = &AppError{
+		Message: "密码更新失败",
+		Status:  http.StatusInternalServerError,
+	}
+
+	ErrInvalidVerificationCode = &AppError{
+		Message: "邮箱验证码错误",
+		Status:  http.StatusUnauthorized,
+	}
+		
 )

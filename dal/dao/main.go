@@ -28,6 +28,7 @@ type DAOFactory struct {
 	GroupMemberRedisDAO GroupMemberRedisDAO
 	JoinApplicationRedisDAO JoinApplicationRedisDAO
 	CheckApplicationRedisDAO CheckApplicationRedisDAO
+	EmailRedisDAO EmailRedisDAO
 }
 
 func NewDAOFactory(db *gorm.DB, redisClient *redis.Client) *DAOFactory {
@@ -52,5 +53,6 @@ func NewDAOFactory(db *gorm.DB, redisClient *redis.Client) *DAOFactory {
 		GroupMemberRedisDAO: &redisImpl.GroupMemberRedisDAOImpl{Client: redisClient},
 		JoinApplicationRedisDAO: &redisImpl.JoinApplicationRedisDAO{Client: redisClient},
 		CheckApplicationRedisDAO: &redisImpl.CheckApplicationRedisDAOImpl{Client: redisClient},
+		EmailRedisDAO: &redisImpl.EmailRedisDAOImpl{Client: redisClient},
 	}
 }

@@ -47,3 +47,27 @@ func (dao *UserDAOMySQLImpl) GetByID(ctx context.Context, id int, tx ...*gorm.DB
 	}
 	return &user, nil
 }
+
+// 更新密码
+func (dao *UserDAOMySQLImpl) UpdatePassword(ctx context.Context, userID int, password string, tx ...*gorm.DB) error {
+	db := dao.DB
+	if len(tx) > 0 && tx[0] != nil {
+		db = tx[0]
+	}
+	return db.WithContext(ctx).Model(&models.User{}).Where("user_id = ?", userID).Update("password", password).Error
+}
+
+// GetByEmail 通过email查询用户信息
+func (dao *UserDAOMySQLImpl) GetByEmail(ctx context.Context, email string, tx ...*gorm.DB) (*models.User, error) {
+	var user models.User
+	db := dao.DB
+	if len(tx) > 0 && tx[0] != nil {
+		db = tx[0]
+	}
+	err := db.WithContext(ctx).Where("mail = ?", email).First(&user).Error
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
