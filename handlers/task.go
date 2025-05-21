@@ -610,6 +610,8 @@ func (h *TaskHandler) PostGroupsGroupIdCheckinTasks(ctx context.Context, request
 	}
 
 	// 验证 WiFi 和 NFC 相关参数
+
+	ssid,bssid := "",""
 	if request.Body.VerificationConfig.CheckinMethods.Wifi {
 		if request.Body.VerificationConfig.WifiInfo == nil {
 			return &gen.PostGroupsGroupIdCheckinTasks400JSONResponse{
@@ -623,8 +625,12 @@ func (h *TaskHandler) PostGroupsGroupIdCheckinTasks(ctx context.Context, request
 				Message: "WiFi信息不完整，必须提供SSID和BSSID",
 			}, nil
 		}
+		ssid = request.Body.VerificationConfig.WifiInfo.Ssid
+		bssid = request.Body.VerificationConfig.WifiInfo.Bssid
 	}
 
+
+	tagId,tagName := "",""
 	if request.Body.VerificationConfig.CheckinMethods.Nfc {
 		if request.Body.VerificationConfig.NfcInfo == nil {
 			return &gen.PostGroupsGroupIdCheckinTasks400JSONResponse{
@@ -638,6 +644,8 @@ func (h *TaskHandler) PostGroupsGroupIdCheckinTasks(ctx context.Context, request
 				Message: "NFC信息不完整，必须提供标签ID",
 			}, nil
 		}
+		tagId = request.Body.VerificationConfig.NfcInfo.TagId
+		tagName = request.Body.VerificationConfig.NfcInfo.TagName
 	}
 
 	if request.Body.VerificationConfig.CheckinMethods.Gps {
@@ -678,6 +686,10 @@ func (h *TaskHandler) PostGroupsGroupIdCheckinTasks(ctx context.Context, request
 		request.Body.VerificationConfig.CheckinMethods.Face,
 		request.Body.VerificationConfig.CheckinMethods.Wifi,
 		request.Body.VerificationConfig.CheckinMethods.Nfc,
+		ssid,
+		bssid,
+		tagId,
+		tagName,
 	)
 	if err != nil {
 		return nil, err

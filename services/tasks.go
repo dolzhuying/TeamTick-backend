@@ -57,7 +57,7 @@ func (s *TaskService) CreateTask(ctx context.Context,
 	longitude float64,
 	radius int,
 	gps, face, wifi, nfc bool,
-	wifiAndNFCInfo ...string,
+	ssid, bssid, tagId, tagName string,
 ) (*models.Task, error) {
 	var createdTask models.Task
 	var members []*models.GroupMember
@@ -79,9 +79,17 @@ func (s *TaskService) CreateTask(ctx context.Context,
 			CreatedAt:   time.Now(),
 		}
 
-		//根据info选择字段，待完善
-		//n:=len(wifiAndNFCInfo)
+		if wifi {
+			task.BSSID = bssid
+			task.SSID = ssid
+		}
 
+		if nfc {
+			task.TagID = tagId
+			if tagName != "" {
+				task.TagName = tagName
+			}
+		}
 		// 获取用户组成员列表，用于写入缓存
 		groupMembers, err := s.groupMemberDao.GetMembersByGroupID(ctx, groupID, tx)
 		if err != nil {
