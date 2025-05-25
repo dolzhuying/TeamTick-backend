@@ -90,7 +90,7 @@ type TaskRecordRedisDAO interface {
 	SetByUserID(ctx context.Context, userID int, records []*models.TaskRecord) error
 	GetByTaskIDAndUserID(ctx context.Context, taskID, userID int, tx ...*redis.Client) (*models.TaskRecord, error)
 	SetTaskIDAndUserID(ctx context.Context, record *models.TaskRecord) error
-	DeleteCache(ctx context.Context, taskID, userID int) error
+	DeleteCacheByTaskIDAndUserID(ctx context.Context, taskID, userID int) error
 }
 
 // TaskRedisDAO Redis缓存实现的签到任务访问接口

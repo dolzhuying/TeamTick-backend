@@ -139,7 +139,7 @@ func (dao *TaskRecordDAORedisImpl) SetTaskIDAndUserID(ctx context.Context, recor
 }
 
 // DeleteCache 删除所有相关缓存
-func (dao *TaskRecordDAORedisImpl) DeleteCache(ctx context.Context, taskID, userID int) error {
+func (dao *TaskRecordDAORedisImpl) DeleteCacheByTaskIDAndUserID(ctx context.Context, taskID, userID int) error {
 	key := buildTaskRecordKey(taskID, userID)
 	taskKey := buildTaskRecordsTaskKey(taskID)
 	userKey := buildTaskRecordsUserKey(userID)

@@ -32,12 +32,12 @@ func SetupRouter(container *app.AppContainer) *gin.Engine {
 			"/auth/login":                  true,
 			"/auth/register":               true,
 			"/auth/send-verification-code": true,
+			"/auth/admin/login":            true,
 		}
 
 		// 需要认证的路径
 		authPaths := map[string]bool{
 			"/auth/reset-password": true,
-			"/auth/admin/login":    true,
 		}
 
 		path := c.Request.URL.Path

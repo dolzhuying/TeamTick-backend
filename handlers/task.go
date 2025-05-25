@@ -44,6 +44,8 @@ func NewTaskHandler(container *app.AppContainer) (gen.CheckinTasksServerInterfac
 		container.DaoFactory.TaskDAO,
 		container.DaoFactory.GroupDAO,
 		container.DaoFactory.CheckApplicationRedisDAO,
+		container.DaoFactory.TaskRedisDAO,
+		container.DaoFactory.TaskRecordRedisDAO,
 	)
 	handler := &TaskHandler{
 		taskService:         TaskService,

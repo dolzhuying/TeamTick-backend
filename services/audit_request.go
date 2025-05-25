@@ -21,6 +21,8 @@ type AuditRequestService struct {
 	taskDAO                  dao.TaskDAO
 	groupDAO                 dao.GroupDAO
 	checkApplicationRedisDAO dao.CheckApplicationRedisDAO
+	taskRedisDAO             dao.TaskRedisDAO
+	taskRecordRedisDAO       dao.TaskRecordRedisDAO
 }
 
 func NewAuditRequestService(
@@ -30,6 +32,8 @@ func NewAuditRequestService(
 	taskDAO dao.TaskDAO,
 	groupDAO dao.GroupDAO,
 	checkApplicationRedisDAO dao.CheckApplicationRedisDAO,
+	taskRedisDAO dao.TaskRedisDAO,
+	taskRecordRedisDAO dao.TaskRecordRedisDAO,
 ) *AuditRequestService {
 	return &AuditRequestService{
 		transactionManager,
@@ -38,6 +42,8 @@ func NewAuditRequestService(
 		taskDAO,
 		groupDAO,
 		checkApplicationRedisDAO,
+		taskRedisDAO,
+		taskRecordRedisDAO,
 	}
 }
 
@@ -441,6 +447,7 @@ func (s *AuditRequestService) CreateAuditRequest(
 // UpdateAuditRequest 更新签到申请
 func (s *AuditRequestService) UpdateAuditRequest(ctx context.Context, requestID int, action string) error {
 	var req *models.CheckApplication
+	var taskRecord *models.TaskRecord
 	err := s.transactionManager.WithTransaction(ctx, func(tx *gorm.DB) error {
 		// 查询申请
 		request, err := s.checkApplicationDAO.GetByID(ctx, requestID, tx)
@@ -477,8 +484,9 @@ func (s *AuditRequestService) UpdateAuditRequest(ctx context.Context, requestID 
 			// 创建签到记录
 			record := models.TaskRecord{
 				TaskID:     request.TaskID,
+				TaskName:   request.TaskName,
+				GroupID:    request.GroupID,
 				UserID:     request.UserID,
-				Username:   request.Username,
 				SignedTime: time.Now(),
 				Status:     2,
 				CreatedAt:  time.Now(),
@@ -492,6 +500,7 @@ func (s *AuditRequestService) UpdateAuditRequest(ctx context.Context, requestID 
 				)
 				return appErrors.ErrTaskRecordCreationFailed.WithError(err)
 			}
+			taskRecord = &record
 			logger.Info("成功审批签到申请（通过）",
 				zap.Int("requestID", requestID),
 				zap.String("action", action),
@@ -581,6 +590,56 @@ func (s *AuditRequestService) UpdateAuditRequest(ctx context.Context, requestID 
 			)
 		}
 	}
+
+	// 删除用户任务列表缓存
+	if err := s.taskRedisDAO.DeleteCacheByUserID(ctx, req.UserID); err != nil {
+		logger.Error("删除用户任务缓存失败",
+			zap.Int("userID", req.UserID),
+			zap.String("operation", "DeleteCacheByUserID"),
+			zap.Error(err),
+		)
+	}
+
+	if taskRecord != nil {
+		// 更新用户签到记录缓存
+		userRecordsList, _ := s.taskRecordRedisDAO.GetByUserID(ctx, req.UserID)
+		if userRecordsList == nil {
+			userRecordsList = []*models.TaskRecord{}
+		}
+		userRecordsList = append(userRecordsList, taskRecord)
+		if err := s.taskRecordRedisDAO.SetByUserID(ctx, req.UserID, userRecordsList); err != nil {
+			logger.Error("用户签到记录列表缓存失败：Redis操作错误",
+				zap.Int("userID", req.UserID),
+				zap.String("operation", "SetByUserID"),
+				zap.Error(err),
+			)
+		}
+
+		// 缓存单个新创建的记录
+		if err := s.taskRecordRedisDAO.SetTaskIDAndUserID(ctx, taskRecord); err != nil {
+			logger.Error("签到记录缓存失败：Redis操作错误",
+				zap.Int("taskID", req.TaskID),
+				zap.Int("userID", req.UserID),
+				zap.String("operation", "SetTaskIDAndUserID"),
+				zap.Error(err),
+			)
+		}
+
+		// 更新任务的签到记录列表缓存
+		taskRecordsList, _ := s.taskRecordRedisDAO.GetByTaskID(ctx, req.TaskID)
+		if taskRecordsList == nil {
+			taskRecordsList = []*models.TaskRecord{}
+		}
+		taskRecordsList = append(taskRecordsList, taskRecord)
+		if err := s.taskRecordRedisDAO.SetByTaskID(ctx, req.TaskID, taskRecordsList); err != nil {
+			logger.Error("任务签到记录列表缓存失败：Redis操作错误",
+				zap.Int("taskID", req.TaskID),
+				zap.String("operation", "SetByTaskID"),
+				zap.Error(err),
+			)
+		}
+	}
+
 	return nil
 }
 

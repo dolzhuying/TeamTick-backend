@@ -142,6 +142,8 @@ func setupAuditRequestServiceTest() (*AuditRequestService, *mockCheckApplication
 	mockGroupDao := new(mockGroupDAO)
 	mockTxManager := new(mockTransactionManager)
 	mockCheckApplicationRedisDao := new(mockCheckApplicationRedisDAO)
+	mockTaskRedisDao := new(mockTaskRedisDAO)
+	mockTaskRecordRedisDao := new(mockTaskRecordRedisDAO)
 
 	auditRequestService := NewAuditRequestService(
 		mockTxManager,
@@ -150,6 +152,8 @@ func setupAuditRequestServiceTest() (*AuditRequestService, *mockCheckApplication
 		mockTaskDao,
 		mockGroupDao,
 		mockCheckApplicationRedisDao,
+		mockTaskRedisDao,
+		mockTaskRecordRedisDao,
 	)
 
 	return auditRequestService, mockCheckApplicationDao, mockTaskDao, mockTaskRecordDao, mockGroupDao, mockTxManager, mockCheckApplicationRedisDao

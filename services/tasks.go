@@ -611,6 +611,7 @@ func (s *TaskService) CheckInTask(
 		}
 		createdTaskRecord := models.TaskRecord{
 			TaskID:     taskID,
+			TaskName:   task.TaskName,
 			GroupID:    task.GroupID,
 			UserID:     userID,
 			Latitude:   latitude,

@@ -194,7 +194,7 @@ func (m *mockTaskRecordRedisDAO) SetTaskIDAndUserID(ctx context.Context, record 
 	return args.Error(0)
 }
 
-func (m *mockTaskRecordRedisDAO) DeleteCache(ctx context.Context, taskID, userID int) error {
+func (m *mockTaskRecordRedisDAO) DeleteCacheByTaskIDAndUserID(ctx context.Context, taskID, userID int) error {
 	args := m.Called(ctx, taskID, userID)
 	return args.Error(0)
 }

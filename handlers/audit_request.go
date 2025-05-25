@@ -22,6 +22,8 @@ func NewAuditRequestHandler(container *app.AppContainer) gen.AuditRequestsServer
 		container.DaoFactory.TaskDAO,
 		container.DaoFactory.GroupDAO,
 		container.DaoFactory.CheckApplicationRedisDAO,
+		container.DaoFactory.TaskRedisDAO,
+		container.DaoFactory.TaskRecordRedisDAO,
 	)
 	groupsService := service.NewGroupsService(
 		container.DaoFactory.GroupDAO,
