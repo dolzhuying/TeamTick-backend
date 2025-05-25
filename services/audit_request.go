@@ -487,6 +487,7 @@ func (s *AuditRequestService) UpdateAuditRequest(ctx context.Context, requestID 
 				TaskName:   request.TaskName,
 				GroupID:    request.GroupID,
 				UserID:     request.UserID,
+				Username:   request.Username,
 				SignedTime: time.Now(),
 				Status:     2,
 				CreatedAt:  time.Now(),

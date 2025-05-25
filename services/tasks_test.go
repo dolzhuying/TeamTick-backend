@@ -710,6 +710,7 @@ func TestCheckInTask_Success(t *testing.T) {
 			recordArg.GroupName = mockedGroup.GroupName
 			recordArg.CreatedAt = time.Now()
 			recordArg.UpdatedAt = time.Now()
+			recordArg.Username = "test"
 		})
 		_ = fn(nil) // Simulate successful transaction
 	})
@@ -722,7 +723,7 @@ func TestCheckInTask_Success(t *testing.T) {
 	mockTaskRecordRedisDao.On("SetByUserID", ctx, userID, mock.AnythingOfType("[]*models.TaskRecord")).Return(nil)
 
 	// 调用函数
-	createdRecord, err := taskService.CheckInTask(ctx, taskID, userID, latitude, longitude, signedInTime)
+	createdRecord, err := taskService.CheckInTask(ctx, taskID, userID, "test", latitude, longitude, signedInTime)
 
 	// 断言
 	assert.NoError(t, err)

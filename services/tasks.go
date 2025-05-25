@@ -540,6 +540,7 @@ func (s *TaskService) VerifyWiFi(ctx context.Context, ssid, bssid string, taskID
 func (s *TaskService) CheckInTask(
 	ctx context.Context,
 	taskID, userID int,
+	username string,
 	latitude, longitude float64,
 	signedInTime time.Time,
 	otherInfo ...string,
@@ -614,6 +615,7 @@ func (s *TaskService) CheckInTask(
 			TaskName:   task.TaskName,
 			GroupID:    task.GroupID,
 			UserID:     userID,
+			Username:   username,
 			Latitude:   latitude,
 			Longitude:  longitude,
 			GroupName:  group.GroupName,

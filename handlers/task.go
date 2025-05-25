@@ -874,6 +874,10 @@ func (h *TaskHandler) PostCheckinTasksTaskIdCheckin(ctx context.Context, request
 	if !ok {
 		return nil, appErrors.ErrJwtParseFailed
 	}
+	username, ok := ctx.Value("username").(string)
+	if !ok {
+		return nil, appErrors.ErrJwtParseFailed
+	}
 
 	// 获取任务信息以获取组ID
 	task, err := h.taskService.GetTaskByTaskID(ctx, request.TaskId)
@@ -953,7 +957,7 @@ func (h *TaskHandler) PostCheckinTasksTaskIdCheckin(ctx context.Context, request
 		return nil, err
 	}
 	// 调用服务执行签到
-	record, err := h.taskService.CheckInTask(ctx, request.TaskId, userID, request.Body.VerificationData.LocationInfo.Location.Latitude, request.Body.VerificationData.LocationInfo.Location.Longitude, time.Now())
+	record, err := h.taskService.CheckInTask(ctx, request.TaskId, userID, username, request.Body.VerificationData.LocationInfo.Location.Latitude, request.Body.VerificationData.LocationInfo.Location.Longitude, time.Now())
 	if err != nil {
 		if errors.Is(err, appErrors.ErrTaskRecordAlreadyExists) {
 			return &gen.PostCheckinTasksTaskIdCheckin409JSONResponse{
