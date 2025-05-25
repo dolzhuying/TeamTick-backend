@@ -796,13 +796,15 @@ func (h *TaskHandler) GetUsersMeCheckinTasks(ctx context.Context, request gen.Ge
 		// 判断签到状态
 		var myCheckinStatus gen.UserCheckinStatus
 		if recordMap[task.TaskID] != nil {
-			myCheckinStatus = gen.UserCheckinStatusSuccess
+			if auditMap[task.TaskID] != nil && auditMap[task.TaskID].Status == "approved" {
+				myCheckinStatus = gen.UserCheckinStatusAuditApproved
+			}else{
+				myCheckinStatus = gen.UserCheckinStatusSuccess
+			}
 		} else if auditMap[task.TaskID] != nil {
 			switch auditMap[task.TaskID].Status {
 			case "pending":
 				myCheckinStatus = gen.UserCheckinStatusPendingAudit
-			case "approved":
-				myCheckinStatus = gen.UserCheckinStatusAuditApproved
 			case "rejected":
 				myCheckinStatus = gen.UserCheckinStatusAuditRejected
 			}

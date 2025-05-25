@@ -542,7 +542,12 @@ func (s *AuditRequestService) UpdateAuditRequest(ctx context.Context, requestID 
 	if records != nil && err == nil {
 		for i, record := range records {
 			if record.ID == requestID {
-				records = append(records[:i], records[i+1:]...)
+				switch action {
+				case "approve":
+					records[i].Status = "approved"
+				case "reject":
+					records[i].Status = "rejected"
+				}
 				break
 			}
 		}
